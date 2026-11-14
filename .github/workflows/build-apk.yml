@@ -37,7 +37,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools platforms;android-34 build-tools;34.0.0 cmake;3.22.1
+          packages: platform-tools platforms;android-34 build-tools;34.0.0 cmake;3.22.1 ndk;26.1.10909125
           log-accepted-android-sdk-licenses: false
 
       - name: Set up Gradle Cache
@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleDebug --no-daemon --console=plain --stacktrace
+          ./gradlew assembleRelease --no-daemon --console=plain --stacktrace
           cd ..
 
       - name: Locate and Rename APK
@@ -63,7 +63,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p output
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "*release*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          fi
           if [ -z "$APK_PATH" ]; then
             echo "Error: No APK generated!" >&2
             exit 1
