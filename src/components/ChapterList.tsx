@@ -22,6 +22,7 @@ import Downloader from './Downloader';
 import DropdownField from './ui/DropdownField';
 import SkeletonLoader from './Skeleton';
 import {createDesktopCompatibleFileName, createSeriesDownloadId} from '../lib/downloadId';
+import {instantChapterLauncher} from '../lib/reader/instantChapterLauncher';
 
 interface ChapterListProps {
   chapters?: (EpisodeLink | ChapterLink)[];
@@ -246,6 +247,16 @@ const ChapterList: React.FC<ChapterListProps> = ({
       return (
         <Pressable
           onPress={() => onChapterPress(item, index, filteredChapters)}
+          onPressIn={() => {
+            const effProvider = (item as any).provider || providerValue;
+            if (item.link && effProvider) {
+              instantChapterLauncher.preloadChapter(item.link, effProvider, {
+                chapterTitle: item.title,
+                chapterNumber: (item as any).chapterNumber || chNum,
+                failoverItem: (item as ConsolidatedChapterLink).sources ? (item as ConsolidatedChapterLink) : undefined,
+              });
+            }
+          }}
           style={({pressed}) => ({
             backgroundColor: pressed
               ? colors.surfaceContainerHigh

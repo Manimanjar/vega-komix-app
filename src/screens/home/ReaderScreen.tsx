@@ -20,6 +20,7 @@ import {providerManager} from '../../lib/services/ProviderManager';
 import {openWebView} from '../../lib/services/wafResolver';
 import {fetchPagesWithFailover} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
+import {instantChapterLauncher} from '../../lib/reader/instantChapterLauncher';
 import type {ConsolidatedChapterLink} from '../../lib/aggregator/seriesRoomEngine';
 import {
   loadLocalChapterPages,
@@ -205,7 +206,33 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           return;
         }
 
-        // 4. Fallback to online provider with failover support
+        // 4. Instant Chapter Launcher Cache Check (0ms cached open)
+        const cachedManifest = instantChapterLauncher.getCachedPages(chapterLink, providerValue);
+        if (cachedManifest && cachedManifest.length > 0 && active) {
+          const normalized: ReaderPageItem[] = cachedManifest.map(
+            (item: any, idx: number) => {
+              const rawUrl = item.imageUrl || item.link || item.url || '';
+              const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+              return {
+                index: typeof item.index === 'number' ? item.index : idx,
+                imageUrl: imgUrl,
+                width: item.width,
+                height: item.height,
+                headers: item.headers,
+              };
+            },
+          );
+          setPages(normalized);
+          setLoadingPages(false);
+          instantChapterLauncher.preloadSerialSequence(
+            episodeList,
+            currentChapterIndex,
+            providerValue,
+          );
+          return;
+        }
+
+        // 5. Fallback to online provider with failover support
         let results: PageImage[] = [];
         try {
           const failoverOutcome = await fetchPagesWithFailover(
@@ -244,6 +271,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             },
           );
           setPages(normalized);
+          instantChapterLauncher.preloadPageImages(results);
+          instantChapterLauncher.preloadSerialSequence(
+            episodeList,
+            currentChapterIndex,
+            providerValue,
+          );
         } else {
           setPageError('No pages returned by provider');
         }

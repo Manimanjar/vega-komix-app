@@ -23,6 +23,8 @@ import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 
 import AppText from './ui/Text';
 import {beginUIInteraction, endUIInteraction} from '../lib/performance/idleWork';
+import {speculativePreviewEngine} from '../lib/cache/speculativePreviewEngine';
+import {QuickPreviewSheet} from './QuickPreviewSheet';
 
 const SKELETON_CARD_SPAN = 136;
 const MAX_SKELETON_CARDS = 20;
@@ -42,16 +44,27 @@ const SliderPosterItem = memo(
     item,
     providerValue,
     onPressItem,
+    onLongPressItem,
   }: {
     item: Post;
     providerValue?: string;
     onPressItem: (item: Post) => void;
+    onLongPressItem?: (item: Post) => void;
   }) => {
     const cardWidth = 135;
     const handlePress = useCallback(
       () => onPressItem(item),
       [onPressItem, item],
     );
+    const handlePressIn = useCallback(() => {
+      const effProvider = item.provider || providerValue || '';
+      if (item.link && effProvider) {
+        speculativePreviewEngine.prefetchMeta(item.link, effProvider);
+      }
+    }, [item.link, item.provider, providerValue]);
+    const handleLongPress = useCallback(() => {
+      onLongPressItem?.(item);
+    }, [onLongPressItem, item]);
 
     return (
       <MediaPosterCard
@@ -64,6 +77,8 @@ const SliderPosterItem = memo(
         contentType={(item as any).type || (item as any).contentType || item.tag}
         providerBadge={item.provider || providerValue}
         onPress={handlePress}
+        onPressIn={handlePressIn}
+        onLongPress={handleLongPress}
       />
     );
   },
@@ -150,16 +165,68 @@ const Slider = ({
     isSearch,
   ]);
 
+  const [previewPost, setPreviewPost] = React.useState<Post | null>(null);
+  const [previewVisible, setPreviewVisible] = React.useState(false);
+
   const handleItemPress = useCallback(
     (item: Post) => {
       setSelected('');
+      const effProvider = item.provider || providerValue || fallbackProviderValue;
+      const rawTags: string[] =
+        (item as any).tags ||
+        ((item as any).genres as string[]) ||
+        (item.tag ? [item.tag] : []);
+      const tags = Array.from(new Set(rawTags.filter(Boolean)));
+
       navigation.navigate('Info', {
         link: item.link,
-        provider: item.provider || providerValue || fallbackProviderValue,
+        provider: effProvider,
         poster: item?.image,
+        title: item.title,
+        image: item.image,
+        tags: tags.length > 0 ? tags : undefined,
+        synopsis: (item as any).synopsis,
       });
     },
     [navigation, providerValue, fallbackProviderValue],
+  );
+
+  const handleLongPressItem = useCallback((item: Post) => {
+    setPreviewPost(item);
+    setPreviewVisible(true);
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewVisible(false);
+  }, []);
+
+  const handleReadNow = useCallback(
+    (post: Post) => {
+      setPreviewVisible(false);
+      handleItemPress(post);
+    },
+    [handleItemPress],
+  );
+
+  const handleOpenDetails = useCallback(
+    (post: Post) => {
+      setPreviewVisible(false);
+      handleItemPress(post);
+    },
+    [handleItemPress],
+  );
+
+  const handleTagPress = useCallback(
+    (tag: string) => {
+      setPreviewVisible(false);
+      navigation.navigate('ScrollList', {
+        title: tag,
+        filter: tag,
+        providerValue: previewPost?.provider || providerValue || fallbackProviderValue,
+        isSearch: true,
+      });
+    },
+    [navigation, previewPost, providerValue, fallbackProviderValue],
   );
 
   const renderItem = useCallback(
@@ -168,9 +235,10 @@ const Slider = ({
         item={item}
         providerValue={providerValue || fallbackProviderValue}
         onPressItem={handleItemPress}
+        onLongPressItem={handleLongPressItem}
       />
     ),
-    [handleItemPress, providerValue, fallbackProviderValue],
+    [handleItemPress, handleLongPressItem, providerValue, fallbackProviderValue],
   );
 
   const keyExtractor = useCallback(
@@ -369,6 +437,15 @@ const Slider = ({
           }
         />
       )}
+      <QuickPreviewSheet
+        visible={previewVisible}
+        post={previewPost}
+        providerValue={providerValue || fallbackProviderValue}
+        onClose={handleClosePreview}
+        onReadNow={handleReadNow}
+        onOpenDetails={handleOpenDetails}
+        onTagPress={handleTagPress}
+      />
     </TVFocusGuide>
   );
 };

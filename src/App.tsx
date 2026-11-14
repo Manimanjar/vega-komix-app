@@ -93,9 +93,19 @@ import {
 enableScreens(true);
 enableFreeze(true);
 
+export type InfoRouteParams = {
+  link: string;
+  provider?: string;
+  poster?: string;
+  title?: string;
+  image?: string;
+  tags?: string[];
+  synopsis?: string;
+};
+
 export type HomeStackParamList = {
   Home: undefined;
-  Info: {link: string; provider?: string; poster?: string};
+  Info: InfoRouteParams;
   ScrollList: {
     filter: string;
     title?: string;
@@ -147,14 +157,14 @@ export type SearchStackParamList = {
     providerValue?: string;
     isSearch: boolean;
   };
-  Info: {link: string; provider?: string; poster?: string};
+  Info: InfoRouteParams;
   SearchResults: {filter: string; availableProviders?: string[]};
 };
 
 export type WatchListStackParamList = {
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
-  Info: {link: string; provider?: string; poster?: string};
+  Info: InfoRouteParams;
 };
 
 export type SettingsStackParamList = {
@@ -174,7 +184,7 @@ export type SettingsStackParamList = {
 export type DownloadsStackParamList = {
   Downloads: undefined;
   DownloadedDetails: {groupId: string; localTitleId?: never} | {localTitleId: string; groupId?: never};
-  Info: {link: string; provider?: string; poster?: string};
+  Info: InfoRouteParams;
 };
 
 export type TabStackParamList = {

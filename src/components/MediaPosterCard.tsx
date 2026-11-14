@@ -70,6 +70,7 @@ interface MediaPosterCardProps {
   nextFocusLeft?: number | null;
   nextFocusRight?: number | null;
   onPress: () => void;
+  onPressIn?: () => void;
   onLongPress?: () => void;
   onFocus?: () => void;
   onLayout?: (event: any) => void;
@@ -116,6 +117,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       nextFocusLeft,
       nextFocusRight,
       onPress,
+      onPressIn,
       onLongPress,
       onFocus,
       onLayout,
@@ -223,6 +225,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
             forgetFocus();
           }}
           onPress={isCurrentlyFocusable ? handlePress : undefined}
+          onPressIn={isCurrentlyFocusable ? onPressIn : undefined}
           onLongPress={
             isCurrentlyFocusable && onLongPress ? handleLongPress : undefined
           }

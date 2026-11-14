@@ -23,6 +23,7 @@ import Button from '../../components/ui/Button';
 import AppText from '../../components/ui/Text';
 import {QueryErrorBoundary} from '../../components/ErrorBoundary';
 import ChapterList from '../../components/ChapterList';
+import {instantChapterLauncher} from '../../lib/reader/instantChapterLauncher';
 import ScreenOverlayHost from '../../components/ScreenOverlayHost';
 import LocalEpisodeList from '../../components/local-content/LocalEpisodeList';
 import SkeletonLoader from '../../components/Skeleton';
@@ -134,19 +135,28 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     [installedProviders, providerValue],
   );
 
-  const displayTitle = meta?.name || info?.title;
+  const optTitle = route.params.title;
+  const optImage = route.params.image;
+  const optTags = route.params.tags;
+  const optSynopsis = route.params.synopsis;
+  const hasOptimisticData = Boolean(optTitle || optImage || route.params.poster);
+
+  const displayTitle = meta?.name || info?.title || optTitle;
   const displayLogo = meta?.logo || info?.logo;
   const synopsis =
-    meta?.description || info?.synopsis || 'No synopsis available';
+    meta?.description || info?.synopsis || optSynopsis || 'No synopsis available';
   const posterImage =
     info?.poster ||
     meta?.poster ||
+    optImage ||
     route.params.poster ||
     info?.image ||
     'https://placehold.jp/24/363636/ffffff/500x750.png?text=Vega';
   const backgroundImage =
     meta?.background ||
     info?.image ||
+    optImage ||
+    route.params.poster ||
     'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Vega';
   // Posters and small images are blurred behind the page, with the sharp
   // poster shown in the header instead of stretched across it.
@@ -379,7 +389,28 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     providerValue,
   ]);
 
-  if (error && !info) {
+  React.useEffect(() => {
+    const chapters = info?.chapters;
+    if (Array.isArray(chapters) && chapters.length > 0) {
+      let resumeIndex = 0;
+      if (resumeItem) {
+        const targetLink = resumeItem.episode?.link;
+        const idx = chapters.findIndex(
+          ch => ch.link === targetLink || ch.title === resumeItem.episodeTitle,
+        );
+        if (idx !== -1) {
+          resumeIndex = idx;
+        }
+      }
+      instantChapterLauncher.preloadSerialSequence(
+        chapters,
+        resumeIndex,
+        providerValue,
+      );
+    }
+  }, [info?.chapters, resumeItem, providerValue]);
+
+  if (error && !info && !hasOptimisticData) {
     return (
       <View
         style={{
@@ -417,7 +448,8 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
   }
 
   const isContentLoading =
-    !info || (dynamicInfoAccentEnabled && !initialAccentReady);
+    (!info && !hasOptimisticData) ||
+    (dynamicInfoAccentEnabled && !initialAccentReady && !hasOptimisticData);
   if (isContentLoading) {
     return (
       <View style={{backgroundColor: '#000000', flex: 1}}>
@@ -470,7 +502,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   posterImage={posterImage}
                   headerPoster={backdropPosterLike ? backgroundImage : undefined}
                   headerPosterAspectRatio={backdropAspectRatio}
-                  genres={info?.genres || meta?.genres}
+                  genres={info?.genres || meta?.genres || optTags}
                   inLibrary={inLibrary}
                   isLoading={isLoading && !info}
                   logo={displayLogo}
@@ -494,7 +526,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   runtime={meta?.runtime}
                   synopsis={synopsis}
                   synopsisLoading={isSynopsisLoading}
-                  tags={info?.tags}
+                  tags={info?.tags || optTags}
                   title={displayTitle}
                   trailerUrl={info?.trailerUrl?.trim()}
                   year={meta?.year}
