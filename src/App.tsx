@@ -84,7 +84,6 @@ import {
 } from './lib/sync/syncService';
 import StreamingTabBar from './components/navigation/StreamingTabBar';
 import AppDialogHost from './components/AppDialogHost';
-import {RemoteVolumeToast} from './components/remote-player/RemoteVolumeToast';
 import {
   getAnalytics,
   getCrashlytics,
@@ -774,7 +773,6 @@ const App = () => {
                 providerContext.openWebView */}
               <VerificationConsentDialog />
               <WafWebViewDialog />
-              <RemoteVolumeToast />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

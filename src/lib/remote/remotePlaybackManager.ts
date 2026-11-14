@@ -1,10 +1,15 @@
 import {RemotePlaybackCanceledError, isRemotePlaybackCanceled} from './remotePlaybackErrors';
-import GoogleCast, {
-  MediaPlayerIdleReason,
-  MediaPlayerState,
-  MediaStatus,
-  RemoteMediaClient,
-} from 'react-native-google-cast';
+let GoogleCastModule: any = null;
+try {
+  GoogleCastModule = require('react-native-google-cast');
+} catch {}
+const GoogleCast = GoogleCastModule?.default || GoogleCastModule || {};
+const MediaPlayerIdleReason = GoogleCastModule?.MediaPlayerIdleReason || {};
+type MediaPlayerIdleReason = any;
+const MediaPlayerState = GoogleCastModule?.MediaPlayerState || {};
+type MediaPlayerState = any;
+type MediaStatus = any;
+type RemoteMediaClient = any;
 import * as Crypto from 'expo-crypto';
 import {DeviceEventEmitter, NativeModules} from 'react-native';
 import {remoteDeliveryService} from './remoteDeliveryService';
