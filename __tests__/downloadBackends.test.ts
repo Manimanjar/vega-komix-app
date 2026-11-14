@@ -10,6 +10,10 @@ jest.mock('../src/lib/downloadBackends/torrentBackend', () => ({
   torrentDownloadBackend: {name: 'torrent'},
 }));
 
+jest.mock('../src/lib/downloadBackends/comicBackend', () => ({
+  comicDownloadBackend: {name: 'comic'},
+}));
+
 import {getDownloadBackend} from '../src/lib/downloadBackends/registry';
 
 describe('download backend registry', () => {
@@ -23,5 +27,9 @@ describe('download backend registry', () => {
 
   it('selects the torrent backend', () => {
     expect(getDownloadBackend('torrent')).toEqual({name: 'torrent'});
+  });
+
+  it('selects the comic backend', () => {
+    expect(getDownloadBackend('comic')).toEqual({name: 'comic'});
   });
 });

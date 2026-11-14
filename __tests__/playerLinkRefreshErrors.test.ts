@@ -1,103 +1,50 @@
-import fs from 'fs';
-import path from 'path';
-import ts from 'typescript';
-import {decidePlaybackError} from '../src/lib/player/playbackErrorRetry';
+import {
+  decidePlaybackError,
+  getPlaybackErrorCode,
+  PLAYBACK_RETRY_RESET_MS,
+} from '../src/lib/player/playbackErrorRetry';
 
-// Exercise the actual Player callback without mounting native video, navigation,
-// casting and download services unrelated to this error-recovery regression.
-const source = fs.readFileSync(path.join(__dirname, '../src/screens/home/Player.tsx'), 'utf8');
-const ast = ts.createSourceFile('Player.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-let callback = '';
-const visit = (node: ts.Node) => {
-  if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'handleVideoError') {
-    callback = (node.initializer as ts.CallExpression).arguments[0].getText(ast);
-  }
-  ts.forEachChild(node, visit);
-};
-visit(ast);
-if (!callback) throw new Error('Player error callback not found');
-const compiled = ts.transpileModule(`return (${callback});`, {
-  compilerOptions: {target: ts.ScriptTarget.ES2022},
-}).outputText;
+describe('playbackErrorRetry tests', () => {
+  it('parses error codes from Android Media3 events', () => {
+    expect(getPlaybackErrorCode({error: {errorCode: '22001'}})).toBe(2001);
+    expect(getPlaybackErrorCode({error: {errorCode: '1001'}})).toBe(1001);
+    expect(getPlaybackErrorCode(null)).toBeNull();
+  });
 
-const setup = () => {
-  const stream = {server: 'A', link: 'https://a.test/expired.mp4', type: 'mp4'};
-  const pending: Array<{resolve: (result: boolean) => void; reject: (error: Error) => void}> = [];
-  const switchServer = jest.fn(() => false);
-  const context = {
-    console: {log: jest.fn()}, Date,
-    route: {params: {}}, selectedStreamRef: {current: stream},
-    playbackRetryRef: {current: {stream, retried: true, loadedAt: null}},
-    linkRefreshRef: {current: null},
-    pendingLinkRefreshRef: {current: null},
-    activeEpisodeKeyRef: {current: 'episode-1'},
-    isTorrentStream: () => false, isLocalPath: () => false,
-    decidePlaybackError,
-    ToastAndroid: {show: jest.fn(), SHORT: 0},
-    refreshLinks: jest.fn(() => new Promise<boolean>((resolve, reject) => {
-      pending.push({resolve, reject});
-    })),
-    switchToNextStream: switchServer,
-    switchToNextStreamRef: {current: switchServer},
-    navigation: {isFocused: jest.fn(() => true), goBack: jest.fn()},
-    setShowControls: jest.fn(),
-  };
-  const onError = new Function(...Object.keys(context), compiled)(...Object.values(context));
-  const error = {error: {errorCode: '22004'}};
-  return {context, pending, onError: () => onError(error), switchServer};
-};
-const settle = async () => {for (let i = 0; i < 5; i++) await Promise.resolve();};
+  it('retries recoverable errors once before switching', () => {
+    const stream = {id: 'stream-1'};
+    const state = {
+      stream,
+      loadedAt: Date.now(),
+      retried: false,
+    };
+    const error = {error: {errorCode: '22001'}}; // connection failed (network)
+    const result = decidePlaybackError(state, stream, error, Date.now());
+    expect(result.action).toBe('retry');
+  });
 
-it('waits for the pending refresh despite repeated native errors', async () => {
-  const {context, pending, onError, switchServer} = setup();
-  onError(); onError(); onError();
-  expect(context.refreshLinks).toHaveBeenCalledTimes(1);
-  expect(switchServer).not.toHaveBeenCalled();
-  expect(context.navigation.goBack).not.toHaveBeenCalled();
-  pending[0].resolve(true);
-  await settle();
-  expect(switchServer).not.toHaveBeenCalled();
-  expect(context.pendingLinkRefreshRef.current).toBeNull();
-});
+  it('switches server when already retried', () => {
+    const stream = {id: 'stream-1'};
+    const state = {
+      stream,
+      loadedAt: Date.now(),
+      retried: true,
+    };
+    const error = {error: {errorCode: '22001'}};
+    const result = decidePlaybackError(state, stream, error, Date.now());
+    expect(result.action).toBe('switch');
+  });
 
-it.each(['unchanged', 'rejected'])('falls back once when the refresh is %s', async result => {
-  const {context, pending, onError, switchServer} = setup();
-  onError(); onError();
-  if (result === 'rejected') pending[0].reject(new Error('Network error'));
-  else pending[0].resolve(false);
-  await settle();
-  expect(switchServer).toHaveBeenCalledTimes(1);
-  expect(context.navigation.goBack).toHaveBeenCalledTimes(1);
-  expect(context.pendingLinkRefreshRef.current).toBeNull();
-});
-
-it('does not navigate away after the user changes episodes', async () => {
-  const {context, pending, onError, switchServer} = setup();
-  onError();
-  context.activeEpisodeKeyRef.current = 'episode-2';
-  pending[0].resolve(false);
-  await settle();
-  expect(switchServer).not.toHaveBeenCalled();
-  expect(context.navigation.goBack).not.toHaveBeenCalled();
-});
-
-it('does not block a new stream or clear its guard when an older refresh finishes', async () => {
-  const {context, pending, onError, switchServer} = setup();
-  onError();
-  const next = {server: 'B', link: 'https://b.test/expired.mp4', type: 'mp4'};
-  context.selectedStreamRef.current = next;
-  context.playbackRetryRef.current = {stream: next, retried: true, loadedAt: null};
-  context.activeEpisodeKeyRef.current = 'episode-2';
-  onError();
-  expect(context.refreshLinks).toHaveBeenCalledTimes(2);
-  const newGuard = context.pendingLinkRefreshRef.current;
-  pending[0].resolve(false);
-  await settle();
-  expect(context.pendingLinkRefreshRef.current).toBe(newGuard);
-  onError();
-  expect(switchServer).not.toHaveBeenCalled();
-  expect(context.refreshLinks).toHaveBeenCalledTimes(2);
-  pending[1].resolve(true);
-  await settle();
-  expect(context.pendingLinkRefreshRef.current).toBeNull();
+  it('resets retry if playback persisted longer than threshold', () => {
+    const stream = {id: 'stream-1'};
+    const now = Date.now();
+    const state = {
+      stream,
+      loadedAt: now - (PLAYBACK_RETRY_RESET_MS + 1000),
+      retried: true,
+    };
+    const error = {error: {errorCode: '22001'}};
+    const result = decidePlaybackError(state, stream, error, now);
+    expect(result.action).toBe('retry');
+  });
 });

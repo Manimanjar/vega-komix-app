@@ -13,7 +13,7 @@
     "build:playstore": "eas build --platform android --profile production --auto-submit",
     "build:playstore:tv": "eas build --platform android --profile production_tv --auto-submit",
     "build:sandbox": "node scripts/build-sandbox-runtime.mjs",
-    "test": "jest",
+    "test": "node node_modules/jest/bin/jest.js",
     "pretest": "npm run build:sandbox",
     "prebuild": "npm run build:sandbox && expo prebuild",
     "prebuild:clean": "npm run build:sandbox && expo prebuild --clean",

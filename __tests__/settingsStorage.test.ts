@@ -80,11 +80,11 @@ describe('settings defaults', () => {
     expect(settingsStorage.isAskLocalFileFirst()).toBe(false);
   });
 
-  it('defaults download concurrency to two and clamps saved values', () => {
-    expect(settingsStorage.getDownloadConcurrency()).toBe(2);
+  it('defaults download concurrency to four and clamps saved values', () => {
+    expect(settingsStorage.getDownloadConcurrency()).toBe(4);
 
     settingsStorage.setDownloadConcurrency(8);
-    expect(settingsStorage.getDownloadConcurrency()).toBe(5);
+    expect(settingsStorage.getDownloadConcurrency()).toBe(6);
 
     settingsStorage.setDownloadConcurrency(0);
     expect(settingsStorage.getDownloadConcurrency()).toBe(1);

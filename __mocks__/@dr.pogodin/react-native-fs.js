@@ -1,0 +1,18 @@
+module.exports = {
+  DocumentDirectoryPath: '/data/user/0/com.vegakomix.app/files',
+  CachesDirectoryPath: '/data/user/0/com.vegakomix.app/cache',
+  ExternalDirectoryPath: '/storage/emulated/0/Android/data/com.vegakomix.app/files',
+  ExternalStorageDirectoryPath: '/storage/emulated/0',
+  TemporaryDirectoryPath: '/data/user/0/com.vegakomix.app/tmp',
+  mkdir: jest.fn().mockResolvedValue(true),
+  moveFile: jest.fn().mockResolvedValue(true),
+  copyFile: jest.fn().mockResolvedValue(true),
+  unlink: jest.fn().mockResolvedValue(true),
+  exists: jest.fn().mockResolvedValue(true),
+  readDir: jest.fn().mockResolvedValue([]),
+  stat: jest.fn().mockResolvedValue({ size: 1024, isFile: () => true, isDirectory: () => false }),
+  readFile: jest.fn().mockResolvedValue(''),
+  writeFile: jest.fn().mockResolvedValue(true),
+  downloadFile: jest.fn().mockReturnValue({ jobId: 1, promise: Promise.resolve({ statusCode: 200, bytesWritten: 1024 }) }),
+  stopDownload: jest.fn(),
+};

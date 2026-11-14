@@ -48,10 +48,11 @@ import StatusBarScrim from '../../components/ui/StatusBarScrim';
 import {TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import useTVNavigationStore from '../../lib/zustand/tvNavigationStore';
+import CrashGuardBoundary from '../../components/CrashGuardBoundary';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Info'>;
 
-export default function Info({route, navigation}: Props): React.JSX.Element {
+function InfoContent({route, navigation}: Props): React.JSX.Element {
   const colors = useM3Colors();
   const searchNavigation =
     useNavigation<NativeStackNavigationProp<TabStackParamList>>();
@@ -636,5 +637,13 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
         </View>
       </M3PaletteContext.Provider>
     </QueryErrorBoundary>
+  );
+}
+
+export default function Info(props: Props): React.JSX.Element {
+  return (
+    <CrashGuardBoundary screenName="Comic Details" onGoBack={props.navigation.goBack}>
+      <InfoContent {...props} />
+    </CrashGuardBoundary>
   );
 }

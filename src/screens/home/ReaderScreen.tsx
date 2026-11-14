@@ -48,6 +48,7 @@ import {WebtoonView} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
 import {ReaderHUD} from '../../components/reader/ReaderHUD';
 import {ReaderSettingsSheet} from '../../components/reader/ReaderSettingsSheet';
+import CrashGuardBoundary from '../../components/CrashGuardBoundary';
 import {
   mangaTranslatorEngine,
   type PageTranslationResult,
@@ -673,7 +674,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   );
 };
 
-export default ReaderScreen;
+const WrappedReaderScreen: React.FC<Props> = (props) => (
+  <CrashGuardBoundary screenName="Comic Reader" onGoBack={props.navigation.goBack}>
+    <ReaderScreen {...props} />
+  </CrashGuardBoundary>
+);
+
+export default WrappedReaderScreen;
 
 const styles = StyleSheet.create({
   root: {

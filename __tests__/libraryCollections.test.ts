@@ -46,9 +46,15 @@ describe('library categories', () => {
 
   it('adds Watchlist once for existing libraries', () => {
     expect(watchListStorage.getCollections().map(c => c.id)).toEqual([
-      DEFAULT_COLLECTION_ID,
+      'reading',
+      'plan_to_read',
+      'completed',
+      'favorites',
     ]);
-    watchListStorage.deleteCollection(DEFAULT_COLLECTION_ID);
+    watchListStorage.deleteCollection('reading');
+    watchListStorage.deleteCollection('plan_to_read');
+    watchListStorage.deleteCollection('completed');
+    watchListStorage.deleteCollection('favorites');
     expect(watchListStorage.getCollections()).toEqual([]);
   });
 
@@ -79,7 +85,9 @@ describe('library categories', () => {
 
   it('saves to the only category when Watchlist is gone', () => {
     watchListStorage.getCollections();
-    watchListStorage.deleteCollection(DEFAULT_COLLECTION_ID);
+    ['reading', 'plan_to_read', 'completed', 'favorites'].forEach(id =>
+      watchListStorage.deleteCollection(id),
+    );
     watchListStorage.saveCollections([
       {id: 'x', name: 'X', icon: 'star', createdAt: 1, updatedAt: 1},
     ]);

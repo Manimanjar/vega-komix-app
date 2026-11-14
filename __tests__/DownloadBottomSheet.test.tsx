@@ -57,9 +57,13 @@ jest.mock('../src/lib/storage', () => ({
   },
 }));
 
-jest.mock('react-native-video', () => ({
-  TextTrackType: {VTT: 'text/vtt'},
-}));
+jest.mock(
+  'react-native-video',
+  () => ({
+    TextTrackType: {VTT: 'text/vtt'},
+  }),
+  {virtual: true},
+);
 
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => {
   const {View} = require('react-native');

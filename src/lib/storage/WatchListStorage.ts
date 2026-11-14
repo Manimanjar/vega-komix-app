@@ -221,9 +221,6 @@ export class WatchListStorage {
       }
       return this.saveCollections(merged);
     }
-    if (collections.length === 0) {
-      return this.saveCollections(DEFAULT_COLLECTIONS);
-    }
     return collections.sort((a, b) => a.createdAt - b.createdAt);
   }
 

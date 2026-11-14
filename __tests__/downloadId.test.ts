@@ -20,7 +20,7 @@ describe('download identity and filenames', () => {
     expect(id).toBe('Pokémon_SSeason 1_E1');
     expect(createDownloadFileName(id)).toBe('Pokemon_SSeason 1_E1');
     expect(sanitizeDownloadFileName('Épisode 1: (A/B) [Dubbed]?')).toBe(
-      'Episode 1 (A B) [Dubbed]',
+      'Episode 1 (A B) Dubbed',
     );
   });
 

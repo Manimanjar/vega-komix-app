@@ -64,6 +64,13 @@ export enum ExtensionKeys {
   LAST_MANIFEST_FETCH = 'lastManifestFetch',
 }
 
+export const DEFAULT_PROVIDER_SOURCE: ProviderSource = {
+  author: 'Manimanjar',
+  url: 'https://raw.githubusercontent.com/Manimanjar/vega-komix-providers/main',
+  manifestUrl: 'https://raw.githubusercontent.com/Manimanjar/vega-komix-providers/main/manifest.json',
+  isDefault: true,
+};
+
 /**
  * Extension storage manager
  */
@@ -178,7 +185,7 @@ export class ExtensionStorage {
       mainStorage.getArray<ProviderSource>(ExtensionKeys.PROVIDER_SOURCES) ||
       [];
     if (sources.length === 0) {
-      return undefined;
+      return DEFAULT_PROVIDER_SOURCE;
     }
     return getDefault
       ? sources.find(s => s.isDefault) || sources[0]
@@ -189,9 +196,12 @@ export class ExtensionStorage {
    * Get all provider sources
    */
   getProviderSources(): ProviderSource[] {
-    return (
-      mainStorage.getArray<ProviderSource>(ExtensionKeys.PROVIDER_SOURCES) || []
-    );
+    const sources =
+      mainStorage.getArray<ProviderSource>(ExtensionKeys.PROVIDER_SOURCES) || [];
+    if (sources.length === 0) {
+      return [DEFAULT_PROVIDER_SOURCE];
+    }
+    return sources;
   }
 
   /**

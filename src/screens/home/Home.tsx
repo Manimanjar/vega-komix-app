@@ -28,6 +28,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Post} from '../../lib/providers/types';
 import Tutorial from '../../components/Touturial';
 import {QueryErrorBoundary} from '../../components/ErrorBoundary';
+import CrashGuardBoundary from '../../components/CrashGuardBoundary';
 import {StatusBar} from 'expo-status-bar';
 import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
@@ -396,4 +397,10 @@ const Home = ({}: Props) => {
   );
 };
 
-export default React.memo(Home);
+const WrappedHome: React.FC<Props> = (props) => (
+  <CrashGuardBoundary screenName="Home Feed">
+    <Home {...props} />
+  </CrashGuardBoundary>
+);
+
+export default React.memo(WrappedHome);
