@@ -12,6 +12,8 @@ import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, ReaderPageItem, ReaderTheme, ReadingMode} from './types';
 import {THEME_COLORS} from './types';
 
+import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEngine';
+
 interface PagedViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
@@ -22,6 +24,9 @@ interface PagedViewProps {
   scaleMode?: ImageScale;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
+  translateEnabled?: boolean;
+  pageTranslations?: Record<number, PageTranslationResult>;
+  onRetryTranslation?: (pageIndex: number) => void;
 }
 
 interface SpreadPageGroup {
@@ -43,6 +48,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
   scaleMode = 'fit_width',
   cropWhiteBorders = false,
   theme = 'amoled',
+  translateEnabled = false,
+  pageTranslations,
+  onRetryTranslation,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -227,6 +235,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 theme={theme}
                 isWebtoon={false}
                 activeBitmap={turboPreloader.isPageBitmapActive(leftIndex, currentPageIndex)}
+                translateEnabled={translateEnabled}
+                translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
+                onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
                 onSingleTap={handleTap}
               />
             </View>
@@ -242,6 +253,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 theme={theme}
                 isWebtoon={false}
                 activeBitmap={turboPreloader.isPageBitmapActive(rightIndex, currentPageIndex)}
+                translateEnabled={translateEnabled}
+                translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
+                onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
                 onSingleTap={handleTap}
               />
             </View>
@@ -263,12 +277,27 @@ export const PagedView: React.FC<PagedViewProps> = ({
             theme={theme}
             isWebtoon={false}
             activeBitmap={turboPreloader.isPageBitmapActive(item.indexA, currentPageIndex)}
+            translateEnabled={translateEnabled}
+            translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
+            onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
             onSingleTap={handleTap}
           />
         </View>
       );
     },
-    [windowWidth, windowHeight, isManga, cropWhiteBorders, theme, handleTap, scaleMode, currentPageIndex],
+    [
+      windowWidth,
+      windowHeight,
+      isManga,
+      cropWhiteBorders,
+      theme,
+      handleTap,
+      scaleMode,
+      currentPageIndex,
+      translateEnabled,
+      pageTranslations,
+      onRetryTranslation,
+    ],
   );
 
   const getItemLayout = useCallback(

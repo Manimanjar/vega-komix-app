@@ -18,6 +18,7 @@ export interface ReaderSettings {
   showFloatingPageNumber: boolean;
   disableTapZonesInWebtoon: boolean;
   orientationMode: ScreenOrientationMode;
+  liveTranslateEnabled?: boolean;
 }
 
 export interface ReaderProgress {

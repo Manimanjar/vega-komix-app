@@ -18,6 +18,7 @@ import type {
   ScreenOrientationMode,
 } from './types';
 import {THEME_COLORS} from './types';
+import type {TranslationStatus} from '../../lib/translator/mangaTranslatorEngine';
 
 interface ReaderHUDProps {
   visible: boolean;
@@ -32,6 +33,9 @@ interface ReaderHUDProps {
   quality: 'original' | 'compressed';
   theme: ReaderTheme;
   turboBadgeText?: string;
+  translateEnabled?: boolean;
+  translationStatus?: TranslationStatus;
+  onToggleTranslate?: () => void;
   onBack: () => void;
   onSelectChapter: (index: number) => void;
   onPrevChapter: () => void;
@@ -73,6 +77,9 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   quality,
   theme,
   turboBadgeText = 'Turbo: +8 Ready',
+  translateEnabled = false,
+  translationStatus = 'idle',
+  onToggleTranslate,
   onBack,
   onSelectChapter,
   onPrevChapter,
@@ -187,6 +194,47 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 {quality === 'original' ? 'ORIG' : 'DATA'}
               </AppText>
             </TouchableOpacity>
+
+            {/* Live Translate [A/文] Pill */}
+            {onToggleTranslate && (
+              <TouchableOpacity
+                onPress={onToggleTranslate}
+                style={[
+                  styles.translatePill,
+                  {
+                    borderColor: translateEnabled ? '#7C4DFF' : themeColors.hudBorder,
+                    backgroundColor: translateEnabled
+                      ? 'rgba(124, 77, 255, 0.16)'
+                      : 'rgba(0, 0, 0, 0.35)',
+                  },
+                ]}
+                accessibilityLabel={`Live Translate: ${translateEnabled ? 'ON' : 'OFF'} (${translationStatus})`}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor:
+                        translationStatus === 'translating'
+                          ? '#FFD600'
+                          : translationStatus === 'translated'
+                          ? '#00E676'
+                          : translationStatus === 'error'
+                          ? '#FF5252'
+                          : '#888888',
+                    },
+                  ]}
+                />
+                <AppText
+                  role="labelSmall"
+                  style={{
+                    color: translateEnabled ? '#B388FF' : themeColors.text,
+                    fontWeight: '800',
+                    fontSize: 10,
+                  }}>
+                  {translationStatus === 'translating' ? 'A/文...' : 'A/文'}
+                </AppText>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={onOpenWafBypass}
@@ -438,6 +486,20 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
+  },
+  translatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   bottomHud: {
     position: 'absolute',

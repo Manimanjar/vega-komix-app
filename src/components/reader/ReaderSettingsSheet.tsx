@@ -308,6 +308,28 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
                   />
                 </View>
+
+                {/* Live Manga Translation (A/文) */}
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleTextContainer}>
+                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                      Live Manga Translation (A/文)
+                    </AppText>
+                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
+                      Zero-Key Uncensored AI Translator with Spatial Bubble Clustering
+                    </AppText>
+                  </View>
+                  <Switch
+                    value={settings.liveTranslateEnabled ?? false}
+                    onValueChange={liveTranslateEnabled =>
+                      onUpdateSettings({liveTranslateEnabled})
+                    }
+                    thumbColor={
+                      settings.liveTranslateEnabled ? '#7C4DFF' : '#71717A'
+                    }
+                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
+                  />
+                </View>
               </View>
             </BottomSheetScrollView>
           </BottomSheet>

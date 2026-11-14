@@ -16,6 +16,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   showFloatingPageNumber: true,
   disableTapZonesInWebtoon: false,
   orientationMode: 'auto',
+  liveTranslateEnabled: false,
 };
 
 export const getStoredReaderSettings = (): ReaderSettings => {

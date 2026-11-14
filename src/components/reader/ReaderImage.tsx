@@ -21,6 +21,8 @@ import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoa
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 import type {ImageScale, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
+import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
+import type {TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
 
 interface ReaderImageProps {
   imageUrl: string;
@@ -33,6 +35,9 @@ interface ReaderImageProps {
   theme?: ReaderTheme;
   isWebtoon?: boolean;
   activeBitmap?: boolean;
+  translateEnabled?: boolean;
+  translationBubbles?: TranslatedBubble[];
+  onRetryTranslation?: () => void;
   onDoubleTap?: () => void;
   onSingleTap?: (tapX: number, tapY: number) => void;
 }
@@ -101,6 +106,9 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   theme = 'amoled',
   isWebtoon = false,
   activeBitmap = true,
+  translateEnabled = false,
+  translationBubbles,
+  onRetryTranslation,
   onSingleTap,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
@@ -363,6 +371,16 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               },
             ]}
           />
+
+          {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
+            <TranslatedBubbleOverlay
+              bubbles={translationBubbles}
+              renderedWidth={containerDimensions.width}
+              renderedHeight={containerDimensions.height}
+              visible={true}
+              onRetryBubble={onRetryTranslation}
+            />
+          )}
         </Animated.View>
       </GestureDetector>
 

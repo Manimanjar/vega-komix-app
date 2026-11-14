@@ -48,6 +48,11 @@ import {WebtoonView} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
 import {ReaderHUD} from '../../components/reader/ReaderHUD';
 import {ReaderSettingsSheet} from '../../components/reader/ReaderSettingsSheet';
+import {
+  mangaTranslatorEngine,
+  type PageTranslationResult,
+  type TranslationStatus,
+} from '../../lib/translator/mangaTranslatorEngine';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
@@ -82,6 +87,24 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const [settings, setSettings] = useState<ReaderSettings>(() =>
     getStoredReaderSettings(),
   );
+
+  const [translateEnabled, setTranslateEnabled] = useState<boolean>(
+    () => settings.liveTranslateEnabled ?? false,
+  );
+  const [translationStatus, setTranslationStatus] = useState<TranslationStatus>('idle');
+  const [pageTranslations, setPageTranslations] = useState<Record<number, PageTranslationResult>>({});
+
+  useEffect(() => {
+    return mangaTranslatorEngine.subscribeStatus((status) => {
+      setTranslationStatus(status);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (typeof settings.liveTranslateEnabled === 'boolean' && settings.liveTranslateEnabled !== translateEnabled) {
+      setTranslateEnabled(settings.liveTranslateEnabled);
+    }
+  }, [settings.liveTranslateEnabled]);
 
   const currentChapter: EpisodeLink | undefined = episodeList[currentChapterIndex];
   const chapterLink = currentChapter?.link || '';
@@ -360,6 +383,86 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     ],
   );
 
+  // Trigger single page translation with instant MMKV cache check
+  const triggerPageTranslation = useCallback(
+    async (pageIdx: number) => {
+      if (!pages[pageIdx] || !chapterLink) return;
+
+      const page = pages[pageIdx];
+      const langHint = mangaTranslatorEngine.detectLanguageHint(
+        `${primaryTitle} ${secondaryTitle || ''}`,
+      );
+
+      // Check instant MMKV cache first (0ms)
+      const cached = mangaTranslatorEngine.getCachedPageTranslation(chapterLink, pageIdx);
+      if (cached) {
+        setPageTranslations(prev => ({...prev, [pageIdx]: cached}));
+        return;
+      }
+
+      try {
+        const result = await mangaTranslatorEngine.translatePage(
+          chapterLink,
+          pageIdx,
+          page.imageUrl,
+          page.width,
+          page.height,
+          langHint,
+          page.headers,
+        );
+        if (result && result.bubbles) {
+          setPageTranslations(prev => ({...prev, [pageIdx]: result}));
+        }
+      } catch {}
+    },
+    [pages, chapterLink, primaryTitle, secondaryTitle],
+  );
+
+  // Live Translate auto-trigger: translate current page immediately and next page in background
+  useEffect(() => {
+    if (!translateEnabled || pages.length === 0) return;
+
+    // 1. Immediately translate current page
+    triggerPageTranslation(currentPageIndex);
+
+    // 2. Pre-translate next page in background
+    if (currentPageIndex + 1 < pages.length) {
+      triggerPageTranslation(currentPageIndex + 1);
+    }
+  }, [translateEnabled, currentPageIndex, pages, triggerPageTranslation]);
+
+  // Toggle Live Translate
+  const handleToggleTranslate = useCallback(() => {
+    setTranslateEnabled(prev => {
+      const next = !prev;
+      setSettings(s => {
+        const updated = {...s, liveTranslateEnabled: next};
+        saveStoredReaderSettings(updated);
+        return updated;
+      });
+      ToastAndroid.show(
+        next ? 'Live Manga Translation ON [A/文]' : 'Live Manga Translation OFF',
+        ToastAndroid.SHORT,
+      );
+      return next;
+    });
+  }, []);
+
+  // Retry translation for current page
+  const handleRetryTranslation = useCallback(
+    (pageIdx: number) => {
+      if (!chapterLink) return;
+      mangaTranslatorEngine.clearPageTranslation(chapterLink, pageIdx);
+      setPageTranslations(prev => {
+        const copy = {...prev};
+        delete copy[pageIdx];
+        return copy;
+      });
+      triggerPageTranslation(pageIdx);
+    },
+    [chapterLink, triggerPageTranslation],
+  );
+
   // Navigate to Next Chapter
   const handleNextChapter = useCallback(() => {
     if (currentChapterIndex < episodeList.length - 1) {
@@ -494,6 +597,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
           disableTapZones={settings.disableTapZonesInWebtoon}
+          translateEnabled={translateEnabled}
+          pageTranslations={pageTranslations}
+          onRetryTranslation={handleRetryTranslation}
         />
       ) : (
         <PagedView
@@ -506,6 +612,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           scaleMode={settings.imageScale}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
+          translateEnabled={translateEnabled}
+          pageTranslations={pageTranslations}
+          onRetryTranslation={handleRetryTranslation}
         />
       )}
 
@@ -538,6 +647,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         quality={quality}
         theme={settings.theme}
         turboBadgeText={turboStats.statusText}
+        translateEnabled={translateEnabled}
+        translationStatus={translationStatus}
+        onToggleTranslate={handleToggleTranslate}
         onBack={navigation.goBack}
         onSelectChapter={handleSelectChapter}
         onPrevChapter={handlePrevChapter}

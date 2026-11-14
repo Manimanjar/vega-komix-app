@@ -6,6 +6,8 @@ import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 
+import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEngine';
+
 interface WebtoonViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
@@ -15,6 +17,9 @@ interface WebtoonViewProps {
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   disableTapZones?: boolean;
+  translateEnabled?: boolean;
+  pageTranslations?: Record<number, PageTranslationResult>;
+  onRetryTranslation?: (pageIndex: number) => void;
 }
 
 export const WebtoonView: React.FC<WebtoonViewProps> = ({
@@ -26,6 +31,9 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
   cropWhiteBorders = false,
   theme = 'amoled',
   disableTapZones = false,
+  translateEnabled = false,
+  pageTranslations,
+  onRetryTranslation,
 }) => {
   const {width: windowWidth} = useWindowDimensions();
   const listRef = useRef<FlashListRef<ReaderPageItem>>(null);
@@ -89,6 +97,7 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
         index,
         currentPageIndex,
       );
+      const bubbles = pageTranslations?.[index]?.bubbles;
       return (
         <ReaderImage
           imageUrl={item.imageUrl}
@@ -101,11 +110,23 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
           theme={theme}
           isWebtoon={true}
           activeBitmap={activeBitmap}
+          translateEnabled={translateEnabled}
+          translationBubbles={bubbles}
+          onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(index) : undefined}
           onSingleTap={handleTap}
         />
       );
     },
-    [scaleMode, cropWhiteBorders, theme, handleTap, currentPageIndex],
+    [
+      scaleMode,
+      cropWhiteBorders,
+      theme,
+      handleTap,
+      currentPageIndex,
+      translateEnabled,
+      pageTranslations,
+      onRetryTranslation,
+    ],
   );
 
   const keyExtractor = useCallback(
