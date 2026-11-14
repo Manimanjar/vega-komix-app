@@ -42,7 +42,7 @@ import type {
   ScreenOrientationMode,
 } from '../../components/reader/types';
 import {THEME_COLORS} from '../../components/reader/types';
-import {usePagePreloader} from '../../components/reader/usePagePreloader';
+import {turboPreloader, type TurboStats} from '../../lib/reader/turboPreloader';
 import {useVolumeKeyTurn} from '../../components/reader/useVolumeKeyTurn';
 import {WebtoonView} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
@@ -70,6 +70,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const [hudVisible, setHudVisible] = useState<boolean>(false);
   const [settingsSheetVisible, setSettingsSheetVisible] = useState<boolean>(false);
   const [quality, setQuality] = useState<'original' | 'compressed'>('original');
+  const [turboStats, setTurboStats] = useState<TurboStats>(() =>
+    turboPreloader.getStats(),
+  );
+
+  useEffect(() => {
+    return turboPreloader.subscribe(setTurboStats);
+  }, []);
 
   // Load persistent settings
   const [settings, setSettings] = useState<ReaderSettings>(() =>
@@ -295,9 +302,6 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     };
   }, [chapterLink, providerValue, primaryTitle, chapterTitle, currentChapter?.id]);
 
-  // Smart Preloader: caches the next 4 pages ahead
-  usePagePreloader(pages, currentPageIndex, 4);
-
   // Hardware Volume Keys: Turn pages
   const handlePrevPage = useCallback(() => {
     setCurrentPageIndex(prev => Math.max(0, prev - 1));
@@ -312,6 +316,19 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     onPrevPage: handlePrevPage,
     onNextPage: handleNextPage,
   });
+
+  // Turbo Sliding-Window 8-Page Preloader & Next Chapter Handoff
+  useEffect(() => {
+    if (pages.length > 0) {
+      turboPreloader.scheduleWindowPrefetch({
+        pages,
+        currentPageIndex,
+        allChapters: episodeList,
+        currentChapterIndex,
+        providerValue,
+      });
+    }
+  }, [pages, currentPageIndex, episodeList, currentChapterIndex, providerValue]);
 
   // Save Progress on every page turn
   const handlePageChange = useCallback(
@@ -520,6 +537,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         orientationMode={settings.orientationMode}
         quality={quality}
         theme={settings.theme}
+        turboBadgeText={turboStats.statusText}
         onBack={navigation.goBack}
         onSelectChapter={handleSelectChapter}
         onPrevChapter={handlePrevChapter}

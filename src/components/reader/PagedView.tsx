@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import {ReaderImage} from './ReaderImage';
+import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, ReaderPageItem, ReaderTheme, ReadingMode} from './types';
 import {THEME_COLORS} from './types';
 
@@ -225,6 +226,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 cropWhiteBorders={cropWhiteBorders}
                 theme={theme}
                 isWebtoon={false}
+                activeBitmap={turboPreloader.isPageBitmapActive(leftIndex, currentPageIndex)}
                 onSingleTap={handleTap}
               />
             </View>
@@ -239,6 +241,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 cropWhiteBorders={cropWhiteBorders}
                 theme={theme}
                 isWebtoon={false}
+                activeBitmap={turboPreloader.isPageBitmapActive(rightIndex, currentPageIndex)}
                 onSingleTap={handleTap}
               />
             </View>
@@ -259,12 +262,13 @@ export const PagedView: React.FC<PagedViewProps> = ({
             cropWhiteBorders={cropWhiteBorders}
             theme={theme}
             isWebtoon={false}
+            activeBitmap={turboPreloader.isPageBitmapActive(item.indexA, currentPageIndex)}
             onSingleTap={handleTap}
           />
         </View>
       );
     },
-    [windowWidth, windowHeight, isManga, cropWhiteBorders, theme, handleTap, scaleMode],
+    [windowWidth, windowHeight, isManga, cropWhiteBorders, theme, handleTap, scaleMode, currentPageIndex],
   );
 
   const getItemLayout = useCallback(
@@ -285,6 +289,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         data={spreadGroups}
         renderItem={renderSpreadGroup}
         keyExtractor={item => item.id}
+        extraData={currentPageIndex}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -294,7 +299,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
           isUserScrolling.current = true;
         }}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        windowSize={3}
+        windowSize={7}
         maxToRenderPerBatch={2}
         initialNumToRender={2}
         removeClippedSubviews={true}

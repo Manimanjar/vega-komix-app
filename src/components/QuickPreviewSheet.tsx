@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import ComicThumbnail from './ComicThumbnail';
 import AppText from './ui/Text';
 import Button from './ui/Button';
 import IconButton from './ui/IconButton';
@@ -127,11 +128,12 @@ export const QuickPreviewSheet: React.FC<QuickPreviewSheetProps> = ({
           {/* Header Row: 2:3 High-Res Poster + Info */}
           <View style={styles.headerRow}>
             <View style={styles.posterWrapper}>
-              <ExpoImage
-                source={{uri: displayImage}}
+              <ComicThumbnail
+                source={displayImage}
                 style={styles.poster}
+                borderRadius={14}
+                altTitle={displayTitle}
                 contentFit="cover"
-                transition={200}
               />
               {contentType ? (
                 <View style={styles.typeBadge}>

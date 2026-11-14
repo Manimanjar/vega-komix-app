@@ -31,6 +31,7 @@ interface ReaderHUDProps {
   orientationMode: ScreenOrientationMode;
   quality: 'original' | 'compressed';
   theme: ReaderTheme;
+  turboBadgeText?: string;
   onBack: () => void;
   onSelectChapter: (index: number) => void;
   onPrevChapter: () => void;
@@ -71,6 +72,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   orientationMode,
   quality,
   theme,
+  turboBadgeText = 'Turbo: +8 Ready',
   onBack,
   onSelectChapter,
   onPrevChapter,
@@ -141,8 +143,33 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             </View>
           </TouchableOpacity>
 
-          {/* Action icons: Quality, WAF WebView Bypass */}
-          <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+          {/* Action icons: Turbo Live Badge, Quality, WAF WebView Bypass */}
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+            <View
+              style={[
+                styles.turboBadge,
+                {
+                  borderColor: 'rgba(0, 230, 118, 0.4)',
+                  backgroundColor: 'rgba(0, 230, 118, 0.12)',
+                },
+              ]}>
+              <MaterialCommunityIcons
+                name="lightning-bolt"
+                size={12}
+                color="#00E676"
+                style={{marginRight: 2}}
+              />
+              <AppText
+                role="labelSmall"
+                style={{
+                  color: '#00E676',
+                  fontWeight: '800',
+                  fontSize: 10,
+                }}>
+                {turboBadgeText}
+              </AppText>
+            </View>
+
             <TouchableOpacity
               onPress={onToggleQuality}
               style={[
@@ -403,6 +430,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  turboBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   bottomHud: {
     position: 'absolute',

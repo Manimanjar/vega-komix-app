@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useRef} from 'react';
 import {StyleSheet, View, useWindowDimensions, type ViewToken} from 'react-native';
 import {FlashList, type FlashListRef} from '@shopify/flash-list';
 import {ReaderImage} from './ReaderImage';
+import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 
@@ -84,6 +85,10 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
 
   const renderItem = useCallback(
     ({item, index}: {item: ReaderPageItem; index: number}) => {
+      const activeBitmap = turboPreloader.isPageBitmapActive(
+        index,
+        currentPageIndex,
+      );
       return (
         <ReaderImage
           imageUrl={item.imageUrl}
@@ -95,11 +100,12 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
           cropWhiteBorders={cropWhiteBorders}
           theme={theme}
           isWebtoon={true}
+          activeBitmap={activeBitmap}
           onSingleTap={handleTap}
         />
       );
     },
-    [scaleMode, cropWhiteBorders, theme, handleTap],
+    [scaleMode, cropWhiteBorders, theme, handleTap, currentPageIndex],
   );
 
   const keyExtractor = useCallback(
@@ -116,6 +122,7 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
         data={pages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        extraData={currentPageIndex}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
         }}
@@ -127,7 +134,7 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
           itemVisiblePercentThreshold: 30,
         }}
         showsVerticalScrollIndicator={false}
-        drawDistance={windowWidth * 3}
+        drawDistance={windowWidth * 2.5}
       />
     </View>
   );

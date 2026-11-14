@@ -16,6 +16,7 @@ import {Image as ExpoImage} from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
+import ComicThumbnail from '../../../components/ComicThumbnail';
 import AppText from '../../../components/ui/Text';
 import SynopsisText from './SynopsisText';
 import Button from '../../../components/ui/Button';
@@ -316,12 +317,13 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
             borderColor: 'rgba(255, 255, 255, 0.1)',
           }}>
           {displayCover ? (
-            <ExpoImage
-              source={{uri: displayCover}}
+            <ComicThumbnail
+              source={displayCover}
               contentFit="cover"
-              transition={200}
-              cachePolicy="memory-disk"
-              style={{width: '100%', height: '100%'}}
+              borderRadius={16}
+              altTitle={title}
+              width="100%"
+              height="100%"
             />
           ) : (
             <View

@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList, SearchStackParamList } from '../App';
 import { Post } from '../lib/providers/types';
 import { Image } from 'react-native';
+import ComicThumbnail from '../components/ComicThumbnail';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import useContentStore from '../lib/zustand/contentStore';
@@ -144,18 +145,13 @@ const ScrollListCard = memo(({
           borderWidth: isTV ? 3 : 1,
           borderColor: isFocused ? focusBorderColor : 'rgba(255, 255, 255, 0.08)',
         }}>
-        <Image
-          source={{
-            uri:
-              item.image ||
-              'https://placehold.jp/24/363636/ffffff/100x150.png?text=Vega',
-          }}
-          resizeMode="cover"
-          resizeMethod="resize"
-          style={{
-            width: '100%',
-            height: '100%',
-          }}
+        <ComicThumbnail
+          source={item.image}
+          borderRadius={activeBorderRadius}
+          altTitle={item.title}
+          contentFit="cover"
+          width="100%"
+          height="100%"
         />
         {activeTag.length > 0 ? (
           <View

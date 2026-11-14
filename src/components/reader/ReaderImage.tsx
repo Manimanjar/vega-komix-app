@@ -32,6 +32,7 @@ interface ReaderImageProps {
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   isWebtoon?: boolean;
+  activeBitmap?: boolean;
   onDoubleTap?: () => void;
   onSingleTap?: (tapX: number, tapY: number) => void;
 }
@@ -99,6 +100,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   cropWhiteBorders = false,
   theme = 'amoled',
   isWebtoon = false,
+  activeBitmap = true,
   onSingleTap,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
@@ -273,6 +275,21 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   }));
 
   const themeColors = THEME_COLORS[theme];
+
+  if (!activeBitmap) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            width: containerDimensions.width,
+            height: containerDimensions.height,
+            backgroundColor: themeColors.background,
+          },
+        ]}
+      />
+    );
+  }
 
   return (
     <View

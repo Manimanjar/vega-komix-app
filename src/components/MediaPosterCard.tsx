@@ -4,6 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Image, Pressable, TouchableOpacity, View} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
 import Animated from 'react-native-reanimated';
+import ComicThumbnail from './ComicThumbnail';
 import {BlurView} from 'expo-blur';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import AppText from './ui/Text';
@@ -364,15 +365,13 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                   ) : null}
 
                   {poster ? (
-                    <ExpoImage
-                      source={{uri: poster}}
+                    <ComicThumbnail
+                      source={poster}
                       contentFit="cover"
-                      transition={150}
-                      cachePolicy="memory-disk"
-                      style={{
-                        aspectRatio: activeAspectRatio,
-                        width: '100%',
-                      }}
+                      aspectRatio={activeAspectRatio}
+                      borderRadius={activeBorderRadius}
+                      altTitle={title}
+                      width="100%"
                     />
                   ) : (
                     <View
