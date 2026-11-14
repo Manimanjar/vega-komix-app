@@ -8,9 +8,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.util.Log
-import androidx.mediarouter.media.MediaRouter
 import com.facebook.react.bridge.Arguments
-import com.google.android.gms.cast.framework.CastContext
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -672,43 +670,14 @@ class RemoteDeliveryModule(
         }.start()
     }
 
-    private var castScanCallback: MediaRouter.Callback? = null
-
-    /**
-     * react-native-google-cast registers its route callback without active scan on
-     * Android, so a custom device list stays empty unless the Cast button is on screen.
-     * An active-scan callback here makes the library's own callback receive the routes.
-     */
     @ReactMethod
     fun startCastDiscovery(promise: Promise) {
-        reactContext.runOnUiQueueThread {
-            try {
-                if (castScanCallback == null) {
-                    @Suppress("DEPRECATION")
-                    val selector = CastContext.getSharedInstance(reactContext.applicationContext).mergedSelector
-                        ?: throw IllegalStateException("Google Cast is not initialised")
-                    val callback = object : MediaRouter.Callback() {}
-                    MediaRouter.getInstance(reactContext).addCallback(
-                        selector,
-                        callback,
-                        MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN or MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY
-                    )
-                    castScanCallback = callback
-                }
-                promise.resolve(true)
-            } catch (e: Exception) {
-                promise.reject("CAST_DISCOVERY_ERROR", e.message, e)
-            }
-        }
+        promise.resolve(true)
     }
 
     @ReactMethod
     fun stopCastDiscovery(promise: Promise) {
-        reactContext.runOnUiQueueThread {
-            castScanCallback?.let { MediaRouter.getInstance(reactContext).removeCallback(it) }
-            castScanCallback = null
-            promise.resolve(true)
-        }
+        promise.resolve(true)
     }
 
     @ReactMethod

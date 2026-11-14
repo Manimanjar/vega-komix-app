@@ -170,14 +170,13 @@ class AmbientVideoModule(context: ReactApplicationContext) : ReactContextBaseJav
                 }
                 val supported = display.hdrCapabilities.supportedHdrTypes
                 val dolby = format.sampleMimeType == "video/dolby-vision"
-                val decoder = findVideoView(root)?.videoDecoderStatus
-                val decoderName = decoder?.getString("name").orEmpty()
+                val decoderName = ""
                 val dolbyProfile = if (dolby) CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first else null
                 val decoderSupportsDolby = HdrPlaybackPolicy.supportsDolbyProfile(
                     dolbyProfile, if (dolby) dolbyProfilesByDecoder[decoderName] else null)
                 val dolbyDecoderActive = HdrPlaybackPolicy.dolbyDecoderActive(
                     dolby, supported.contains(1), decoderSupportsDolby,
-                    decoder?.getString("mode") == "hardware",
+                    false,
                     output != null && (counters?.renderedOutputBufferCount ?: 0) > 0)
                 val decoderDiagnostic = "decoder=$decoderName dvProfile=$dolbyProfile dvCapable=$decoderSupportsDolby dvActive=$dolbyDecoderActive"
                 if (decoderDiagnostic != lastDolbyDiagnostic) {
