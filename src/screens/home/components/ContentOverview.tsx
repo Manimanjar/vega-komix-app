@@ -1,20 +1,31 @@
 import {normalizeContentTags} from '../../../lib/contentTags';
-import {fitArtworkSize} from '../../../lib/artworkLayout';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useMemo, useState} from 'react';
-import {Image, Linking, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  findNodeHandle,
+  useWindowDimensions,
+} from 'react-native';
+import {Image as ExpoImage} from 'expo-image';
 import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
 import AppText from '../../../components/ui/Text';
 import SynopsisText from './SynopsisText';
+import Button from '../../../components/ui/Button';
 import {isTV} from '../../../lib/tv';
 import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
+import {TVFocusable} from '../../../components/tv';
 
 interface ContentOverviewProps {
   backgroundImage?: string;
-  /** Sharp artwork fitted at its original ratio over the blurred backdrop. */
+  posterImage?: string;
   headerPoster?: string;
   headerPosterAspectRatio?: number;
   genres?: string[];
@@ -41,9 +52,17 @@ interface ContentOverviewProps {
   title?: string;
   trailerUrl?: string;
   year?: string;
+  // Comic specific props
+  author?: string;
+  artist?: string;
+  status?: string;
+  parody?: string[] | string;
+  characters?: string[] | string;
+  language?: string;
+  onTapTag?: (tag: string) => void;
+  onStartReading?: () => void;
+  resumeText?: string;
 }
-
-import {TVFocusable} from '../../../components/tv';
 
 const HeaderIconButton = ({
   icon,
@@ -81,83 +100,63 @@ const HeaderIconButton = ({
         height: 44,
         justifyContent: 'center',
         width: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
       }}>
-      <MaterialCommunityIcons name={icon} size={28} color={colors.primary} />
+      <MaterialCommunityIcons name={icon} size={24} color={colors.primary} />
     </TVFocusable>
   );
 };
 
-const InfoAction = ({
-  icon,
+const TagChip = ({
   label,
+  icon,
+  color,
   onPress,
-  focusRef,
 }: {
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
-  onPress: () => void;
-  focusRef?: React.RefObject<View | null>;
+  icon?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  color?: string;
+  onPress?: () => void;
 }) => {
   const colors = useM3Colors();
+  const textColor = color || colors.primary;
 
   return (
-    <TVFocusable
-      ref={focusRef}
-      onFocus={() => {
-        if (isTV && focusRef?.current) {
-          const handle = findNodeHandle(focusRef.current);
-          if (handle) {
-            useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
-          }
-        }
-      }}
-      accessibilityLabel={label}
+    <TouchableOpacity
+      activeOpacity={0.7}
+      disabled={!onPress}
       onPress={onPress}
       style={{
+        flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
-        justifyContent: 'flex-start',
-        minHeight: 76,
-        paddingHorizontal: 4,
-        paddingVertical: 8,
-      }}>
-      <MaterialCommunityIcons name={icon} size={30} color={colors.primary} />
-      <AppText
-        role="labelMediumEmphasized"
-        numberOfLines={2}
-        style={{
-          color: colors.onSurfaceVariant,
-          marginTop: 9,
-          textAlign: 'center',
-        }}>
-        {label}
-      </AppText>
-    </TVFocusable>
-  );
-};
-
-const CompactChip = ({label}: {label: string}) => {
-  const colors = useM3Colors();
-
-  return (
-    <View
-      style={{
-        backgroundColor: '#171717',
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
         borderRadius: 8,
-        paddingHorizontal: 9,
+        paddingHorizontal: 10,
         paddingVertical: 5,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
       }}>
-      <AppText role="labelMediumEmphasized" style={{color: colors.primary}}>
+      {icon && (
+        <MaterialCommunityIcons
+          name={icon}
+          size={14}
+          color={textColor}
+          style={{marginRight: 4}}
+        />
+      )}
+      <AppText role="labelSmallEmphasized" style={{color: textColor, fontSize: 11.5}}>
         {label}
       </AppText>
-    </View>
+    </TouchableOpacity>
   );
 };
 
-const ContentOverview = ({
+const ContentOverview: React.FC<ContentOverviewProps> = ({
+  backgroundImage,
+  posterImage,
   headerPoster,
-  headerPosterAspectRatio,
-  genres,
+  genres = [],
   inLibrary,
   isLoading,
   logo,
@@ -174,195 +173,482 @@ const ContentOverview = ({
   providerName,
   rating,
   readMore,
-  runtime,
   synopsis,
   synopsisLoading,
-  tags,
+  tags = [],
   title,
   trailerUrl,
-  year,
-}: ContentOverviewProps) => {
+  author,
+  artist,
+  status,
+  parody,
+  characters,
+  language,
+  onTapTag,
+  onStartReading,
+  resumeText,
+}) => {
   const insets = useSafeAreaInsets();
-  const {width: screenWidth} = useWindowDimensions();
-  const artworkTop = (isTV ? 42 : insets.top + 12) + 8;
-  const artworkSize = fitArtworkSize(headerPosterAspectRatio ?? 2 / 3, screenWidth - 48, 340 - artworkTop - 20);
   const colors = useM3Colors();
   const [logoFailed, setLogoFailed] = useState(false);
-  const metadata = useMemo(
-    () =>
-      normalizeContentTags([year, runtime, ...(genres ?? []), ...(tags ?? [])])
-        .slice(0, 6),
-    [genres, runtime, tags, year],
-  );
-  const normalizedRating = rating?.replace(/\s*\/\s*10$/i, '').trim();
 
   useEffect(() => {
     setLogoFailed(false);
   }, [logo]);
 
+  const displayCover = posterImage || headerPoster || backgroundImage;
+
+  // Status configuration
+  const normalizedStatus = (status || '').toLowerCase().trim();
+  const statusInfo = useMemo(() => {
+    if (normalizedStatus.includes('ongoing')) {
+      return {label: 'Ongoing', text: '#81C784', bg: 'rgba(76, 175, 80, 0.18)', border: 'rgba(76, 175, 80, 0.35)'};
+    }
+    if (normalizedStatus.includes('complete')) {
+      return {label: 'Completed', text: '#64B5F6', bg: 'rgba(33, 150, 243, 0.18)', border: 'rgba(33, 150, 243, 0.35)'};
+    }
+    if (normalizedStatus.includes('one') || normalizedStatus.includes('shot')) {
+      return {label: 'One-Shot', text: '#FFD54F', bg: 'rgba(255, 193, 7, 0.18)', border: 'rgba(255, 193, 7, 0.35)'};
+    }
+    if (status) {
+      return {label: status, text: colors.primary, bg: 'rgba(255, 255, 255, 0.08)', border: 'rgba(255, 255, 255, 0.15)'};
+    }
+    return null;
+  }, [normalizedStatus, status, colors.primary]);
+
+  // Rating clean up
+  const normalizedRating = rating?.replace(/\s*\/\s*10$/i, '').trim();
+
+  // All metadata tags
+  const parodyList = useMemo(() => {
+    if (!parody) return [];
+    if (Array.isArray(parody)) return parody;
+    return [parody];
+  }, [parody]);
+
+  const characterList = useMemo(() => {
+    if (!characters) return [];
+    if (Array.isArray(characters)) return characters;
+    return [characters];
+  }, [characters]);
+
   return (
-    <View>
+    <View style={{position: 'relative'}}>
+      {/* Background ambient backdrop */}
+      <View
+        pointerEvents="none"
+        style={{
+          height: 380,
+          left: 0,
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          overflow: 'hidden',
+        }}>
+        {backgroundImage ? (
+          <ExpoImage
+            source={{uri: backgroundImage}}
+            contentFit="cover"
+            blurRadius={25}
+            style={{height: '100%', width: '100%', opacity: 0.38}}
+          />
+        ) : null}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)', colors.background]}
+          locations={[0, 0.5, 1]}
+          style={{position: 'absolute', inset: 0}}
+        />
+      </View>
+
+      {/* Top Header Navigation Bar */}
       <View
         style={{
-          height: 340,
-          overflow: 'hidden',
-          width: '100%',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingTop: isTV ? 32 : insets.top + 8,
+          paddingHorizontal: 16,
+          paddingBottom: 8,
+          zIndex: 10,
         }}>
-        <LinearGradient
-          colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.1)', colors.background]}
-          locations={[0, 0.58, 1]}
-          style={{
-            height: 340,
-            left: 0,
-            position: 'absolute',
-            right: 0,
-            top: 0,
-          }}
+        <HeaderIconButton
+          focusRef={backButtonRef}
+          onLayout={onBackButtonLayout}
+          icon="arrow-left"
+          label="Go back"
+          onPress={onBack}
         />
-
-        {headerPoster ? (
-          <View
-            pointerEvents="none"
-            style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              bottom: 20,
-              left: 0,
-              position: 'absolute',
-              right: 0,
-              top: artworkTop,
-            }}>
-            <View
-              style={{
-                width: artworkSize.width,
-                height: artworkSize.height,
-                borderRadius: 12,
-                elevation: 12,
-                overflow: 'hidden',
-              }}>
-              <Image
-                source={{uri: headerPoster}}
-                resizeMode="contain"
-                resizeMethod="resize"
-                style={{height: '100%', width: '100%'}}
-              />
-            </View>
-          </View>
-        ) : null}
-
-        {onOpenMenu && (
-          <View style={{position: 'absolute', right: 18, top: isTV ? 42 : insets.top + 12, zIndex: 2}}>
-            <HeaderIconButton icon="dots-vertical" label="More options" onPress={onOpenMenu} preferredFocus={false} />
-          </View>
-        )}
-        <View
-          style={{
-            alignItems: 'center',
-            flexDirection: 'row',
-            left: 12,
-            position: 'absolute',
-            top: isTV ? 42 : insets.top + 12,
-          }}>
-          <HeaderIconButton
-            focusRef={backButtonRef}
-            onLayout={onBackButtonLayout}
-            icon="arrow-left"
-            label="Go back"
-            onPress={onBack}
-          />
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+          {onOpenMenu && (
+            <HeaderIconButton
+              icon="dots-vertical"
+              label="More options"
+              onPress={onOpenMenu}
+              preferredFocus={false}
+            />
+          )}
         </View>
       </View>
 
-      <View style={{backgroundColor: colors.background, paddingHorizontal: 20}}>
+      {/* Main Comic Header: 2:3 vertical cover on left, Details on right */}
+      <View
+        style={{
+          flexDirection: 'row',
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: 16,
+          gap: 16,
+        }}>
+        {/* Left: 2:3 Vertical Cover */}
         <View
           style={{
-            alignItems: 'flex-end',
-            flexDirection: 'row',
-            gap: 16,
-            justifyContent: 'space-between',
+            width: 124,
+            height: 186,
+            borderRadius: 14,
+            overflow: 'hidden',
+            backgroundColor: colors.surfaceContainerHigh,
+            shadowColor: '#000',
+            shadowOffset: {width: 0, height: 4},
+            shadowOpacity: 0.5,
+            shadowRadius: 8,
+            elevation: 8,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
           }}>
-          <View style={{flex: 1, minWidth: 0}}>
+          {displayCover ? (
+            <ExpoImage
+              source={{uri: displayCover}}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+              style={{width: '100%', height: '100%'}}
+            />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.surfaceContainerHighest,
+              }}>
+              <MaterialCommunityIcons
+                name="book-open-page-variant"
+                size={36}
+                color={colors.onSurfaceVariant}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Right: Title, Author, Artist, Status, Rating, Provider */}
+        <View style={{flex: 1, minWidth: 0, justifyContent: 'space-between'}}>
+          <View>
             {isLoading ? (
-              <SkeletonLoader show height={38} width={190} marginVertical={0} />
+              <SkeletonLoader show height={32} width={180} marginVertical={0} />
             ) : logo && !logoFailed ? (
               <Image
                 source={{uri: logo}}
                 onError={() => setLogoFailed(true)}
                 resizeMode="contain"
                 resizeMethod="resize"
-                style={{height: 64, width: 220}}
+                style={{height: 48, width: 180, marginBottom: 4}}
               />
             ) : (
               <AppText
-                role="headlineMediumEmphasized"
-                numberOfLines={2}
-                style={{color: colors.onBackground}}>
+                role="headlineSmallEmphasized"
+                numberOfLines={3}
+                style={{
+                  color: colors.onBackground,
+                  fontSize: 20,
+                  lineHeight: 25,
+                }}>
                 {title || 'Unknown title'}
               </AppText>
             )}
-          </View>
-          {normalizedRating ? (
-            <View
-              style={{
-                alignItems: 'baseline',
-                flexDirection: 'row',
-                paddingBottom: 4,
-              }}>
-              <AppText
-                role="headlineMediumEmphasized"
-                style={{color: colors.onBackground}}>
-                {normalizedRating}
-              </AppText>
-              <AppText
-                role="titleMediumEmphasized"
-                style={{color: colors.onSurfaceVariant}}>
-                /10
-              </AppText>
-            </View>
-          ) : null}
-        </View>
 
-        {metadata.length > 0 ? (
+            {author ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop: 6,
+                  gap: 4,
+                }}>
+                <MaterialCommunityIcons
+                  name="account-edit-outline"
+                  size={14}
+                  color={colors.primary}
+                />
+                <AppText
+                  role="bodySmall"
+                  numberOfLines={1}
+                  style={{color: colors.onSurfaceVariant, fontSize: 12.5}}>
+                  Author: <AppText role="labelSmallEmphasized" style={{color: colors.onSurface}}>{author}</AppText>
+                </AppText>
+              </View>
+            ) : null}
+
+            {artist && artist !== author ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop: 3,
+                  gap: 4,
+                }}>
+                <MaterialCommunityIcons
+                  name="palette-outline"
+                  size={14}
+                  color={colors.secondary}
+                />
+                <AppText
+                  role="bodySmall"
+                  numberOfLines={1}
+                  style={{color: colors.onSurfaceVariant, fontSize: 12.5}}>
+                  Artist: <AppText role="labelSmallEmphasized" style={{color: colors.onSurface}}>{artist}</AppText>
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Badges: Status Pill & Rating */}
           <View
             style={{
               flexDirection: 'row',
+              alignItems: 'center',
               flexWrap: 'wrap',
-              gap: 7,
-              marginTop: 16,
+              gap: 8,
+              marginTop: 10,
             }}>
-            {metadata.map(item => (
-              <CompactChip key={item} label={item} />
-            ))}
-          </View>
-        ) : null}
+            {statusInfo && (
+              <View
+                style={{
+                  backgroundColor: statusInfo.bg,
+                  borderColor: statusInfo.border,
+                  borderWidth: 1,
+                  borderRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                }}>
+                <AppText
+                  role="labelSmallEmphasized"
+                  style={{
+                    color: statusInfo.text,
+                    fontWeight: '800',
+                    fontSize: 11,
+                  }}>
+                  {statusInfo.label}
+                </AppText>
+              </View>
+            )}
 
-        <View
-          style={{
-            alignItems: 'center',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginTop: 20,
-          }}>
-          <View style={{alignItems: 'center', flexDirection: 'row', flex: 1}}>
-            <AppText
-              role="titleLargeEmphasized"
-              style={{color: colors.onBackground, marginRight: 12}}>
-              Synopsis
-            </AppText>
-            <AppText
-              role="labelLargeEmphasized"
-              numberOfLines={1}
-              style={{color: colors.primary}}>
-              {providerName}
-            </AppText>
+            {normalizedRating ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(255, 179, 0, 0.16)',
+                  borderColor: 'rgba(255, 179, 0, 0.4)',
+                  borderWidth: 1,
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 3,
+                  gap: 3,
+                }}>
+                <MaterialCommunityIcons name="star" size={13} color="#FFB300" />
+                <AppText
+                  role="labelSmallEmphasized"
+                  style={{color: '#FFB300', fontWeight: '800', fontSize: 11}}>
+                  {normalizedRating}
+                </AppText>
+              </View>
+            ) : null}
+
+            {providerName ? (
+              <View
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 3,
+                }}>
+                <AppText
+                  role="labelSmall"
+                  style={{color: colors.onSurfaceVariant, fontSize: 10.5}}>
+                  {providerName}
+                </AppText>
+              </View>
+            ) : null}
           </View>
         </View>
+      </View>
 
+      {/* Action Bar */}
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          gap: 10,
+        }}>
+        {/* Primary Action Button: "Start Reading" or "Resume Ch. X • Page Y" */}
+        <Button
+          variant="filled"
+          onPress={onStartReading}
+          style={{
+            height: 48,
+            borderRadius: 14,
+            justifyContent: 'center',
+          }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}>
+            <MaterialCommunityIcons
+              name="book-open-page-variant"
+              size={20}
+              color={colors.onPrimary}
+            />
+            <AppText
+              role="titleMediumEmphasized"
+              style={{color: colors.onPrimary, fontSize: 15}}>
+              {resumeText || 'Start Reading'}
+            </AppText>
+          </View>
+        </Button>
+
+        {/* Secondary Action Row: Add to Library & Open in WebView */}
+        <View style={{flexDirection: 'row', gap: 10}}>
+          <Button
+            variant={inLibrary ? 'tonal' : 'outlined'}
+            onPress={onToggleLibrary}
+            style={{
+              flex: 1,
+              height: 42,
+              borderRadius: 12,
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+            }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}>
+              <MaterialCommunityIcons
+                name={inLibrary ? 'bookmark-check' : 'bookmark-plus-outline'}
+                size={18}
+                color={inLibrary ? colors.primary : colors.onSurface}
+              />
+              <AppText
+                role="labelMediumEmphasized"
+                style={{
+                  color: inLibrary ? colors.primary : colors.onSurface,
+                }}>
+                {inLibrary ? 'In Library' : 'Add to Library'}
+              </AppText>
+            </View>
+          </Button>
+
+          {onOpenWeb && (
+            <Button
+              variant="outlined"
+              onPress={onOpenWeb}
+              style={{
+                flex: 1,
+                height: 42,
+                borderRadius: 12,
+                borderColor: 'rgba(255, 255, 255, 0.15)',
+              }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}>
+                <MaterialCommunityIcons
+                  name="shield-check-outline"
+                  size={18}
+                  color={colors.onSurface}
+                />
+                <AppText
+                  role="labelMediumEmphasized"
+                  style={{color: colors.onSurface}}>
+                  Open in WebView
+                </AppText>
+              </View>
+            </Button>
+          )}
+        </View>
+      </View>
+
+      {/* Metadata Tags: Genres, Tags, Parody, Characters, Language */}
+      <View style={{paddingHorizontal: 20, paddingTop: 16}}>
+        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6}}>
+          {language ? (
+            <TagChip
+              label={`LANG: ${language.toUpperCase()}`}
+              color="#00E676"
+              onPress={onTapTag ? () => onTapTag(language) : undefined}
+            />
+          ) : null}
+
+          {genres.map(genre => (
+            <TagChip
+              key={genre}
+              label={genre}
+              icon="tag-outline"
+              color={colors.primary}
+              onPress={onTapTag ? () => onTapTag(genre) : undefined}
+            />
+          ))}
+
+          {tags.map(tag => (
+            <TagChip
+              key={tag}
+              label={tag}
+              color={colors.secondary}
+              onPress={onTapTag ? () => onTapTag(tag) : undefined}
+            />
+          ))}
+
+          {parodyList.map(p => (
+            <TagChip
+              key={p}
+              label={`Parody: ${p}`}
+              icon="book-sync-outline"
+              color="#FF80AB"
+              onPress={onTapTag ? () => onTapTag(p) : undefined}
+            />
+          ))}
+
+          {characterList.map(c => (
+            <TagChip
+              key={c}
+              label={c}
+              icon="account-outline"
+              color="#80D8FF"
+              onPress={onTapTag ? () => onTapTag(c) : undefined}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Synopsis */}
+      <View style={{paddingHorizontal: 20, paddingTop: 16}}>
+        <AppText
+          role="titleMediumEmphasized"
+          style={{color: colors.onBackground, marginBottom: 8}}>
+          Synopsis
+        </AppText>
         {synopsisLoading ? (
-          <View style={{gap: 7, marginTop: 12}}>
-            <SkeletonLoader show height={18} width="100%" marginVertical={0} />
-            <SkeletonLoader show height={18} width="94%" marginVertical={0} />
-            <SkeletonLoader show height={18} width="72%" marginVertical={0} />
+          <View style={{gap: 6}}>
+            <SkeletonLoader show height={16} width="100%" marginVertical={0} />
+            <SkeletonLoader show height={16} width="90%" marginVertical={0} />
+            <SkeletonLoader show height={16} width="60%" marginVertical={0} />
           </View>
         ) : (
           <SynopsisText
@@ -371,40 +657,9 @@ const ContentOverview = ({
             onToggle={onToggleSynopsis}
           />
         )}
-
-        <View
-          style={{
-            flexDirection: 'row',
-            marginHorizontal: -4,
-            marginTop: 18,
-          }}>
-          <InfoAction icon="magnify" label="Search" onPress={onSearchTitle} />
-          {onOpenWeb ? (
-            <InfoAction icon="web" label="Web" onPress={onOpenWeb} />
-          ) : null}
-          {onOpenStory ? (
-            <InfoAction
-              icon="book-open-page-variant-outline"
-              label="Explore"
-              focusRef={exploreRef}
-              onPress={onOpenStory}
-            />
-          ) : trailerUrl ? (
-            <InfoAction
-              icon="movie-play-outline"
-              label="Trailer"
-              onPress={() => Linking.openURL(trailerUrl)}
-            />
-          ) : null}
-          <InfoAction
-            icon={inLibrary ? 'bookmark-check' : 'bookmark-plus-outline'}
-            label={inLibrary ? 'Saved' : 'Save'}
-            onPress={onToggleLibrary}
-          />
-        </View>
       </View>
     </View>
   );
 };
 
-export default ContentOverview;
+export default React.memo(ContentOverview);

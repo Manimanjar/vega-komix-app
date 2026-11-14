@@ -38,18 +38,18 @@ export class SecureCastDelivery {
   this.closePeer();this.id=message.transportId;
   const transportId=message.transportId;
   const peer=this.peer=new RTCPeerConnection({iceServers:this.iceServers});
-  peer.addEventListener('icecandidate',event=>{if(event.candidate&&this.peer===peer)void this.send({type:'RTC_ICE',transportId,mediaId:this.mediaId,candidate:event.candidate.toJSON()}).catch(()=>{});});
-  peer.addEventListener('datachannel',event=>{
+  peer.addEventListener('icecandidate',(event: any)=>{if(event.candidate&&this.peer===peer)void this.send({type:'RTC_ICE',transportId,mediaId:this.mediaId,candidate:event.candidate.toJSON()}).catch(()=>{});});
+  peer.addEventListener('datachannel',(event: any)=>{
    if(event.channel.label==='vega-controls-v1'){
     const controls=this.controls=event.channel;
-    controls.addEventListener('message',event=>{
+    controls.addEventListener('message',(event: any)=>{
      if(this.controls!==controls||typeof event.data!=='string'||event.data.length>65536)return;
      try{const message=JSON.parse(event.data);if(['ACK','STATE'].includes(message.type))this.onControl?.(message);}catch{}
     });return;
    }
    if(event.channel.label!=='vega-media-v1'){event.channel.close();return;}
    const channel=this.channel=event.channel;
-   channel.addEventListener('message',event=>{if(this.channel===channel)void this.read(event.data);});
+   channel.addEventListener('message',(event: any)=>{if(this.channel===channel)void this.read(event.data);});
   });
   await peer.setRemoteDescription(new RTCSessionDescription(message.sdp as any));
   for(const candidate of this.candidates.get(this.id)||[])await peer.addIceCandidate(new RTCIceCandidate(candidate));

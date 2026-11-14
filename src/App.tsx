@@ -529,8 +529,8 @@ function TabStack() {
 
 const App = () => {
   useEffect(()=>{
-    void Linking.getInitialURL().then(url=>{if(url)vegaCastService.handleInvitation(url);});
-    const subscription=Linking.addEventListener('url',event=>{vegaCastService.handleInvitation(event.url);});
+    void Linking.getInitialURL().then((url: string | null)=>{if(url)vegaCastService.handleInvitation(url);});
+    const subscription=Linking.addEventListener('url',(event: {url: string})=>{vegaCastService.handleInvitation(event.url);});
     return()=>subscription.remove();
   },[]);
   const [hasFirebase] = useState(
@@ -580,7 +580,7 @@ const App = () => {
   // One AppState listener and one timer. They were registered twice, so every
   // foreground, background and 30 s tick ran the sync twice.
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', state => {
+    const subscription = AppState.addEventListener('change', (state: any) => {
       if (state === 'active') {
         endUIInteraction('app-background');
         reconcileCompletedDownloadOutputs().catch(error =>

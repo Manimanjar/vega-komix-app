@@ -1,6 +1,5 @@
 package com.vega
 
-import com.brentvatne.exoplayer.ReactExoplayerView
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
@@ -118,8 +117,8 @@ class AmbientVideoModule(context: ReactApplicationContext) : ReactContextBaseJav
         return null
     }
 
-    private fun findVideoView(view: View?): ReactExoplayerView? {
-        if (view is ReactExoplayerView) return view
+    private fun findVideoView(view: View?): View? {
+        if (view is TextureView || view is SurfaceView) return view
         if (view is ViewGroup) for (i in 0 until view.childCount) {
             findVideoView(view.getChildAt(i))?.let { return it }
         }

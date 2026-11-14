@@ -15,7 +15,7 @@ export enum WatchListKeys {
  * so the user can rename or delete it. While it exists, it holds titles saved
  * by older app versions and titles whose categories were all deleted.
  */
-export const DEFAULT_COLLECTION_ID = 'watchlist';
+export const DEFAULT_COLLECTION_ID = 'reading';
 
 /**
  * Interface for watchlist item
@@ -42,17 +42,46 @@ export interface LibraryCollection {
   updatedAt: number;
 }
 
-export const DEFAULT_COLLECTION: LibraryCollection = {
-  id: DEFAULT_COLLECTION_ID,
-  name: 'Watchlist',
-  icon: 'bookmark',
-  createdAt: 0,
-  updatedAt: 0,
-};
+export const DEFAULT_COLLECTIONS: LibraryCollection[] = [
+  {
+    id: 'reading',
+    name: 'Reading',
+    icon: 'book',
+    color: '#8B5CF6',
+    createdAt: 1,
+    updatedAt: 1,
+  },
+  {
+    id: 'plan_to_read',
+    name: 'Plan to Read',
+    icon: 'bookmark',
+    color: '#3B82F6',
+    createdAt: 2,
+    updatedAt: 2,
+  },
+  {
+    id: 'completed',
+    name: 'Completed',
+    icon: 'check',
+    color: '#22C55E',
+    createdAt: 3,
+    updatedAt: 3,
+  },
+  {
+    id: 'favorites',
+    name: 'Favorites',
+    icon: 'heart',
+    color: '#EC4899',
+    createdAt: 4,
+    updatedAt: 4,
+  },
+];
+
+export const DEFAULT_COLLECTION: LibraryCollection = DEFAULT_COLLECTIONS[0];
 
 /**
  * Categories of an item, limited to categories that exist. Falls back to
- * Watchlist while it exists; otherwise the item is in no category and shows
+ * Reading while it exists; otherwise the item is in no category and shows
  * only under All.
  */
 export const getItemCollectionIds = (
@@ -63,7 +92,13 @@ export const getItemCollectionIds = (
   if (ids.length > 0) {
     return ids;
   }
-  return existingIds.has(DEFAULT_COLLECTION_ID) ? [DEFAULT_COLLECTION_ID] : [];
+  if (existingIds.has(DEFAULT_COLLECTION_ID)) {
+    return [DEFAULT_COLLECTION_ID];
+  }
+  if (existingIds.has('watchlist')) {
+    return ['watchlist'];
+  }
+  return [];
 };
 
 export const createCollectionId = (): string =>
@@ -176,14 +211,18 @@ export class WatchListStorage {
     const collections = (
       mainStorage.getArray<LibraryCollection>(WatchListKeys.COLLECTIONS) || []
     ).filter(c => Boolean(c?.id && c.name));
-    // Older versions kept Watchlist out of storage. Add it once; after that
-    // a missing Watchlist means the user deleted it. Its createdAt and
-    // updatedAt of 0 let a synced edit or delete from another device win.
     if (!mainStorage.getBool(WatchListKeys.DEFAULT_COLLECTION_ADDED, false)) {
       mainStorage.setBool(WatchListKeys.DEFAULT_COLLECTION_ADDED, true);
-      if (!collections.some(c => c.id === DEFAULT_COLLECTION_ID)) {
-        return this.saveCollections([DEFAULT_COLLECTION, ...collections]);
+      const merged = [...DEFAULT_COLLECTIONS];
+      for (const col of collections) {
+        if (!merged.some(m => m.id === col.id)) {
+          merged.push(col);
+        }
       }
+      return this.saveCollections(merged);
+    }
+    if (collections.length === 0) {
+      return this.saveCollections(DEFAULT_COLLECTIONS);
     }
     return collections.sort((a, b) => a.createdAt - b.createdAt);
   }

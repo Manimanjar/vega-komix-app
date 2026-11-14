@@ -946,7 +946,7 @@ const DownloadBottomSheet = ({
           enablePanDownToClose
           enableDynamicSizing={false}
           snapPoints={['50%', '85%']}
-          backdropComponent={backdropProps => (
+          backdropComponent={(backdropProps: any) => (
             <BottomSheetBackdrop
               {...backdropProps}
               disappearsOnIndex={-1}
@@ -956,7 +956,7 @@ const DownloadBottomSheet = ({
           )}
           backgroundStyle={{ backgroundColor: colors.surfaceContainerLow }}
           handleIndicatorStyle={{ backgroundColor: colors.outline }}
-          onChange={index => {
+          onChange={(index: number) => {
             if (index === -1) {
               setModal(false);
             }

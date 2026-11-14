@@ -17,22 +17,23 @@ import {
   findNodeHandle,
 } from 'react-native';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import {HomeStackParamList, TabStackParamList} from '../../App';
+import {HomeStackParamList, RootStackParamList, TabStackParamList} from '../../App';
 import {isSafeExternalUrl} from '../../lib/sandbox/urlGuard';
 import Button from '../../components/ui/Button';
 import AppText from '../../components/ui/Text';
 import {QueryErrorBoundary} from '../../components/ErrorBoundary';
-import SeasonList from '../../components/SeasonList';
+import ChapterList from '../../components/ChapterList';
 import ScreenOverlayHost from '../../components/ScreenOverlayHost';
 import LocalEpisodeList from '../../components/local-content/LocalEpisodeList';
 import SkeletonLoader from '../../components/Skeleton';
 import {useContentDetails} from '../../lib/hooks/useContentInfo';
 import {useArtworkShape} from '../../lib/hooks/useHomePageData';
 import {useInfoAccent} from '../../lib/hooks/useInfoAccent';
-import type {Link} from '../../lib/providers/types';
+import type {ChapterLink, EpisodeLink, Link} from '../../lib/providers/types';
 import {settingsStorage} from '../../lib/storage';
 import useContentStore from '../../lib/zustand/contentStore';
 import useWatchListStore from '../../lib/zustand/watchListStore';
+import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {M3PaletteContext, useM3Colors} from '../../theme/M3PaletteContext';
 import type {MaterialColors} from '../../theme/colors';
 import {buildDetailPalette} from '../../theme/detailPalette';
@@ -276,6 +277,108 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     }
   }, [navigation, webUrl]);
 
+  const rootNavigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const continueWatchingItems = useContinueWatchingStore(state => state.items);
+  const resumeItem = useMemo(() => {
+    return continueWatchingItems.find(
+      item => item.infoUrl === route.params.link,
+    );
+  }, [continueWatchingItems, route.params.link]);
+
+  const resumeText = useMemo(() => {
+    if (!resumeItem) return undefined;
+    const ch = resumeItem.chapterNumber || resumeItem.episodeTitle || '1';
+    const page = resumeItem.page || Math.round(resumeItem.position) || 1;
+    return `Resume Ch. ${ch} • Page ${page}`;
+  }, [resumeItem]);
+
+  const handleTapTag = useCallback(
+    (tag: string) => {
+      searchNavigation.navigate('SearchStack', {
+        screen: 'SearchResults',
+        params: {filter: tag},
+      } as never);
+    },
+    [searchNavigation],
+  );
+
+  const handleChapterPress = useCallback(
+    (
+      chapter: EpisodeLink | ChapterLink,
+      index: number,
+      allChapters: (EpisodeLink | ChapterLink)[],
+    ) => {
+      rootNavigation.navigate('Player', {
+        linkIndex: index,
+        episodeList: allChapters as EpisodeLink[],
+        type: info?.type || 'comic',
+        primaryTitle: displayTitle,
+        secondaryTitle: chapter.title,
+        poster: {
+          logo: displayLogo,
+          poster: posterImage,
+          background: backgroundImage,
+        },
+        providerValue: providerValue,
+        infoUrl: route.params.link,
+      });
+    },
+    [
+      rootNavigation,
+      info?.type,
+      displayTitle,
+      displayLogo,
+      posterImage,
+      backgroundImage,
+      providerValue,
+      route.params.link,
+    ],
+  );
+
+  const handleStartReading = useCallback(() => {
+    const chapters = info?.chapters || [];
+    let targetIndex = 0;
+    if (resumeItem && chapters.length > 0) {
+      const targetLink = resumeItem.episode?.link;
+      const idx = chapters.findIndex(
+        ch => ch.link === targetLink || ch.title === resumeItem.episodeTitle,
+      );
+      if (idx !== -1) {
+        targetIndex = idx;
+      }
+    }
+    const targetChapter = chapters[targetIndex] || resumeItem?.episode || {
+      title: resumeItem?.episodeTitle || 'Chapter 1',
+      link: route.params.link,
+    };
+    rootNavigation.navigate('Player', {
+      linkIndex: targetIndex,
+      episodeList: (chapters.length > 0 ? chapters : [targetChapter]) as EpisodeLink[],
+      type: info?.type || 'comic',
+      primaryTitle: displayTitle,
+      secondaryTitle: targetChapter.title,
+      poster: {
+        logo: displayLogo,
+        poster: posterImage,
+        background: backgroundImage,
+      },
+      providerValue: providerValue,
+      infoUrl: route.params.link,
+    });
+  }, [
+    info?.chapters,
+    info?.type,
+    resumeItem,
+    route.params.link,
+    rootNavigation,
+    displayTitle,
+    displayLogo,
+    posterImage,
+    backgroundImage,
+    providerValue,
+  ]);
+
   if (error && !info) {
     return (
       <View
@@ -364,9 +467,10 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
               <>
                 <ContentOverview
                   backgroundImage={backgroundImage}
+                  posterImage={posterImage}
                   headerPoster={backdropPosterLike ? backgroundImage : undefined}
                   headerPosterAspectRatio={backdropAspectRatio}
-                  genres={meta?.genres}
+                  genres={info?.genres || meta?.genres}
                   inLibrary={inLibrary}
                   isLoading={isLoading && !info}
                   logo={displayLogo}
@@ -394,6 +498,15 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   title={displayTitle}
                   trailerUrl={info?.trailerUrl?.trim()}
                   year={meta?.year}
+                  author={info?.author}
+                  artist={info?.artist}
+                  status={info?.status}
+                  parody={info?.parody}
+                  characters={info?.characters}
+                  language={info?.language}
+                  onTapTag={handleTapTag}
+                  onStartReading={handleStartReading}
+                  resumeText={resumeText}
                 />
                 <View
                   style={{
@@ -409,22 +522,23 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   ) : localTitle ? (
                     <LocalEpisodeList title={localTitle} />
                   ) : (
-                    <SeasonList
-                      refreshing={refreshing}
-                      refreshVersion={refreshVersion}
-                      providerValue={providerValue}
+                    <ChapterList
+                      chapters={info?.chapters}
                       LinkList={filteredLinkList}
+                      providerValue={providerValue}
+                      metaTitle={displayTitle || ''}
                       poster={{
                         logo: displayLogo,
                         poster: posterImage,
                         background: backgroundImage,
                       }}
-                      type={info?.type || 'series'}
-                      metaTitle={displayTitle}
-                      imdbId={info?.imdbId}
+                      type={info?.type || 'comic'}
                       synopsis={synopsis}
                       routeParams={route.params}
+                      refreshing={refreshing}
+                      refreshVersion={refreshVersion}
                       quickDownload={info?.quickDownload}
+                      onChapterPress={handleChapterPress}
                     />
                   )}
                 </View>

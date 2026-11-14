@@ -22,6 +22,10 @@ export default function LocalVideoThumbnail({
     let active = true;
     setThumbnail(null);
     if (useRemote) return;
+    if (/\.(jpg|jpeg|png|webp|avif)$/i.test(uri)) {
+      setThumbnail(uri.startsWith('file://') ? uri : `file://${uri}`);
+      return;
+    }
     getDownloadedVideoThumbnail(uri)
       .then(result => {
         if (active) setThumbnail(result);

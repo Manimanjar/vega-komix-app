@@ -536,13 +536,14 @@ export const fetchStreamList = async ({
       });
 
       // Filter out excluded qualities
+      const streamData = (data || []).filter((s): s is Stream => 'server' in s);
       const excludedQualities = settingsStorage.getExcludedQualities() || [];
-      const filteredQualities = data?.filter(
+      const filteredQualities = streamData.filter(
         streamItem => !excludedQualities.includes(streamItem?.quality + 'p'),
       );
 
       remoteStreams =
-        filteredQualities?.length > 0 ? filteredQualities : data || [];
+        filteredQualities.length > 0 ? filteredQualities : streamData;
     } finally {
       clearTimeout(timeoutId);
       signal?.removeEventListener('abort', abort);

@@ -268,7 +268,7 @@ const withLauncherResources = config =>
       copySplashResources(projectRoot, resRoot);
       patchGeneratedBootSplashFiles(
         projectRoot,
-        modConfig.android?.package || 'com.vega',
+        modConfig.android?.package || 'com.vegakomix.app',
       );
       return modConfig;
     },

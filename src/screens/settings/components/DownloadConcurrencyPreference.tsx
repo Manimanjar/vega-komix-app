@@ -20,7 +20,7 @@ import {isTV} from '../../../lib/tv';
 import {TVFocusable} from '../../../components/tv/TVFocusable';
 
 const MIN_CONCURRENCY = 1;
-const MAX_CONCURRENCY = 5;
+const MAX_CONCURRENCY = 6;
 
 const DownloadConcurrencyPreference = ({
   primary: _primary,
@@ -37,6 +37,9 @@ const DownloadConcurrencyPreference = ({
   );
   const [autoServerFallback, setAutoServerFallback] = useState(() =>
     settingsStorage.isAutoDownloadServerFallbackEnabled(),
+  );
+  const [exportAsCbz, setExportAsCbz] = useState(() =>
+    settingsStorage.isExportAsCbzEnabled(),
   );
   const prevConcurrencyRef = useRef(concurrency);
   const decreaseRef = useRef<View>(null);
@@ -232,10 +235,20 @@ const DownloadConcurrencyPreference = ({
           title="Automatically try next server"
           description="Try another compatible server if a download fails before 1%"
           value={autoServerFallback}
-          divider={false}
+          divider={true}
           onValueChange={next => {
             settingsStorage.setAutoDownloadServerFallbackEnabled(next);
             setAutoServerFallback(next);
+          }}
+        />
+        <SettingsSwitchRow
+          title="Export downloaded chapters as .cbz archive"
+          description="Automatically package downloaded chapter images into standard .cbz comic archives using JSZip"
+          value={exportAsCbz}
+          divider={false}
+          onValueChange={next => {
+            settingsStorage.setExportAsCbzEnabled(next);
+            setExportAsCbz(next);
           }}
         />
       </Surface>

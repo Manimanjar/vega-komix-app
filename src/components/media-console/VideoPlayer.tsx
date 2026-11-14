@@ -153,7 +153,7 @@ const AnimatedVideoPlayer = (
   );
   const volumeBoostAvailable = volumeBoostEnabled;
   const subtitleUrisRef = useRef(new Set<string>());
-  subtitleUrisRef.current = new Set(source?.textTracks?.map(track => track.uri) || []);
+  subtitleUrisRef.current = new Set(source?.textTracks?.map((track: any) => track.uri) || []);
   const failedSubtitleUrisRef = useRef(new Set<string>());
   useEffect(() => { failedSubtitleUrisRef.current.clear(); }, [source?.uri]);
   useEffect(() => {
@@ -1067,7 +1067,7 @@ const AnimatedVideoPlayer = (
             controls={false}
             {...props}
             {...events}
-            animatedProps={Platform.OS === 'android' ? videoZoomProps : undefined}
+            animatedProps={(Platform.OS === 'android' ? videoZoomProps : undefined) as any}
             ref={videoRef || _videoRef}
             resizeMode={resizeMode}
             volume={_volume * (volumeBoostAvailable ? volumeBoost : 1)}

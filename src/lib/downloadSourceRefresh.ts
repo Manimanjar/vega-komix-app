@@ -94,7 +94,7 @@ export const fetchDownloadSourceStreams = async (
       aborted,
     ]);
     if (controller.signal.aborted) return undefined;
-    return streams || [];
+    return (streams || []).filter((s): s is Stream => 'server' in s);
   } catch (error) {
     if (!controller.signal.aborted) {
       console.warn(`Unable to refresh the link of download ${record.id}:`, error);

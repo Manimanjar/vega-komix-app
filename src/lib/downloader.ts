@@ -14,6 +14,9 @@ import useDownloadsStore, {
 import type {SkipInterval} from './providers/types';
 
 const getSourceType = (url: string, fileType: string): DownloadSourceType => {
+  if (fileType === 'comic') {
+    return 'comic';
+  }
   if (fileType === 'torrent' || url.startsWith('magnet:')) {
     return 'torrent';
   }

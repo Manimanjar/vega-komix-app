@@ -2,12 +2,14 @@ import type {DownloadSourceType} from '../zustand/downloadsStore';
 import {hlsDownloadBackend} from './hlsBackend';
 import {httpDownloadBackend} from './httpBackend';
 import {torrentDownloadBackend} from './torrentBackend';
+import {comicDownloadBackend} from './comicBackend';
 import type {DownloadBackend} from './types';
 
 const backends: Record<DownloadSourceType, DownloadBackend> = {
   http: httpDownloadBackend,
   hls: hlsDownloadBackend,
   torrent: torrentDownloadBackend,
+  comic: comicDownloadBackend,
 };
 
 export const getDownloadBackend = (

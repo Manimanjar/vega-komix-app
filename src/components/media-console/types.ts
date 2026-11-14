@@ -20,6 +20,9 @@ export type VideoAnimations = {
 };
 
 export interface VideoPlayerProps extends ReactVideoProps {
+  subtitleStyle?: any;
+  onPictureInPictureStatusChanged?: (event: any) => void;
+  useTextureView?: boolean;
   animations?: VideoAnimations;
   useAnimations?: (controlAnimationTiming: number) => VideoAnimations;
   /**

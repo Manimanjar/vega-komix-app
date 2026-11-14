@@ -20,6 +20,9 @@ export interface ContinueWatchingItem {
   position: number;
   duration: number;
   updatedAt: number;
+  chapterNumber?: number;
+  page?: number;
+  totalPages?: number;
 }
 
 interface ContinueWatchingState {

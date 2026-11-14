@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Vega Komix",
+    "displayName": "Vega Komix",
+    "slug": "vega-komix",
+    "scheme": "vegakomix",
+    "android": {
+      "package": "com.vegakomix.app"
+    }
+  }
+}

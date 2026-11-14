@@ -670,8 +670,10 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
     [validEpisodes, validDirectLinks],
   );
   const fetchDownloadStreams = useCallback(
-    (link: string, signal: AbortSignal) =>
-      fetchStreams(link, type, providerValue, {signal, isDownload: true}),
+    async (link: string, signal: AbortSignal) => {
+      const res = await fetchStreams(link, type, providerValue, {signal, isDownload: true});
+      return (res || []).filter((s): s is Stream => 'server' in s);
+    },
     [fetchStreams, type, providerValue],
   );
   const prepareSelectedDownloads = useCallback(async () => {

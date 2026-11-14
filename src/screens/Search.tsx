@@ -62,7 +62,7 @@ const SearchResultItem = memo(
                 width: 44,
               }}>
               <MaterialCommunityIcons
-                name={item.Type === 'series' ? 'television' : 'movie-open'}
+                name="book-open-page-variant"
                 size={22}
                 color={colors.onSecondaryContainer}
               />
@@ -76,7 +76,7 @@ const SearchResultItem = memo(
               <AppText
                 role="bodySmall"
                 style={{color: colors.onSurfaceVariant, marginTop: 2}}>
-                {item.Type === 'series' ? 'TV Show' : 'Movie'} • {item.Year}
+                Comic / Manga • {item.Year}
               </AppText>
             </View>
             <MaterialCommunityIcons

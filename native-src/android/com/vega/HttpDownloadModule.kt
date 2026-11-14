@@ -198,7 +198,7 @@ class HttpDownloadModule(
      */
     @ReactMethod
     fun setParallelStreaming(enabled: Boolean) {
-        com.brentvatne.exoplayer.ParallelDataSource.setEnabled(enabled)
+        // no-op without react-native-video
     }
 
     @ReactMethod

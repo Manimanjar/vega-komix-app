@@ -38,9 +38,16 @@ const SliderSeparator = () => <View style={{width: 14}} />;
 // One memoized cell per post, so the press handler stays stable and
 // MediaPosterCard skips re-rendering when the list re-renders.
 const SliderPosterItem = memo(
-  ({item, onPressItem}: {item: Post; onPressItem: (item: Post) => void}) => {
-    const ratio = parseAspectRatio(item.aspectRatio, 2 / 3);
-    const cardWidth = ratio > 1.2 ? 220 : ratio > 0.85 ? 150 : 124;
+  ({
+    item,
+    providerValue,
+    onPressItem,
+  }: {
+    item: Post;
+    providerValue?: string;
+    onPressItem: (item: Post) => void;
+  }) => {
+    const cardWidth = 135;
     const handlePress = useCallback(
       () => onPressItem(item),
       [onPressItem, item],
@@ -51,9 +58,11 @@ const SliderPosterItem = memo(
         title={item.title}
         poster={item.image}
         width={cardWidth}
-        aspectRatio={item.aspectRatio}
+        aspectRatio={2 / 3}
         borderRadius={item.borderRadius}
         cornerTag={item.cornerTag || item.tag}
+        contentType={(item as any).type || (item as any).contentType || item.tag}
+        providerBadge={item.provider || providerValue}
         onPress={handlePress}
       />
     );
@@ -155,9 +164,13 @@ const Slider = ({
 
   const renderItem = useCallback(
     ({item}: {item: Post}) => (
-      <SliderPosterItem item={item} onPressItem={handleItemPress} />
+      <SliderPosterItem
+        item={item}
+        providerValue={providerValue || fallbackProviderValue}
+        onPressItem={handleItemPress}
+      />
     ),
-    [handleItemPress],
+    [handleItemPress, providerValue, fallbackProviderValue],
   );
 
   const keyExtractor = useCallback(

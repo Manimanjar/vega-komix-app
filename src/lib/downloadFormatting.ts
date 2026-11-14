@@ -20,6 +20,12 @@ export const formatDownloadProgressLabel = (item: {
   downloadedBytes: number;
   totalBytes: number;
 }): string => {
+  if (item.sourceType === 'comic' || item.videoType === 'comic') {
+    if (item.totalBytes > 0) {
+      return `${item.downloadedBytes} / ${item.totalBytes} pages`;
+    }
+    return 'Downloading pages';
+  }
   const isHls = item.sourceType === 'hls' || item.videoType === 'm3u8';
   if (item.totalBytes > 0) {
     const percent = Math.min(
@@ -32,6 +38,9 @@ export const formatDownloadProgressLabel = (item: {
     const downloadedMB = Math.round(item.downloadedBytes / 1024 / 1024);
     const totalMB = Math.round(item.totalBytes / 1024 / 1024);
     if (downloadedMB === 0 && totalMB === 0) {
+      if (item.totalBytes < 500) {
+        return `${item.downloadedBytes} / ${item.totalBytes} pages`;
+      }
       return `${percent}%`;
     }
     return `${downloadedMB} / ${totalMB} MB`;

@@ -22,8 +22,8 @@ module.exports = () => {
   const IS_TV = process.env.EXPO_TV === '1' || process.env.APP_VARIANT === 'tv';
   const HAS_FIREBASE =
     !IS_PLAYSTORE && (hasAndroidGoogleServices || hasIosGooglePlist);
-  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.app' : 'com.vega';
-  const APP_SCHEME = IS_PLAYSTORE ? 'vegaapp' : 'com.vega';
+  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.komix.app' : 'com.vegakomix.app';
+  const APP_SCHEME = 'vegakomix';
   const plugins = [
     './plugins/with-custom-native-modules.js',
       [
@@ -47,27 +47,6 @@ module.exports = () => {
     './plugins/with-android-okhttp.js',
     ...(HAS_FIREBASE ? ['@react-native-firebase/app'] : []),
     ...(HAS_FIREBASE ? ['@react-native-firebase/crashlytics'] : []),
-    [
-      'react-native-video',
-      {
-        enableNotificationControls: true,
-        enableAndroidPictureInPicture: true,
-        androidExtensions: {
-          useExoplayerRtsp: false,
-          useExoplayerSmoothStreaming: true,
-          useExoplayerHls: true,
-          useExoplayerDash: true,
-        },
-      },
-    ],
-    [
-      'react-native-google-cast',
-      {
-        // Avoid unreviewed SDK upgrades requiring a newer compileSdk/AGP/Kotlin.
-        androidPlayServicesCastFrameworkVersion: '22.3.1',
-        expandedController: true,
-      },
-    ],
     'react-native-edge-to-edge',
     // Manifest mods execute in reverse order: configure TV before moving its
     // launcher intent onto the color aliases.
@@ -145,14 +124,14 @@ module.exports = () => {
   ];
   return {
     expo: {
-      name: 'Vega',
-      scheme: [APP_SCHEME, 'vega-cast'],
-      displayName: 'Vega',
+      name: 'Vega Komix',
+      scheme: [APP_SCHEME],
+      displayName: 'Vega Komix',
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
       plugins,
-      slug: 'vega',
+      slug: 'vega-komix',
       version: '5.3.3',
       userInterfaceStyle: 'dark',
       experiments: {

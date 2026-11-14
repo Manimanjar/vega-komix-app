@@ -371,9 +371,19 @@ const executeProvider = async (
     }
     return resolvedExports;
   }
-  const providerFunction = moduleExports[exportName];
+  let providerFunction = moduleExports[exportName];
   if (typeof providerFunction !== 'function') {
-    throw new Error(`Provider module does not export ${exportName}`);
+    if (exportName === 'getStream' && typeof moduleExports.getPages === 'function') {
+      providerFunction = moduleExports.getPages;
+    } else if (exportName === 'getPages' && typeof moduleExports.getStream === 'function') {
+      providerFunction = moduleExports.getStream;
+    } else if (exportName === 'getEpisodes' && typeof moduleExports.getChapters === 'function') {
+      providerFunction = moduleExports.getChapters;
+    } else if (exportName === 'getChapters' && typeof moduleExports.getEpisodes === 'function') {
+      providerFunction = moduleExports.getEpisodes;
+    } else {
+      throw new Error(`Provider module does not export ${exportName}`);
+    }
   }
   return providerFunction({
     ...args,

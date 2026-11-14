@@ -1169,7 +1169,7 @@ class RemotePlaybackManager {
       sessions.onSessionEnded(() => setCastSession(false));
       sessions
         .getCurrentCastSession()
-        .then(session => setCastSession(Boolean(session)))
+        .then((session: any) => setCastSession(Boolean(session)))
         .catch(() => {});
     } catch (e) {
       // Devices without Google Play services have no Cast framework.
@@ -1463,7 +1463,7 @@ class RemotePlaybackManager {
 
     // Full request for manual testing: open contentUrl in VLC/ffplay/a browser on the same Wi-Fi.
     console.info('[CastLoad] request', {
-      receiverIp: castDevice?.ipAddress || 'unknown',
+      receiverIp: (castDevice as any)?.ipAddress || 'unknown',
       contentUrl: sanitizeUrlForLog(mediaUrl),
       contentType,
       startTime: loadRequest.startTime ?? 0,

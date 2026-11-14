@@ -2,7 +2,7 @@ import {useEffect} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {providerManager} from '../services/ProviderManager';
 import {cacheStorage} from '../storage';
-import {EpisodeLink} from '../providers/types';
+import {EpisodeLink, ChapterLink} from '../providers/types';
 import {extensionManager} from '../services';
 
 const getEpisodesCacheKey = (episodesLink: string, providerValue: string) =>
@@ -17,7 +17,7 @@ export const useEpisodes = (
     ? getEpisodesCacheKey(episodesLink, providerValue)
     : undefined;
 
-  const query = useQuery<EpisodeLink[], Error>({
+  const query = useQuery<(EpisodeLink | ChapterLink)[], Error>({
     queryKey: ['episodes', episodesLink, providerValue],
     queryFn: async ({signal}) => {
       if (!episodesLink || !providerValue || !enabled) {

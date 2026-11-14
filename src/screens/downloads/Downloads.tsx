@@ -9,8 +9,11 @@ import {
   Dimensions,
   FlatList,
   findNodeHandle,
+  ToastAndroid,
   View,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import {importLocalCbzFile} from '../../lib/comicDownloader';
 import ReactNativeHapticFeedback, {
   HapticFeedbackTypes,
 } from 'react-native-haptic-feedback';
@@ -72,6 +75,61 @@ const Downloads = () => {
   );
   const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportLocalCbz = async () => {
+    try {
+      triggerHaptic(HapticFeedbackTypes.effectClick);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['*/*'],
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      setIsImporting(true);
+      let importedCount = 0;
+
+      for (const asset of result.assets) {
+        const isCbzOrZip =
+          asset.name.toLowerCase().endsWith('.cbz') ||
+          asset.name.toLowerCase().endsWith('.zip');
+        if (!isCbzOrZip) {
+          continue;
+        }
+
+        await importLocalCbzFile(asset.uri, asset.name);
+        importedCount++;
+      }
+
+      if (importedCount > 0) {
+        triggerHaptic(HapticFeedbackTypes.notificationSuccess);
+        ToastAndroid.show(
+          `Successfully imported ${importedCount} ${
+            importedCount === 1 ? 'comic' : 'comics'
+          }`,
+          ToastAndroid.LONG,
+        );
+      } else {
+        ToastAndroid.show(
+          'Please select a valid .cbz or .zip file',
+          ToastAndroid.SHORT,
+        );
+      }
+    } catch (err: any) {
+      console.error('Import CBZ error:', err);
+      showAppDialog({
+        title: 'Import Failed',
+        message: err instanceof Error ? err.message : String(err),
+        actions: [{label: 'OK'}],
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const selectButtonRef = useRef<View>(null);
   const firstCardRef = useRef<View>(null);
@@ -363,45 +421,76 @@ const Downloads = () => {
                   className="text-m3-on-background">
                   Downloads
                 </AppText>
-                {hasCards ? (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                   <TVFocusable
-                    ref={selectButtonRef}
-                    onLayout={updateSelectButtonNode}
                     accessibilityRole="button"
-                    accessibilityLabel="Select items"
-                    nextFocusRight={selectButtonNode ?? undefined}
-                    nextFocusUp={selectButtonNode ?? undefined}
-                    nextFocusDown={firstCardNode ?? undefined}
-                    nextFocusLeft={firstCardNode ?? undefined}
-                    onPress={() => {
-                      triggerHaptic(HapticFeedbackTypes.effectClick);
-                      setIsSelectionModeActive(true);
-                    }}
+                    accessibilityLabel="Import Local CBZ or Comic Archive"
+                    onPress={handleImportLocalCbz}
                     borderRadius={18}
                     focusScale={1.08}
                     focusBorderColor={focusBorderColor}
                     style={{
                       alignItems: 'center',
-                      backgroundColor: colors.surfaceContainerHigh,
+                      backgroundColor: colors.primaryContainer,
                       borderRadius: 18,
                       flexDirection: 'row',
                       gap: 6,
                       justifyContent: 'center',
                       minHeight: 36,
-                      paddingHorizontal: 14,
+                      paddingHorizontal: 12,
                     }}>
                     <MaterialCommunityIcons
-                      name="checkbox-multiple-marked-outline"
+                      name="folder-zip-outline"
                       size={18}
-                      color={colors.primary}
+                      color={colors.onPrimaryContainer}
                     />
                     <AppText
                       role="labelLargeEmphasized"
-                      style={{color: colors.primary}}>
-                      Select
+                      style={{color: colors.onPrimaryContainer}}>
+                      {isImporting ? 'Importing...' : 'Import CBZ'}
                     </AppText>
                   </TVFocusable>
-                ) : null}
+
+                  {hasCards ? (
+                    <TVFocusable
+                      ref={selectButtonRef}
+                      onLayout={updateSelectButtonNode}
+                      accessibilityRole="button"
+                      accessibilityLabel="Select items"
+                      nextFocusRight={selectButtonNode ?? undefined}
+                      nextFocusUp={selectButtonNode ?? undefined}
+                      nextFocusDown={firstCardNode ?? undefined}
+                      nextFocusLeft={firstCardNode ?? undefined}
+                      onPress={() => {
+                        triggerHaptic(HapticFeedbackTypes.effectClick);
+                        setIsSelectionModeActive(true);
+                      }}
+                      borderRadius={18}
+                      focusScale={1.08}
+                      focusBorderColor={focusBorderColor}
+                      style={{
+                        alignItems: 'center',
+                        backgroundColor: colors.surfaceContainerHigh,
+                        borderRadius: 18,
+                        flexDirection: 'row',
+                        gap: 6,
+                        justifyContent: 'center',
+                        minHeight: 36,
+                        paddingHorizontal: 14,
+                      }}>
+                      <MaterialCommunityIcons
+                        name="checkbox-multiple-marked-outline"
+                        size={18}
+                        color={colors.primary}
+                      />
+                      <AppText
+                        role="labelLargeEmphasized"
+                        style={{color: colors.primary}}>
+                        Select
+                      </AppText>
+                    </TVFocusable>
+                  ) : null}
+                </View>
               </View>
               <CurrentDownloadsSection
                 primary={colors.primary}
@@ -512,6 +601,7 @@ const Downloads = () => {
               onExplore={() => {
                 navigation.getParent<any>()?.navigate('HomeStack');
               }}
+              onImportCbz={handleImportLocalCbz}
             />
           ) : null
         }

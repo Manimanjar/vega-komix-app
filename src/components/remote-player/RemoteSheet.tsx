@@ -52,7 +52,7 @@ export const RemoteSheet: React.FC<RemoteSheetProps> = ({
           enableContentPanningGesture={enableContentPanningGesture}
           enableDynamicSizing={false}
           snapPoints={['50%', '85%']}
-          backdropComponent={backdropProps => (
+          backdropComponent={(backdropProps: any) => (
             <BottomSheetBackdrop
               {...backdropProps}
               disappearsOnIndex={-1}
@@ -62,7 +62,7 @@ export const RemoteSheet: React.FC<RemoteSheetProps> = ({
           )}
           backgroundStyle={{backgroundColor: colors.surfaceContainerLow}}
           handleIndicatorStyle={{backgroundColor: colors.outline}}
-          onChange={index => {
+          onChange={(index: number) => {
             if (index === -1) onClose();
           }}
           onClose={onClose}>

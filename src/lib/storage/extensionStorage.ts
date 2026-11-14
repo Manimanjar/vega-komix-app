@@ -23,7 +23,7 @@ export interface ProviderExtension {
   version: string;
   icon: string;
   disabled: boolean;
-  type: 'global' | 'english' | 'india' | 'italy' | 'anime' | 'drama';
+  type: 'global' | 'english' | 'india' | 'italy' | 'anime' | 'drama' | 'comics' | 'manga' | string;
   installed: boolean;
   hasSettings?: boolean;
   /** Folder of the provider's files under the source; dist/{value} if unset. */
@@ -46,6 +46,8 @@ export interface ProviderModule {
     catalog?: string;
     episodes?: string;
     settings?: string;
+    chapters?: string;
+    pages?: string;
   };
   cachedAt: number;
 }

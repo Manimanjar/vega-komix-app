@@ -11,6 +11,7 @@ import {useM3Colors} from '../../../theme/M3PaletteContext';
 
 interface DownloadsEmptyStateProps {
   onExplore: () => void;
+  onImportCbz?: () => void;
   exploreButtonRef?: React.RefObject<any>;
   onExploreLayout?: () => void;
   preferredFocus?: boolean;
@@ -18,6 +19,7 @@ interface DownloadsEmptyStateProps {
 
 export const DownloadsEmptyState: React.FC<DownloadsEmptyStateProps> = ({
   onExplore,
+  onImportCbz,
   exploreButtonRef,
   onExploreLayout,
   preferredFocus = true,
@@ -28,16 +30,16 @@ export const DownloadsEmptyState: React.FC<DownloadsEmptyStateProps> = ({
   return (
     <View className="items-center justify-center py-20">
       <MaterialCommunityIcons
-        name="download-off-outline"
+        name="book-open-page-variant-outline"
         size={72}
         color={colors.onSurfaceVariant}
       />
       <AppText
         role="bodyLarge"
         className="mt-4 text-center text-m3-on-surface-variant">
-        Your downloaded library is empty
+        Your downloaded comic library is empty
       </AppText>
-      <View className="mt-6">
+      <View className="mt-6 flex-row items-center gap-3">
         <TVFocusable
           ref={exploreButtonRef}
           onLayout={onExploreLayout}
@@ -73,9 +75,41 @@ export const DownloadsEmptyState: React.FC<DownloadsEmptyStateProps> = ({
           <AppText
             role="labelLargeEmphasized"
             style={{color: colors.onPrimary, fontWeight: '700'}}>
-            Explore Content
+            Explore Comics
           </AppText>
         </TVFocusable>
+
+        {onImportCbz ? (
+          <TVFocusable
+            accessibilityRole="button"
+            accessibilityLabel="Import Local CBZ"
+            onPress={onImportCbz}
+            borderRadius={20}
+            focusScale={1.06}
+            focusBorderColor={focusBorderColor}
+            style={{
+              alignItems: 'center',
+              backgroundColor: colors.surfaceContainerHigh,
+              borderRadius: 20,
+              flexDirection: 'row',
+              gap: 8,
+              justifyContent: 'center',
+              minHeight: 44,
+              paddingHorizontal: 18,
+              paddingVertical: 10,
+            }}>
+            <MaterialCommunityIcons
+              name="folder-zip-outline"
+              size={20}
+              color={colors.primary}
+            />
+            <AppText
+              role="labelLargeEmphasized"
+              style={{color: colors.primary, fontWeight: '700'}}>
+              Import CBZ
+            </AppText>
+          </TVFocusable>
+        ) : null}
       </View>
     </View>
   );

@@ -712,7 +712,7 @@ const Hero = memo(
                 contentColor={getReadableContentColor(searchButtonColor)}
                 nextFocusUp={hamburgerNode ?? undefined}
                 onPress={openDetails}>
-                Watch now
+                Read now
               </Button>
             </View>
             {error && !heroData ? (

@@ -36,7 +36,7 @@ interface ContinueWatchingCardProps {
 
 const ContinueWatchingCard = ({
   item,
-  width = 124,
+  width = 132,
   selected = false,
   selectionMode = false,
   onOpen,
@@ -44,26 +44,47 @@ const ContinueWatchingCard = ({
 }: ContinueWatchingCardProps) => {
   const colors = useM3Colors();
   const poster = item.poster || item.background;
-  const episodeTitle =
-    item.episodeTitle ||
-    (item.episode?.title && item.episode.title !== item.title
-      ? item.episode.title
-      : undefined);
-  const progressColor = useImageAccent(poster, colors.primary);
+  
+  // Chapter badge resolution
+  const chapterNumber = item.chapterNumber ?? (
+    typeof (item.episode as any)?.chapterNumber === 'number'
+      ? (item.episode as any).chapterNumber
+      : undefined
+  );
+  const chapterBadge = chapterNumber !== undefined
+    ? `Ch. ${chapterNumber}`
+    : item.episodeTitle || item.episode?.title
+      ? (item.episodeTitle || item.episode?.title).toLowerCase().includes('ch')
+        ? item.episodeTitle || item.episode?.title
+        : `Ch. ${item.episodeTitle || item.episode?.title}`
+      : undefined;
+
+  // Page progress calculation
+  const currentPage = item.page || (item.position > 0 ? Math.round(item.position) : 1);
+  const totalPages = item.totalPages || (item.duration > 0 ? Math.round(item.duration) : undefined);
   const progress =
-    item.duration > 0
-      ? Math.min(100, Math.max(0, (item.position / item.duration) * 100))
-      : 0;
+    totalPages && totalPages > 0
+      ? Math.min(100, Math.max(0, (currentPage / totalPages) * 100))
+      : item.duration > 0
+        ? Math.min(100, Math.max(0, (item.position / item.duration) * 100))
+        : 0;
+
+  const progressLabel = totalPages ? `Page ${currentPage} / ${totalPages}` : `Page ${currentPage}`;
+  const progressColor = useImageAccent(poster, colors.primary);
 
   return (
     <View style={{width, overflow: 'visible'}}>
       <MediaPosterCard
         title={item.title}
-        subtitle={episodeTitle}
+        subtitle={progressLabel}
+        badge={chapterBadge}
         poster={poster}
         width={width}
+        aspectRatio={2 / 3}
         selected={selected}
         selectionMode={selectionMode}
+        contentType={item.type}
+        providerBadge={item.providerValue}
         onPress={() => onOpen(item)}
         onLongPress={() => onLongPress(item)}
       />
@@ -71,7 +92,7 @@ const ContinueWatchingCard = ({
         style={{
           backgroundColor: colors.surfaceContainerHighest,
           borderRadius: 2,
-          height: 3,
+          height: 3.5,
           marginTop: selected ? 4 : 7,
           overflow: 'hidden',
           width: '100%',
@@ -79,8 +100,8 @@ const ContinueWatchingCard = ({
         <View
           style={{
             backgroundColor: progressColor,
-            height: 3,
-            width: `${progress}%`,
+            height: 3.5,
+            width: `${Math.max(4, progress)}%`,
           }}
         />
       </View>
@@ -200,7 +221,7 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
       title: `Clear History?`,
       message: `Are you sure you want to remove ${count} ${
         count === 1 ? 'title' : 'titles'
-      } from your continue watching history?`,
+      } from your continue reading history?`,
       variant: 'warning',
       actions: [
         {label: 'Cancel'},
@@ -272,7 +293,7 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
               role="titleLargeEmphasized"
               numberOfLines={1}
               style={{color: colors.onBackground, flex: 1}}>
-              Continue watching
+              Continue reading
             </AppText>
           </View>
         ) : (
@@ -280,7 +301,7 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
             role="titleLargeEmphasized"
             numberOfLines={1}
             style={{color: colors.onBackground, flex: 1}}>
-            Continue watching
+            Continue reading
           </AppText>
         )}
 

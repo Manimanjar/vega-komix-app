@@ -22,14 +22,14 @@ export function VegaCastScanner({onScan,onClose}:{onScan:(invitation:string)=>vo
   }catch{setCameraError(true);}finally{setRequesting(false);}
  };
  useEffect(()=>{
-  const subscription=AppState.addEventListener('change',state=>{if(state==='active'){setPermissionBlocked(false);void getPermission();}});
+  const subscription=AppState.addEventListener('change',(state: any)=>{if(state==='active'){setPermissionBlocked(false);void getPermission();}});
   return()=>subscription.remove();
  },[getPermission]);
  return <MaterialDialogSurface visible onDismiss={onClose} style={{width:Math.min(360,width-48),maxHeight:height-48}}>
   <View style={{gap:20}}>
    <AppText role="titleLarge" style={{color:colors.onSurface}}>Scan QR code</AppText>
    {cameraError?<AppText role="bodyMedium" style={{color:colors.onSurfaceVariant}}>Camera unavailable. Select a receiver from the device list.</AppText>
-    :permission?.granted?<CameraView style={{height:Math.min(280,height*.4),width:'100%',borderRadius:16,overflow:'hidden'}} facing="back" onMountError={()=>setCameraError(true)} barcodeScannerSettings={{barcodeTypes:['qr']}} onBarcodeScanned={({data})=>{if(!scanned.current&&/^vega-cast:\/\/pair\?/i.test(data)){scanned.current=true;onScan(data);}}}/>
+    :permission?.granted?<CameraView style={{height:Math.min(280,height*.4),width:'100%',borderRadius:16,overflow:'hidden'}} facing="back" onMountError={()=>setCameraError(true)} barcodeScannerSettings={{barcodeTypes:['qr']}} onBarcodeScanned={({data}: {data: any})=>{if(!scanned.current&&/^vega-cast:\/\/pair\?/i.test(data)){scanned.current=true;onScan(data);}}}/>
     :<AppText role="bodyMedium" style={{color:colors.onSurfaceVariant}}>{!permission?'Checking camera access…':permissionBlocked?'Android is not showing the camera prompt. Check camera access in Settings.':Platform.OS==='android'?'Allow camera access to scan the QR code. You can choose “Only this time”.':'Allow camera access to scan the QR code.'}</AppText>}
    <View style={{flexDirection:'row',justifyContent:'flex-end',gap:8}}>
     <Button variant="text" onPress={onClose}>Cancel</Button>

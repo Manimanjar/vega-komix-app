@@ -261,7 +261,7 @@ export class ExtensionManager {
     }
     try {
       const requiredFiles = ['posts', 'meta', 'stream', 'catalog'];
-      const optionalFiles = ['episodes', 'settings'];
+      const optionalFiles = ['episodes', 'settings', 'chapters', 'pages'];
       const allFiles = [...requiredFiles, ...optionalFiles];
       const filesUrl = getProviderFilesUrl(sourceUrl, providerValue, path);
 

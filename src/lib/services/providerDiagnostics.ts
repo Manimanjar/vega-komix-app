@@ -5,6 +5,7 @@ import type {
   Link,
   Post,
   Stream,
+  PageImage,
 } from '../providers/types';
 import {providerManager} from './ProviderManager';
 
@@ -38,7 +39,7 @@ export type ProviderDiagnosticResult = {
   metadata: Info;
   episode?: EpisodeLink;
   directLink?: {title: string; link: string; type?: string};
-  streams: Stream[];
+  streams: (Stream | PageImage)[];
 };
 
 export class ProviderDiagnosticError extends Error {

@@ -52,7 +52,7 @@ allprojects {
     'android',
     async cfg => {
       const projectRoot = cfg.modRequest.projectRoot;
-      const packageName = cfg.android?.package || 'com.vega';
+      const packageName = cfg.android?.package || 'com.vegakomix.app';
       const packagePath = packageName.replace(/\./g, '/');
       const targetDir = path.join(
         projectRoot,

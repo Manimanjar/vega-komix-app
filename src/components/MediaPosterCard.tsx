@@ -1,7 +1,8 @@
+import React from 'react';
 import {NavigationContext} from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React from 'react';
 import {Image, Pressable, TouchableOpacity, View} from 'react-native';
+import {Image as ExpoImage} from 'expo-image';
 import Animated from 'react-native-reanimated';
 import {BlurView} from 'expo-blur';
 import {useM3Colors} from '../theme/M3PaletteContext';
@@ -59,6 +60,8 @@ interface MediaPosterCardProps {
   borderRadius?: number;
   tag?: string;
   cornerTag?: string;
+  contentType?: string;
+  providerBadge?: string;
   selected?: boolean;
   selectionMode?: boolean;
   hasTVPreferredFocus?: boolean;
@@ -103,6 +106,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       borderRadius,
       tag,
       cornerTag,
+      contentType,
+      providerBadge,
       selected = false,
       selectionMode = false,
       hasTVPreferredFocus = false,
@@ -139,6 +144,14 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       typeof borderRadius === 'number' && borderRadius >= 0 ? borderRadius : 18;
     const activeTag = cornerTag || tag;
     const focusBorderColor = useTVFocusBorderColor();
+    const normalizedType = (contentType || activeTag || '').toLowerCase();
+    const typeBadge = React.useMemo(() => {
+      if (normalizedType.includes('manhwa')) return {label: 'MANHWA', bg: '#00B0FF'};
+      if (normalizedType.includes('manga')) return {label: 'MANGA', bg: '#7C4DFF'};
+      if (normalizedType.includes('comic')) return {label: 'COMIC', bg: '#FF9100'};
+      if (normalizedType.includes('doujin')) return {label: 'DOUJIN', bg: '#FF4081'};
+      return null;
+    }, [normalizedType]);
 
     React.useEffect(() => {
       if (!isNavFocused && isFocused) {
@@ -348,13 +361,11 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                   ) : null}
 
                   {poster ? (
-                    <Image
+                    <ExpoImage
                       source={{uri: poster}}
-                      resizeMode="cover"
-                      // Decode at card size. Android otherwise decodes remote
-                      // images at full resolution, which wastes memory and
-                      // causes jank while scrolling on low-end phones and TVs.
-                      resizeMethod="resize"
+                      contentFit="cover"
+                      transition={150}
+                      cachePolicy="memory-disk"
                       style={{
                         aspectRatio: activeAspectRatio,
                         width: '100%',
@@ -376,6 +387,62 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       </AppText>
                     </View>
                   )}
+                  {typeBadge ? (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: 6,
+                        left: 6,
+                        backgroundColor: typeBadge.bg,
+                        borderRadius: 6,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        zIndex: 5,
+                        shadowColor: '#000',
+                        shadowOffset: {width: 0, height: 1},
+                        shadowOpacity: 0.4,
+                        shadowRadius: 2,
+                        elevation: 3,
+                      }}>
+                      <AppText
+                        role="labelSmallEmphasized"
+                        style={{
+                          color: '#FFFFFF',
+                          fontWeight: '800',
+                          fontSize: 9,
+                          letterSpacing: 0.5,
+                        }}>
+                        {typeBadge.label}
+                      </AppText>
+                    </View>
+                  ) : null}
+                  {providerBadge ? (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: 6,
+                        right: 6,
+                        backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                        borderRadius: 6,
+                        paddingHorizontal: 5,
+                        paddingVertical: 2,
+                        zIndex: 5,
+                        borderWidth: 0.5,
+                        borderColor: 'rgba(255, 255, 255, 0.25)',
+                      }}>
+                      <AppText
+                        role="labelSmall"
+                        numberOfLines={1}
+                        style={{
+                          color: '#FFFFFF',
+                          fontSize: 8.5,
+                          fontWeight: '700',
+                          maxWidth: 68,
+                        }}>
+                        {providerBadge}
+                      </AppText>
+                    </View>
+                  ) : null}
                   {activeFocused ? (
                     // Drawn over the poster, so focus does not resize the card.
                     <View

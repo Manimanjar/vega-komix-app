@@ -10,6 +10,8 @@ import {
   Post,
   Stream,
   SettingsField,
+  ChapterLink,
+  PageImage,
 } from '../providers/types';
 import {extensionManager} from './ExtensionManager';
 import {extensionStorage} from '../storage/extensionStorage';
@@ -104,7 +106,15 @@ export class ProviderManager {
 
   private getModule(
     providerValue: string,
-    key: 'catalog' | 'posts' | 'meta' | 'stream' | 'episodes' | 'settings',
+    key:
+      | 'catalog'
+      | 'posts'
+      | 'meta'
+      | 'stream'
+      | 'episodes'
+      | 'settings'
+      | 'chapters'
+      | 'pages',
   ): ProviderCode | undefined {
     const module = extensionManager.getProviderModules(providerValue);
     const code = module?.modules[key];
@@ -337,63 +347,98 @@ export class ProviderManager {
     signal?: AbortSignal;
     providerValue: string;
     isDownload?: boolean;
-  }): Promise<Stream[]> => {
+  }): Promise<Array<Stream | PageImage>> => {
     throwIfProviderAborted(signal);
-    const getStreamModule = this.getModule(providerValue, 'stream');
+    const getStreamModule =
+      this.getModule(providerValue, 'stream') ||
+      this.getModule(providerValue, 'pages');
     if (!getStreamModule) {
-      throw new Error(`No stream module found for provider: ${providerValue}`);
+      throw new Error(`No stream or pages module found for provider: ${providerValue}`);
     }
     try {
       const startedAt = Date.now();
-      const streams = await this.executeModule<Stream[]>(
+      const exportName =
+        getStreamModule.code.includes('getPages') &&
+        !getStreamModule.code.includes('getStream')
+          ? 'getPages'
+          : 'getStream';
+      const streams = await this.executeModule<Array<Stream | PageImage>>(
         getStreamModule,
         providerValue,
-        'getStream',
+        exportName,
         {link, type, isDownload: Boolean(isDownload)},
         signal,
       );
       console.log(
-        `[ProviderPerf] getStream ${providerValue} ${
+        `[ProviderPerf] ${exportName} ${providerValue} ${
           Array.isArray(streams) ? streams.length : 0
-        } streams in ${Date.now() - startedAt}ms`,
+        } items in ${Date.now() - startedAt}ms`,
       );
-      const validatedStreams = this.requireArray<Stream>(streams, providerValue, 'getStream');
-      for (const stream of validatedStreams) getStreamDrm(stream.drm);
-      return this.withJarCookies(
+      const validatedStreams = this.requireArray<Stream | PageImage>(
+        streams,
+        providerValue,
+        exportName,
+      );
+      for (const item of validatedStreams) {
+        if ('drm' in item && item.drm) getStreamDrm(item.drm);
+      }
+      return this.withStreamOrPageJarCookies(
         getStreamModule.author,
-        isDownload ? validatedStreams.filter(stream => !stream.drm) : validatedStreams,
+        isDownload
+          ? validatedStreams.filter(item => !('drm' in item && item.drm))
+          : validatedStreams,
       );
     } catch (error) {
-      console.error('Error in stream function:', error);
+      console.error('Error in stream/pages function:', error);
       throw new Error(
         getErrorMessage(
           error,
-          `Failed to get stream from provider: ${providerValue}`,
+          `Failed to get stream/pages from provider: ${providerValue}`,
         ),
       );
     }
   };
+
+  getPages = async (params: {
+    link: string;
+    type?: string;
+    signal?: AbortSignal;
+    providerValue: string;
+    isDownload?: boolean;
+  }): Promise<PageImage[]> => {
+    const results = await this.getStream({
+      ...params,
+      type: params.type || 'comic',
+    });
+    return results as PageImage[];
+  };
+
   /**
-   * Provider requests no longer share the native cookie store with the player,
-   * so streams get their author's cookies (e.g. WAF clearance) as a header,
+   * Provider requests no longer share the native cookie store with the player/reader,
+   * so streams/pages get their author's cookies (e.g. WAF clearance) as a header,
    * unless the provider set a Cookie header itself.
    */
-  private withJarCookies(author: string, streams: Stream[]): Stream[] {
-    return streams.map(stream => {
+  private withStreamOrPageJarCookies<T extends Stream | PageImage>(
+    author: string,
+    items: T[],
+  ): T[] {
+    return items.map(item => {
+      const url =
+        'link' in item ? (item as Stream).link : (item as PageImage).imageUrl;
       const headers =
-        stream.headers && typeof stream.headers === 'object'
-          ? stream.headers
+        item.headers && typeof item.headers === 'object'
+          ? (item.headers as Record<string, string>)
           : {};
       if (
-        !/^https?:/i.test(stream.link ?? '') ||
+        !/^https?:/i.test(url ?? '') ||
         Object.keys(headers).some(k => k.toLowerCase() === 'cookie')
       ) {
-        return stream;
+        return item;
       }
-      const cookie = getJarCookieHeader(author, stream.link);
+      const cookie = getJarCookieHeader(author, url);
       return cookie
-        ? {...stream, headers: {...headers, Cookie: cookie}}
-        : stream;
+        ? ({...item, headers: {...headers, Cookie: cookie}} as T)
+        : item;
     });
   }
 
@@ -405,39 +450,55 @@ export class ProviderManager {
     url: string;
     providerValue: string;
     signal?: AbortSignal;
-  }): Promise<EpisodeLink[]> => {
+  }): Promise<Array<EpisodeLink | ChapterLink>> => {
     throwIfProviderAborted(signal);
-    const getEpisodeLinksModule = this.getModule(providerValue, 'episodes');
+    const getEpisodeLinksModule =
+      this.getModule(providerValue, 'episodes') ||
+      this.getModule(providerValue, 'chapters');
     if (!getEpisodeLinksModule) {
       throw new Error(
-        `No episode links module found for provider: ${providerValue}`,
+        `No episode/chapter links module found for provider: ${providerValue}`,
       );
     }
     try {
-      const episodes = await this.executeModule<EpisodeLink[]>(
+      const exportName =
+        getEpisodeLinksModule.code.includes('getChapters') &&
+        !getEpisodeLinksModule.code.includes('getEpisodes')
+          ? 'getChapters'
+          : 'getEpisodes';
+      const episodes = await this.executeModule<Array<EpisodeLink | ChapterLink>>(
         getEpisodeLinksModule,
         providerValue,
-        'getEpisodes',
+        exportName,
         {url},
         signal,
       );
-      return this.requireArray<EpisodeLink>(
+      return this.requireArray<EpisodeLink | ChapterLink>(
         episodes,
         providerValue,
-        'getEpisodes',
+        exportName,
       );
     } catch (error) {
       if (signal?.aborted) {
         throw error;
       }
-      console.error('Error in episodes function:', error);
+      console.error('Error in episodes/chapters function:', error);
       const errorMessage = getErrorMessage(
         error,
-        `Failed to get episodes from provider: ${providerValue}`,
+        `Failed to get episodes/chapters from provider: ${providerValue}`,
       );
       ToastAndroid.show(errorMessage, ToastAndroid.LONG);
       throw new Error(errorMessage);
     }
+  };
+
+  getChapters = async (params: {
+    url: string;
+    providerValue: string;
+    signal?: AbortSignal;
+  }): Promise<ChapterLink[]> => {
+    const results = await this.getEpisodes(params);
+    return results as ChapterLink[];
   };
 
   private settingsActionModules = new Map<string, ProviderCode>();

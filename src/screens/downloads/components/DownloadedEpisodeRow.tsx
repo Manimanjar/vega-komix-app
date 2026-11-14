@@ -29,12 +29,16 @@ export const DownloadedEpisodeRow: React.FC<DownloadedEpisodeRowProps> = ({
   onStartSelection,
 }) => {
   const controlRef = useRef<View>(null);
+  const isComic = item.sourceType === 'comic' || item.totalBytes < 500;
+  const description = isComic
+    ? `${item.totalBytes} pages`
+    : formatDownloadBytes(item.totalBytes);
   return (
     <ManagedEpisodeRow
       controlRef={controlRef}
       title={item.episodeName || item.title}
-      description={formatDownloadBytes(item.totalBytes)}
-      thumbnail={<LocalVideoThumbnail uri={item.filePath} />}
+      description={description}
+      thumbnail={<LocalVideoThumbnail uri={item.filePath} image={item.poster} />}
       selecting={selecting}
       selected={selected}
       busy={isDeleting}

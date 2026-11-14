@@ -71,6 +71,7 @@ export enum SettingsKeys {
   AUTO_DOWNLOAD_SERVER_FALLBACK = 'autoDownloadServerFallback',
   DOWNLOAD_CONNECTIONS = 'downloadConnections',
   PARALLEL_STREAMING = 'parallelStreaming',
+  EXPORT_AS_CBZ = 'exportAsCbz',
 
   // Subtitle settings
   SUBTITLE_FONT_SIZE = 'subtitleFontSize',
@@ -646,8 +647,8 @@ export class SettingsStorage {
   getDownloadConcurrency(): number {
     const value = mainStorage.getNumber(SettingsKeys.DOWNLOAD_CONCURRENCY);
     return typeof value === 'number' && Number.isFinite(value)
-      ? Math.min(Math.max(Math.round(value), 1), 5)
-      : 2;
+      ? Math.min(Math.max(Math.round(value), 1), 6)
+      : 4;
   }
 
   isAutoDownloadServerFallbackEnabled(): boolean {
@@ -661,8 +662,16 @@ export class SettingsStorage {
   setDownloadConcurrency(value: number): void {
     mainStorage.setNumber(
       SettingsKeys.DOWNLOAD_CONCURRENCY,
-      Math.min(Math.max(Math.round(value), 1), 5),
+      Math.min(Math.max(Math.round(value), 1), 6),
     );
+  }
+
+  isExportAsCbzEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.EXPORT_AS_CBZ, false);
+  }
+
+  setExportAsCbzEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.EXPORT_AS_CBZ, enabled);
   }
 
   getDownloadConnections(): number {

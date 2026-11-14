@@ -86,7 +86,7 @@ export const DevicePickerModal: React.FC<DevicePickerModalProps> = ({
       return;
     }
     const sub = GoogleCast.getSessionManager().onSessionStartFailed(
-      (_session, error) => {
+      (_session: any, error: any) => {
         setConnectingId(null);
         setConnectError(error || "Couldn't connect to that device");
       },

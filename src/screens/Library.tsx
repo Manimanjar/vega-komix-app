@@ -46,6 +46,16 @@ const ALL_FILTER = '__all__';
 /** Last selected chip, kept on this device only (not synced). */
 const SELECTED_FILTER_KEY = 'library-selected-filter';
 
+const STANDARD_TAB_DEFS = [
+  {id: ALL_FILTER, name: 'All', icon: 'list'},
+  {id: 'reading', name: 'Reading', icon: 'book', color: '#8B5CF6'},
+  {id: 'plan_to_read', name: 'Plan to Read', icon: 'bookmark', color: '#3B82F6'},
+  {id: 'completed', name: 'Completed', icon: 'check', color: '#22C55E'},
+  {id: 'favorites', name: 'Favorites', icon: 'heart', color: '#EC4899'},
+];
+
+const STANDARD_TAB_IDS = new Set(STANDARD_TAB_DEFS.map(t => t.id));
+
 type EditorState =
   | {visible: false}
   | {visible: true; collection?: LibraryCollection};
@@ -108,13 +118,14 @@ const Library = () => {
   );
 
   // A deleted category (here or synced from another device) falls back to All.
+  const isStandardFilter = STANDARD_TAB_IDS.has(filter);
   const activeCollection =
-    filter === ALL_FILTER ? undefined : collections.find(c => c.id === filter);
+    collections.find(c => c.id === filter);
   useEffect(() => {
-    if (filter !== ALL_FILTER && !activeCollection) {
+    if (!isStandardFilter && !activeCollection) {
       setFilter(ALL_FILTER);
     }
-  }, [filter, activeCollection]);
+  }, [filter, isStandardFilter, activeCollection]);
   useEffect(() => {
     mainStorage.setString(SELECTED_FILTER_KEY, filter);
   }, [filter]);
@@ -124,23 +135,52 @@ const Library = () => {
     [collections],
   );
   const counts = useMemo(() => {
-    const result: Record<string, number> = {};
+    const result: Record<string, number> = {
+      reading: 0,
+      plan_to_read: 0,
+      completed: 0,
+      favorites: 0,
+    };
     for (const item of watchList) {
-      for (const id of getItemCollectionIds(item, existingIds)) {
+      const ids = getItemCollectionIds(item, existingIds);
+      for (const id of ids) {
         result[id] = (result[id] || 0) + 1;
+        if (id === 'watchlist') {
+          result.reading = (result.reading || 0) + 1;
+        }
       }
     }
     return result;
   }, [watchList, existingIds]);
-  // Newest first, like other streaming apps' "My List".
+  // Newest first, organized by filter tab.
   const visibleItems = useMemo(() => {
-    const items = activeCollection
-      ? watchList.filter(item =>
-          getItemCollectionIds(item, existingIds).includes(activeCollection.id),
-        )
-      : watchList;
+    let items = watchList;
+    if (filter === ALL_FILTER) {
+      items = watchList;
+    } else if (filter === 'reading') {
+      items = watchList.filter(item => {
+        const ids = getItemCollectionIds(item, existingIds);
+        return ids.includes('reading') || ids.includes('watchlist');
+      });
+    } else if (filter === 'plan_to_read') {
+      items = watchList.filter(item =>
+        getItemCollectionIds(item, existingIds).includes('plan_to_read'),
+      );
+    } else if (filter === 'completed') {
+      items = watchList.filter(item =>
+        getItemCollectionIds(item, existingIds).includes('completed'),
+      );
+    } else if (filter === 'favorites') {
+      items = watchList.filter(item =>
+        getItemCollectionIds(item, existingIds).includes('favorites'),
+      );
+    } else if (activeCollection) {
+      items = watchList.filter(item =>
+        getItemCollectionIds(item, existingIds).includes(activeCollection.id),
+      );
+    }
     return [...items].reverse();
-  }, [watchList, activeCollection, existingIds]);
+  }, [watchList, filter, activeCollection, existingIds]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -339,21 +379,31 @@ const Library = () => {
     icon: string;
     color?: string;
     count: number;
-  }> = [
-    {
-      id: ALL_FILTER,
-      name: 'All',
-      icon: 'list',
-      count: watchList.length,
-    },
-    ...collections.map(c => ({
-      id: c.id,
-      name: c.name,
-      icon: c.icon,
-      color: c.color,
-      count: counts[c.id] || 0,
-    })),
-  ];
+  }> = useMemo(() => {
+    const stdIds = new Set(['reading', 'plan_to_read', 'completed', 'favorites']);
+    const standardChips = STANDARD_TAB_DEFS.map(tab => {
+      const customCol = collections.find(c => c.id === tab.id);
+      return {
+        id: tab.id,
+        name: customCol?.name || tab.name,
+        icon: customCol?.icon || tab.icon,
+        color: customCol?.color || tab.color,
+        count: tab.id === ALL_FILTER ? watchList.length : counts[tab.id] || 0,
+      };
+    });
+
+    const customChips = collections
+      .filter(c => !stdIds.has(c.id) && c.id !== 'watchlist')
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon,
+        color: c.color,
+        count: counts[c.id] || 0,
+      }));
+
+    return [...standardChips, ...customChips];
+  }, [watchList.length, collections, counts]);
 
   const renderChips = () => (
     <ScrollView
