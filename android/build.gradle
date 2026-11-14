@@ -1,0 +1,48 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"
+
+// Vega: Fresco image reference lifetime fix (issue #637).
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'com.facebook.fresco') {
+                details.useVersion '3.7.0'
+                details.because 'Fresco 3.7 fixes the closed image reference startup crash (#637)'
+            }
+        }
+    }
+}
+
+// Vega: align Media3 with react-native-video and its FFmpeg decoder.
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'androidx.media3') {
+                details.useVersion '1.8.0'
+                details.because 'react-native-video and the FFmpeg decoder require the Media3 1.8 API'
+            }
+        }
+    }
+}

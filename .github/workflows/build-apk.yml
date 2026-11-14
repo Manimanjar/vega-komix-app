@@ -37,7 +37,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools platforms;android-34 build-tools;34.0.0
+          packages: platform-tools platforms;android-34 build-tools;34.0.0 cmake;3.22.1
           log-accepted-android-sdk-licenses: false
 
       - name: Set up Gradle Cache
