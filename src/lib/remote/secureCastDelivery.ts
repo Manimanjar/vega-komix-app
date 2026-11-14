@@ -1,7 +1,17 @@
-import {RTCPeerConnection,RTCSessionDescription,RTCIceCandidate} from 'react-native-webrtc';
-import type RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
 import {fromByteArray} from 'base64-js';
 import {Buffer} from 'buffer';
+
+// Optional WebRTC loader - safe when react-native-webrtc is not installed
+let WebRTCModule: any = null;
+try {
+  WebRTCModule = require('react-native-webrtc');
+} catch {}
+
+const RTCPeerConnection = WebRTCModule?.RTCPeerConnection || class DummyRTCPeerConnection {};
+const RTCSessionDescription = WebRTCModule?.RTCSessionDescription || class DummyRTCSessionDescription {};
+const RTCIceCandidate = WebRTCModule?.RTCIceCandidate || class DummyRTCIceCandidate {};
+type RTCDataChannel = any;
+type RTCPeerConnection = any;
 
 type Signal={type:string;transportId:string;mediaId:string;sdp?:{type:string;sdp:string};candidate?:any};
 /** Serve only URLs registered by Vega's existing media-delivery service. */
