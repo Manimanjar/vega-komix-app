@@ -13,6 +13,7 @@ import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
 import SkeletonLoader from '../components/Skeleton';
 import { providerManager } from '../lib/services/ProviderManager';
+import { clusterPostsIntoSeriesRooms } from '../lib/aggregator/seriesRoomEngine';
 import IconButton from '../components/ui/IconButton';
 import AppText from '../components/ui/Text';
 import { useM3Colors } from '../theme/M3PaletteContext';
@@ -306,7 +307,8 @@ const ScrollList = ({ route }: Props): React.ReactElement => {
             return;
           }
 
-          setPosts(prev => (page === 1 ? newPosts : [...prev, ...newPosts]));
+          const clustered = clusterPostsIntoSeriesRooms(newPosts);
+          setPosts(prev => (page === 1 ? clustered : clusterPostsIntoSeriesRooms([...prev, ...clustered])));
         })
         .catch(error => {
           if (cancelled || signal.aborted || (error as any)?.name === 'AbortError') return;

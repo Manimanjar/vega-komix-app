@@ -2,6 +2,7 @@ import {Content} from './zustand/contentStore';
 import {Catalog, Post} from './providers/types';
 import {providerManager} from './services/ProviderManager';
 import {throwIfProviderAborted} from './sandbox/abort';
+import {clusterPostsIntoSeriesRooms} from './aggregator/seriesRoomEngine';
 
 export interface HomePageData {
   title: string;
@@ -67,7 +68,7 @@ export const getHomePageDataOptimized = async (
         rows[index] = {
           title: catalog.title,
           filter: catalog.filter,
-          Posts: posts,
+          Posts: clusterPostsIntoSeriesRooms(posts),
         };
       } catch (error) {
         throwIfProviderAborted(signal);

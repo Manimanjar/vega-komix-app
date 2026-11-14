@@ -1,4 +1,5 @@
 import {cacheStorageService} from '../storage';
+import {autoDomainResolver} from '../network/autoDomainResolver';
 
 // 1 hour
 const expireTime = 60 * 60 * 1000;
@@ -15,7 +16,7 @@ export const getBaseUrl = async (providerValue: string) => {
     if (cachedUrl && cachedTime && Date.now() - cachedTime < expireTime) {
       baseUrl = cachedUrl;
     }
-    return baseUrl;
+    return baseUrl ? autoDomainResolver.rewriteUrlWithResolvedDomain(baseUrl) : '';
   } catch (error) {
     console.error(`Error fetching baseUrl: ${providerValue}`, error);
     return '';

@@ -10,6 +10,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {ChapterLink, EpisodeLink, Link} from '../lib/providers/types';
 import {useEpisodes} from '../lib/hooks/useEpisodes';
+import {
+  ConsolidatedChapterLink,
+  collectAllSeriesChapters,
+  sortAndMergeChapters,
+} from '../lib/aggregator/seriesRoomEngine';
 import {settingsStorage, watchProgressStorage} from '../lib/storage';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import AppText from './ui/Text';
@@ -104,11 +109,38 @@ const ChapterList: React.FC<ChapterListProps> = ({
     return episodesQuery.data || [];
   }, [directChapters, episodesQuery.data]);
 
+  const [deepChapters, setDeepChapters] = useState<ConsolidatedChapterLink[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (metaTitle && providerValue && providerValue !== 'local') {
+      collectAllSeriesChapters({
+        baseTitle: metaTitle,
+        providerValue,
+        currentChapters: rawChapters,
+      })
+        .then(res => {
+          if (active && res && res.length > rawChapters.length) {
+            setDeepChapters(res);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, [metaTitle, providerValue, rawChapters]);
+
+  const mergedBaseChapters = useMemo<ConsolidatedChapterLink[]>(() => {
+    const list = deepChapters.length > 0 ? deepChapters : rawChapters;
+    return sortAndMergeChapters(list, sortOrder);
+  }, [deepChapters, rawChapters, sortOrder]);
+
   // Extract distinct languages & scanlators
   const {languages, scanlators} = useMemo(() => {
     const langSet = new Set<string>();
     const scanSet = new Set<string>();
-    for (const ch of rawChapters) {
+    for (const ch of mergedBaseChapters) {
       const c = ch as ChapterLink;
       if (c.language && c.language.trim()) {
         langSet.add(c.language.trim().toUpperCase());
@@ -121,11 +153,11 @@ const ChapterList: React.FC<ChapterListProps> = ({
       languages: Array.from(langSet),
       scanlators: Array.from(scanSet),
     };
-  }, [rawChapters]);
+  }, [mergedBaseChapters]);
 
   // Filter & sort chapters
   const filteredChapters = useMemo(() => {
-    let result = [...rawChapters];
+    let result = [...mergedBaseChapters];
 
     // Language filter
     if (selectedLanguage !== 'all') {
@@ -153,18 +185,8 @@ const ChapterList: React.FC<ChapterListProps> = ({
       });
     }
 
-    // Sort order
-    result.sort((a, b) => {
-      const numA = (a as ChapterLink).chapterNumber ?? parseChapterNumber(a.title);
-      const numB = (b as ChapterLink).chapterNumber ?? parseChapterNumber(b.title);
-      if (numA !== numB) {
-        return sortOrder === 'asc' ? numA - numB : numB - numA;
-      }
-      return 0;
-    });
-
     return result;
-  }, [rawChapters, selectedLanguage, selectedScanlator, searchText, sortOrder]);
+  }, [mergedBaseChapters, selectedLanguage, selectedScanlator, searchText]);
 
   const triggerHaptic = useCallback(() => {
     if (settingsStorage.isHapticFeedbackEnabled()) {
@@ -297,6 +319,35 @@ const ChapterList: React.FC<ChapterListProps> = ({
                       numberOfLines={1}
                       style={{color: colors.onSurfaceVariant, fontSize: 11}}>
                       {scanlator}
+                    </AppText>
+                  </View>
+                ) : null}
+
+                {(item as ConsolidatedChapterLink).sources &&
+                (item as ConsolidatedChapterLink).sources!.length > 1 ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colors.secondaryContainer,
+                      borderRadius: 4,
+                      paddingHorizontal: 5,
+                      paddingVertical: 1,
+                    }}>
+                    <MaterialCommunityIcons
+                      name="layers-triple"
+                      size={11}
+                      color={colors.onSecondaryContainer}
+                      style={{marginRight: 3}}
+                    />
+                    <AppText
+                      role="labelSmall"
+                      style={{
+                        color: colors.onSecondaryContainer,
+                        fontSize: 10.5,
+                        fontWeight: '700',
+                      }}>
+                      {(item as ConsolidatedChapterLink).sources!.length} Sources
                     </AppText>
                   </View>
                 ) : null}

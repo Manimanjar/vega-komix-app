@@ -17,6 +17,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Svg, {Circle} from 'react-native-svg';
 import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
+import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
+import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 import type {ImageScale, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 
@@ -100,6 +102,13 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   onSingleTap,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
+  const [currentUrl, setCurrentUrl] = useState<string>(() =>
+    autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl),
+  );
+  useEffect(() => {
+    setCurrentUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl));
+  }, [imageUrl]);
+
   const [resolvedHeaders, setResolvedHeaders] = useState<Record<string, string> | undefined>();
   const [imageRatio, setImageRatio] = useState<number | undefined>(() => {
     if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
@@ -123,7 +132,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   // Resolve native cookies and headers
   useEffect(() => {
     let active = true;
-    resolvePageHeaders(imageUrl, headers).then(res => {
+    resolvePageHeaders(currentUrl, headers).then(res => {
       if (active) {
         setResolvedHeaders(res);
       }
@@ -131,7 +140,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     return () => {
       active = false;
     };
-  }, [imageUrl, headers, retryKey]);
+  }, [currentUrl, headers, retryKey]);
 
   // Compute layout dimensions
   const containerDimensions = useMemo(() => {
@@ -287,14 +296,14 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             animatedStyle,
           ]}>
           <ExpoImage
-            key={`${imageUrl}-${retryKey}`}
+            key={`${currentUrl}-${retryKey}`}
             source={{
-              uri: imageUrl,
+              uri: currentUrl,
               headers: resolvedHeaders,
             }}
             contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
             cachePolicy="memory-disk"
-            recyclingKey={imageUrl}
+            recyclingKey={currentUrl}
             onProgress={e => {
               if (e.total > 0) {
                 setLoadProgress(e.loaded / e.total);
@@ -308,8 +317,27 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               }
             }}
             onError={() => {
-              setLoading(false);
-              setLoadError(true);
+              retryPageImageWithUpdatedHeaders({
+                index,
+                imageUrl: currentUrl,
+                headers: resolvedHeaders,
+              })
+                .then(updated => {
+                  if (updated.imageUrl !== currentUrl) {
+                    setCurrentUrl(updated.imageUrl);
+                    if (updated.headers) setResolvedHeaders(updated.headers);
+                    setLoading(true);
+                    setLoadError(false);
+                    setRetryKey(k => k + 1);
+                  } else {
+                    setLoading(false);
+                    setLoadError(true);
+                  }
+                })
+                .catch(() => {
+                  setLoading(false);
+                  setLoadError(true);
+                });
             }}
             style={[
               StyleSheet.absoluteFill,
@@ -351,7 +379,21 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               setLoading(true);
               setLoadError(false);
               setLoadProgress(0);
-              setRetryKey(k => k + 1);
+              retryPageImageWithUpdatedHeaders({
+                index,
+                imageUrl: currentUrl,
+                headers: resolvedHeaders,
+              })
+                .then(updated => {
+                  if (updated.imageUrl !== currentUrl) {
+                    setCurrentUrl(updated.imageUrl);
+                    if (updated.headers) setResolvedHeaders(updated.headers);
+                  }
+                  setRetryKey(k => k + 1);
+                })
+                .catch(() => {
+                  setRetryKey(k => k + 1);
+                });
             }}
             style={styles.retryButton}>
             <MaterialCommunityIcons name="reload" size={16} color="#FFFFFF" />

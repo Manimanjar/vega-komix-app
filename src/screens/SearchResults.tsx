@@ -16,6 +16,7 @@ import {isTV} from '../lib/tv';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {runProviderSearches} from '../lib/search/runProviderSearches';
 import type {ProviderExtension} from '../lib/storage/extensionStorage';
+import {clusterPostsIntoSeriesRooms} from '../lib/aggregator/seriesRoomEngine';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'SearchResults'>;
 
@@ -126,7 +127,7 @@ const SearchResults = ({route, navigation}: Props): React.ReactElement => {
           }
           const newData = {
             title: item.display_name,
-            Posts: outcome.posts,
+            Posts: clusterPostsIntoSeriesRooms(outcome.posts),
             filter: route.params.filter,
             providerValue: item.value,
             value: item.value,

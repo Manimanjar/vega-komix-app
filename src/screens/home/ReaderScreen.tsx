@@ -18,6 +18,9 @@ import type {HomeStackParamList, RootStackParamList} from '../../App';
 import type {EpisodeLink, PageImage, Stream} from '../../lib/providers/types';
 import {providerManager} from '../../lib/services/ProviderManager';
 import {openWebView} from '../../lib/services/wafResolver';
+import {fetchPagesWithFailover} from '../../lib/aggregator/failoverLoader';
+import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
+import type {ConsolidatedChapterLink} from '../../lib/aggregator/seriesRoomEngine';
 import {
   loadLocalChapterPages,
   getComicChapterDirectory,
@@ -202,20 +205,35 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           return;
         }
 
-        // 4. Fallback to online provider
-        const results = await providerManager.getPages({
-          link: chapterLink,
-          providerValue,
-          type: 'comic',
-        });
+        // 4. Fallback to online provider with failover support
+        let results: PageImage[] = [];
+        try {
+          const failoverOutcome = await fetchPagesWithFailover(
+            (currentChapter as ConsolidatedChapterLink) || {
+              id: currentChapter?.id || chapterLink,
+              title: chapterTitle,
+              chapterNumber: currentChapterIndex + 1,
+              link: chapterLink,
+            },
+            providerValue,
+          );
+          results = failoverOutcome.pages;
+        } catch {
+          results = await providerManager.getPages({
+            link: chapterLink,
+            providerValue,
+            type: 'comic',
+          });
+        }
 
         if (!active) return;
 
         if (Array.isArray(results) && results.length > 0) {
-          // Normalize to ReaderPageItem
+          // Normalize to ReaderPageItem and apply autoDomainResolver
           const normalized: ReaderPageItem[] = results.map(
             (item: any, idx: number) => {
-              const imgUrl = item.imageUrl || item.link || item.url || '';
+              const rawUrl = item.imageUrl || item.link || item.url || '';
+              const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
               return {
                 index: typeof item.index === 'number' ? item.index : idx,
                 imageUrl: imgUrl,

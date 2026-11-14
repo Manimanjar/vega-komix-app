@@ -15,6 +15,7 @@ import {
 } from './protocol';
 import {isPrivateHostname, validateProviderUrl} from './urlGuard';
 import {throwIfProviderAborted} from './abort';
+import {autoDomainResolver} from '../network/autoDomainResolver';
 
 let nextRequestId = 0;
 
@@ -118,7 +119,8 @@ export const providerFetch = async (
   signal?: AbortSignal,
 ): Promise<SerializedResponse> => {
   throwIfProviderAborted(signal);
-  const url = validateProviderUrl(rawUrl);
+  const rewrittenUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(String(rawUrl));
+  const url = validateProviderUrl(rewrittenUrl);
   // Timings for finding where a slow source spends its time.
   const queuedAt = Date.now();
   const release = await providerRateLimiter.acquire(url.hostname, signal);
@@ -210,6 +212,13 @@ export const providerFetch = async (
           !REDIRECT_STATUSES.has(res.status) ||
           !location
         ) {
+          if (res.bodyBase64) {
+            try {
+              const bodyBytes = base64ToBytes(res.bodyBase64);
+              const sample = new TextDecoder().decode(bodyBytes.slice(0, 4096));
+              autoDomainResolver.checkMetaRefreshRedirect(sample, hopUrl.toString());
+            } catch {}
+          }
           return {
             status: res.status,
             statusText: res.statusText || '',
@@ -238,6 +247,10 @@ export const providerFetch = async (
           nextUrl = validateProviderUrl(new URL(location, hopUrl).toString());
         } catch {
           throw new Error('Provider request redirected to a blocked host');
+        }
+
+        if (nextUrl.hostname !== hopUrl.hostname) {
+          autoDomainResolver.recordRedirectDomain(hopUrl.hostname, nextUrl.hostname);
         }
 
         if (
@@ -334,6 +347,9 @@ export const providerFetch = async (
       (response.request?.responseURL as string | undefined) || url.toString();
     try {
       const resolved = new URL(finalUrl);
+      if (resolved.hostname !== url.hostname) {
+        autoDomainResolver.recordRedirectDomain(url.hostname, resolved.hostname);
+      }
       if (isPrivateHostname(resolved.hostname)) {
         throw new Error('Provider request redirected to a blocked host');
       }
@@ -345,6 +361,12 @@ export const providerFetch = async (
     }
 
     const bytes = toBytes(response.data);
+    if (bytes.byteLength > 0) {
+      try {
+        const sample = new TextDecoder().decode(bytes.slice(0, 4096));
+        autoDomainResolver.checkMetaRefreshRedirect(sample, finalUrl);
+      } catch {}
+    }
     if (bytes.byteLength > MAX_RESPONSE_BYTES) {
       throw new Error('Provider response is too large');
     }
