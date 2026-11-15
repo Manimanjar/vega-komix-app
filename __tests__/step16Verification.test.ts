@@ -86,4 +86,55 @@ describe('Step 16: Front-End Verification Suite', () => {
     expect(content).toContain("cleanUrl.includes('mangadex.org')");
     expect(content).toContain('setHeaders(undefined)');
   });
+
+  it('Check 6: should have removed broken providers from manifest.json', () => {
+    const manifestPath = path.resolve(rootDir, '..', 'vega-komix-providers', 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+      const content = fs.readFileSync(manifestPath, 'utf-8');
+      expect(content).not.toContain('komixGallery');
+      expect(content).not.toContain('webtoonManhwa');
+    }
+  });
+
+  it('Check 7: should have AMOLED background and single-chapter synthesis fallback in Info.tsx', () => {
+    const infoPath = path.join(rootDir, 'src', 'screens', 'home', 'Info.tsx');
+    const content = fs.readFileSync(infoPath, 'utf-8');
+    expect(content).not.toContain('blurRadius');
+    expect(content).toContain("id: 'single-1'");
+  });
+
+  it('Check 8: should have no shield-check in top bar and have 1-tap Reading Mode pill in ReaderHUD', () => {
+    const hudPath = path.join(rootDir, 'src', 'components', 'reader', 'ReaderHUD.tsx');
+    const content = fs.readFileSync(hudPath, 'utf-8');
+    expect(content).not.toContain('name="shield-check"');
+    expect(content).toContain("'Continuous'");
+    expect(content).toContain("'Page by Page'");
+  });
+
+  it('Check 9: should have 1-tap Nav Mode, 2-state Orientation, and useWindowDimensions in Reader', () => {
+    const hudPath = path.join(rootDir, 'src', 'components', 'reader', 'ReaderHUD.tsx');
+    const readerPath = path.join(rootDir, 'src', 'screens', 'home', 'ReaderScreen.tsx');
+    const hudContent = fs.readFileSync(hudPath, 'utf-8');
+    const readerContent = fs.readFileSync(readerPath, 'utf-8');
+    expect(hudContent).toContain("'Scroll'");
+    expect(hudContent).toContain("'One Tap'");
+    expect(hudContent).toContain("'Swipe'");
+    expect(readerContent).toContain("settings.orientationMode === 'portrait' ? 'landscape' : 'portrait'");
+    expect(readerContent).toContain('useWindowDimensions()');
+  });
+
+  it('Check 10: should have overhauled ReaderSettingsSheet with live controls and no main settings toggles', () => {
+    const sheetPath = path.join(rootDir, 'src', 'components', 'reader', 'ReaderSettingsSheet.tsx');
+    const content = fs.readFileSync(sheetPath, 'utf-8');
+    expect(content).not.toContain('Background Theme');
+    expect(content).not.toContain('Auto-Crop White Borders');
+    expect(content).not.toContain('Keep Screen Awake');
+    expect(content).not.toContain('Volume Key Page Turn');
+    expect(content).not.toContain('Floating Page Indicator');
+    expect(content).toContain('Live Zoom Level');
+    expect(content).toContain('Image Fit & Scaling');
+    expect(content).toContain('Hands-Free Auto-Scroll');
+    expect(content).toContain('Screen Brightness & Eye Care');
+    expect(content).toContain('Quick Page & Chapter Tools');
+  });
 });

@@ -35,7 +35,7 @@ function getAllFiles(dir, exts = ['.ts', '.tsx', '.js', '.jsx']) {
 }
 
 console.log('====================================================');
-console.log('   VEGA KOMIX AUTOMATED FRONT-END VERIFIER (Step 16) ');
+console.log('   VEGA KOMIX AUTOMATED FRONT-END VERIFIER (Step 20) ');
 console.log('====================================================\n');
 
 // --------------------------------------------------------------------------
@@ -229,11 +229,196 @@ if (check5Errors === 0) {
 }
 
 // --------------------------------------------------------------------------
+// Check 6: Broken Providers Removed from Providers Manifest
+// --------------------------------------------------------------------------
+console.log('\n--- Check 6: Verifying Broken Providers Removed in vega-komix-providers/manifest.json ---');
+const providersManifestPath = path.resolve(rootDir, '..', 'vega-komix-providers', 'manifest.json');
+let check6Errors = 0;
+
+if (!fs.existsSync(providersManifestPath)) {
+  reportFail('Check 6 (Broken Providers Removed)', `manifest.json not found at ${providersManifestPath}`);
+  check6Errors++;
+} else {
+  const manifestRaw = fs.readFileSync(providersManifestPath, 'utf-8');
+  if (manifestRaw.includes('komixGallery')) {
+    reportFail('Check 6 (Broken Providers Removed)', 'komixGallery is still present in vega-komix-providers/manifest.json!');
+    check6Errors++;
+  }
+  if (manifestRaw.includes('webtoonManhwa') || manifestRaw.includes('"value": "webtoon"')) {
+    reportFail('Check 6 (Broken Providers Removed)', 'webtoonManhwa is still present in vega-komix-providers/manifest.json!');
+    check6Errors++;
+  }
+}
+
+if (check6Errors === 0) {
+  reportPass('Check 6 (Broken Providers Removed)', 'komixGallery and webtoonManhwa are completely removed from manifest.json.');
+}
+
+// --------------------------------------------------------------------------
+// Check 7: Info.tsx Background & Single-Chapter Fallback
+// --------------------------------------------------------------------------
+console.log('\n--- Check 7: Verifying Info.tsx AMOLED Background & Single-Chapter Fallback ---');
+const infoScreenPath = path.join(rootDir, 'src', 'screens', 'home', 'Info.tsx');
+let check7Errors = 0;
+
+if (!fs.existsSync(infoScreenPath)) {
+  reportFail('Check 7 (Info Background & Fallback)', 'Info.tsx not found.');
+  check7Errors++;
+} else {
+  const infoContent = fs.readFileSync(infoScreenPath, 'utf-8');
+  // Must NOT have blurred background image behind scroll view
+  if (infoContent.includes('blurRadius') || infoContent.includes('blurredBackdrop')) {
+    reportFail('Check 7 (Info Background & Fallback)', 'Info.tsx still has a blurred background image behind the scroll view.');
+    check7Errors++;
+  }
+  // Must synthesize single chapter when chapters.length === 0
+  const hasSingleChapterFallback =
+    infoContent.includes("id: 'single-1'") ||
+    infoContent.includes('Single-File Fallback') ||
+    infoContent.includes('Universal App-Side Single-File Fallback');
+  if (!hasSingleChapterFallback) {
+    reportFail('Check 7 (Info Background & Fallback)', 'Info.tsx is missing single-chapter synthesis fallback when chapters.length === 0.');
+    check7Errors++;
+  }
+}
+
+if (check7Errors === 0) {
+  reportPass('Check 7 (Info Background & Fallback)', 'Info.tsx has pure solid AMOLED background (no blurred image) and includes single-chapter synthesis fallback.');
+}
+
+// --------------------------------------------------------------------------
+// Check 8: Reader Top Bar Redesign (No Shield Checkmark, Has 1-Tap Reading Mode)
+// --------------------------------------------------------------------------
+console.log('\n--- Check 8: Verifying Reader Top Bar Redesign ---');
+const readerHudPath = path.join(rootDir, 'src', 'components', 'reader', 'ReaderHUD.tsx');
+let check8Errors = 0;
+
+if (!fs.existsSync(readerHudPath)) {
+  reportFail('Check 8 (Reader Top Bar)', 'ReaderHUD.tsx not found.');
+  check8Errors++;
+} else {
+  const hudContent = fs.readFileSync(readerHudPath, 'utf-8');
+  // Top bar must NOT have shield-check icon
+  if (hudContent.includes('name="shield-check"')) {
+    reportFail('Check 8 (Reader Top Bar)', 'ReaderHUD.tsx still renders the shield-check button on the top bar!');
+    check8Errors++;
+  }
+  // Must have 1-tap Continuous / Page by Page button
+  const hasContinuous = hudContent.includes("'Continuous'");
+  const hasPageByPage = hudContent.includes("'Page by Page'");
+  if (!hasContinuous || !hasPageByPage) {
+    reportFail('Check 8 (Reader Top Bar)', 'ReaderHUD.tsx top bar is missing the 1-tap Continuous / Page by Page toggle button.');
+    check8Errors++;
+  }
+}
+
+if (check8Errors === 0) {
+  reportPass('Check 8 (Reader Top Bar)', 'Reader top bar has zero shield checkmark buttons and features the 1-tap Continuous / Page by Page pill button.');
+}
+
+// --------------------------------------------------------------------------
+// Check 9: Reader Bottom Bar & Orientation Controls
+// --------------------------------------------------------------------------
+console.log('\n--- Check 9: Verifying Reader Bottom Bar & Orientation Controls ---');
+const readerScreenPath = path.join(rootDir, 'src', 'screens', 'home', 'ReaderScreen.tsx');
+let check9Errors = 0;
+
+if (!fs.existsSync(readerScreenPath) || !fs.existsSync(readerHudPath)) {
+  reportFail('Check 9 (Reader Bottom Bar)', 'ReaderScreen.tsx or ReaderHUD.tsx not found.');
+  check9Errors++;
+} else {
+  const hudContent = fs.readFileSync(readerHudPath, 'utf-8');
+  const readerContent = fs.readFileSync(readerScreenPath, 'utf-8');
+
+  // Must have 1-tap Scroll / One Tap / Swipe button
+  const hasNavMode =
+    hudContent.includes("'Scroll'") &&
+    hudContent.includes("'One Tap'") &&
+    hudContent.includes("'Swipe'");
+  if (!hasNavMode) {
+    reportFail('Check 9 (Reader Bottom Bar)', 'ReaderHUD.tsx bottom bar is missing 1-tap Scroll / One Tap / Swipe button.');
+    check9Errors++;
+  }
+
+  // Must have strictly 2-state Portrait / Landscape orientation (no 'auto')
+  const hasTwoStateOrientation =
+    readerContent.includes("settings.orientationMode === 'portrait' ? 'landscape' : 'portrait'") ||
+    readerContent.includes("nextOrientation: ScreenOrientationMode");
+  const noAutoOrientationState =
+    !readerContent.includes("orientationMode === 'auto'") &&
+    !hudContent.includes("case 'auto':");
+  if (!hasTwoStateOrientation || !noAutoOrientationState) {
+    reportFail('Check 9 (Reader Bottom Bar)', 'Reader orientation toggle does not strictly toggle between 2 states (Portrait and Landscape).');
+    check9Errors++;
+  }
+
+  // Must use dynamic useWindowDimensions()
+  if (!readerContent.includes('useWindowDimensions()')) {
+    reportFail('Check 9 (Reader Bottom Bar)', 'ReaderScreen.tsx does not use dynamic useWindowDimensions().');
+    check9Errors++;
+  }
+}
+
+if (check9Errors === 0) {
+  reportPass('Check 9 (Reader Bottom Bar)', 'Reader bottom bar features 1-tap Scroll/One Tap/Swipe, 2-state Portrait/Landscape toggle, and dynamic useWindowDimensions().');
+}
+
+// --------------------------------------------------------------------------
+// Check 10: In-Reader Settings Sheet Overhaul
+// --------------------------------------------------------------------------
+console.log('\n--- Check 10: Verifying In-Reader Settings Sheet Overhaul ---');
+const readerSettingsSheetPath = path.join(rootDir, 'src', 'components', 'reader', 'ReaderSettingsSheet.tsx');
+let check10Errors = 0;
+
+if (!fs.existsSync(readerSettingsSheetPath)) {
+  reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx not found.');
+  check10Errors++;
+} else {
+  const sheetContent = fs.readFileSync(readerSettingsSheetPath, 'utf-8');
+
+  // Must NOT contain Background Theme
+  if (sheetContent.includes('Background Theme') || sheetContent.includes('THEME_OPTIONS')) {
+    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx still contains Background Theme palette (should only be in Main Settings).');
+    check10Errors++;
+  }
+
+  // Must NOT contain the 4 removed toggles
+  const forbiddenSheetStrings = [
+    'Auto-Crop White Borders',
+    'Keep Screen Awake',
+    'Volume Key Page Turn',
+    'Floating Page Indicator',
+  ];
+  for (const str of forbiddenSheetStrings) {
+    if (sheetContent.includes(str)) {
+      reportFail('Check 10 (Reader Settings Sheet)', `ReaderSettingsSheet.tsx still contains removed toggle: "${str}".`);
+      check10Errors++;
+    }
+  }
+
+  // Must contain Zoom, Image Fit, Auto-Scroll, Brightness/Night Filter, Quick Tools
+  const hasZoom = sheetContent.includes('Live Zoom Level') || sheetContent.includes('ZOOM_LEVELS');
+  const hasFit = sheetContent.includes('Image Fit & Scaling') || sheetContent.includes('SCALE_OPTIONS');
+  const hasAutoScroll = sheetContent.includes('Hands-Free Auto-Scroll') || sheetContent.includes('AUTO_SCROLL_OPTIONS');
+  const hasBrightness = sheetContent.includes('Screen Brightness & Eye Care') || sheetContent.includes('Warm Night Filter');
+  const hasQuickTools = sheetContent.includes('Quick Page & Chapter Tools');
+
+  if (!hasZoom || !hasFit || !hasAutoScroll || !hasBrightness || !hasQuickTools) {
+    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx missing one of required sections (Zoom, Image Fit, Auto-Scroll, Brightness/Warm Filter, Quick Tools).');
+    check10Errors++;
+  }
+}
+
+if (check10Errors === 0) {
+  reportPass('Check 10 (Reader Settings Sheet)', 'In-reader ReaderSettingsSheet is cleanly focused on live controls (Zoom, Image Fit, Auto-Scroll, Brightness/Night Filter, Quick Tools) with zero redundant main settings toggles.');
+}
+
+// --------------------------------------------------------------------------
 // Final Result
 // --------------------------------------------------------------------------
 console.log('\n====================================================');
 if (totalErrors === 0) {
-  console.log('\x1b[32m✔ ALL 5 FRONT-END CHECKS PASSED PERFECTLY!\x1b[0m');
+  console.log('\x1b[32m✔ ALL 10 FRONT-END & PROVIDER CHECKS PASSED PERFECTLY!\x1b[0m');
   console.log('====================================================\n');
   process.exit(0);
 } else {
