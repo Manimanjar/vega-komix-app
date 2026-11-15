@@ -150,17 +150,80 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     };
   }, [settings.keepScreenAwake]);
 
-  // Orientation locker: strictly PORTRAIT or LANDSCAPE (no auto-rotating back)
+  // Unlock on screen unmount and restore navigation orientation to default
+  useEffect(() => {
+    return () => {
+      Orientation.unlockAllOrientations();
+      navigation.setOptions({orientation: 'default'});
+    };
+  }, [navigation]);
+
+  // Keep screen orientation strictly locked to the active orientation mode
   useEffect(() => {
     if (settings.orientationMode === 'landscape') {
       Orientation.lockToLandscape();
+      navigation.setOptions({orientation: 'landscape'});
     } else {
       Orientation.lockToPortrait();
+      navigation.setOptions({orientation: 'portrait'});
     }
-    return () => {
-      Orientation.unlockAllOrientations();
+  }, [settings.orientationMode, navigation]);
+
+  // Enforce orientation lock against rogue sensor or system events
+  useEffect(() => {
+    const orientationCallback = (orientation: string) => {
+      if (settings.orientationMode === 'landscape' && orientation.includes('PORTRAIT')) {
+        Orientation.lockToLandscape();
+        navigation.setOptions({orientation: 'landscape'});
+      } else if (settings.orientationMode === 'portrait' && orientation.includes('LANDSCAPE')) {
+        Orientation.lockToPortrait();
+        navigation.setOptions({orientation: 'portrait'});
+      }
     };
-  }, [settings.orientationMode]);
+    Orientation.addOrientationListener(orientationCallback);
+    return () => {
+      Orientation.removeOrientationListener(orientationCallback);
+    };
+  }, [settings.orientationMode, navigation]);
+
+  // Auto-Hiding HUD: 3.5s inactivity timer
+  const autoHideTimerRef = useRef<any>(null);
+
+  const clearAutoHideTimer = useCallback(() => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  }, []);
+
+  const resetAutoHideTimer = useCallback(() => {
+    clearAutoHideTimer();
+    if (!settingsSheetVisible) {
+      autoHideTimerRef.current = setTimeout(() => {
+        setHudVisible(false);
+      }, 3500);
+    }
+  }, [clearAutoHideTimer, settingsSheetVisible]);
+
+  useEffect(() => {
+    if (hudVisible && !settingsSheetVisible) {
+      resetAutoHideTimer();
+    } else {
+      clearAutoHideTimer();
+    }
+    return () => clearAutoHideTimer();
+  }, [hudVisible, settingsSheetVisible, resetAutoHideTimer, clearAutoHideTimer]);
+
+  // Center Tap Isolation: ONLY toggles HUD visibility
+  const handleToggleHUD = useCallback(() => {
+    setHudVisible(prev => !prev);
+  }, []);
+
+  // Dismiss HUD on comic scroll
+  const handleDismissHUD = useCallback(() => {
+    clearAutoHideTimer();
+    setHudVisible(false);
+  }, [clearAutoHideTimer]);
 
   // Handle hardware back button
   useFocusEffect(
@@ -631,9 +694,11 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       settings.orientationMode === 'portrait' ? 'landscape' : 'portrait';
     if (nextOrientation === 'landscape') {
       Orientation.lockToLandscape();
+      navigation.setOptions({orientation: 'landscape'});
       ToastAndroid.show('Orientation: Landscape', ToastAndroid.SHORT);
     } else {
       Orientation.lockToPortrait();
+      navigation.setOptions({orientation: 'portrait'});
       ToastAndroid.show('Orientation: Portrait', ToastAndroid.SHORT);
     }
     setSettings(prev => {
@@ -641,7 +706,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       saveStoredReaderSettings(updated);
       return updated;
     });
-  }, [settings.orientationMode]);
+  }, [settings.orientationMode, navigation]);
 
   // Toggle Interaction Mode:
   // Continuous (webtoon): cycles 'scroll' <-> 'one_tap'
@@ -703,7 +768,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
 
   return (
     <View style={[styles.root, {backgroundColor: themeColors.background}]}>
-      <StatusBar hidden={!hudVisible} barStyle="light-content" />
+      <StatusBar
+        hidden={!hudVisible}
+        translucent={true}
+        barStyle="light-content"
+        backgroundColor="transparent"
+      />
 
       {/* Main Reading View */}
       {loadingPages ? (
@@ -752,7 +822,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           currentPageIndex={currentPageIndex}
           sliderJumpTarget={sliderJumpTarget}
           onPageChange={handlePageChange}
-          onToggleHUD={() => setHudVisible(v => !v)}
+          onToggleHUD={handleToggleHUD}
+          onDismissHUD={handleDismissHUD}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
@@ -772,7 +843,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           currentPageIndex={currentPageIndex}
           sliderJumpTarget={sliderJumpTarget}
           onPageChange={handlePageChange}
-          onToggleHUD={() => setHudVisible(v => !v)}
+          onToggleHUD={handleToggleHUD}
+          onDismissHUD={handleDismissHUD}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
@@ -860,6 +932,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onToggleQuality={handleToggleQuality}
         onOpenWafBypass={handleOpenWafBypass}
         onOpenSettings={() => setSettingsSheetVisible(true)}
+        onTouchActivity={resetAutoHideTimer}
       />
 
       {/* Reader Settings Bottom Sheet */}

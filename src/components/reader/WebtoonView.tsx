@@ -265,6 +265,7 @@ export interface WebtoonViewProps {
   sliderJumpTarget?: {index: number; timestamp: number} | null;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
+  onDismissHUD?: () => void;
   onReachEnd?: () => void;
   scaleMode?: ImageScale;
   zoomScale?: number;
@@ -285,6 +286,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   sliderJumpTarget,
   onPageChange,
   onToggleHUD,
+  onDismissHUD,
   onReachEnd,
   scaleMode = 'fit_width',
   zoomScale = 1.0,
@@ -522,6 +524,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         onScroll={handleScroll}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
+          onDismissHUD?.();
         }}
         onScrollEndDrag={() => {
           isUserScrolling.current = false;

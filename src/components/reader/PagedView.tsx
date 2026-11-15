@@ -21,6 +21,7 @@ interface PagedViewProps {
   sliderJumpTarget?: {index: number; timestamp: number} | null;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
+  onDismissHUD?: () => void;
   onReachEnd?: () => void;
   readingMode: ReadingMode;
   scaleMode?: ImageScale;
@@ -49,6 +50,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   sliderJumpTarget,
   onPageChange,
   onToggleHUD,
+  onDismissHUD,
   onReachEnd,
   readingMode,
   scaleMode = 'fit_width',
@@ -396,6 +398,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         }}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
+          onDismissHUD?.();
         }}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         windowSize={7}

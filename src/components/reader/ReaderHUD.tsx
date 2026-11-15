@@ -50,6 +50,7 @@ interface ReaderHUDProps {
   onToggleQuality?: () => void;
   onOpenWafBypass?: () => void;
   onOpenSettings: () => void;
+  onTouchActivity?: () => void;
 }
 
 export const ReaderHUD: React.FC<ReaderHUDProps> = ({
@@ -77,6 +78,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onToggleOrientation,
   onToggleInteractionMode,
   onOpenSettings,
+  onTouchActivity,
 }) => {
   const insets = useSafeAreaInsets();
   const themeColors = THEME_COLORS[theme];
@@ -112,7 +114,10 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   }
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents="box-none"
+      onTouchStart={onTouchActivity}>
       {/* Top HUD: Sleek dark glassmorphic bar */}
       <View
         style={[
@@ -257,15 +262,18 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 onSlidingStart={() => {
                   setIsScrubbing(true);
                   setScrubbingValue(currentPage);
+                  onTouchActivity?.();
                 }}
                 onValueChange={val => {
                   const targetPage = Math.max(0, Math.min(Math.round(val) - 1, totalPages - 1));
                   setScrubbingValue(targetPage);
+                  onTouchActivity?.();
                 }}
                 onSlidingComplete={val => {
                   const finalPage = Math.max(0, Math.min(Math.round(val) - 1, totalPages - 1));
                   setIsScrubbing(false);
                   setScrubbingValue(null);
+                  onTouchActivity?.();
                   if (onPageSliderCommit) {
                     onPageSliderCommit(finalPage);
                   } else if (onPageSliderChange) {
