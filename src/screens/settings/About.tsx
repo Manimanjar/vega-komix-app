@@ -105,30 +105,31 @@ export const BUILD_NUMBER = String(
     '311',
 );
 
-export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.0.0 Release Notes (Nov 15, 2026)
+export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.1.1 Release Notes (Nov 15, 2026)
 
-**Build:** 300 | **Target:** Android 6.0+ (ARM64 & Universal)
+**Build:** 311 | **Target:** Android 6.0+ (ARM64 & Universal)
 
-#### ⚡ 4-Mode Turbo Comic Reader
-- **Continuous Webtoon Strip:** Natural aspect-ratio scaling with dynamically computed height. Zero pillarboxing or squishing.
-- **Manga (RTL) & Comic (LTR) Pagination:** Native <Pressable> edge tap zones and .runOnJS(true) Reanimated worklets eliminating native crashes.
-- **Double-Page Spread:** Side-by-side reading on foldable and tablet devices.
-- **AMOLED Dark Background:** True #000000 black canvas for OLED battery savings.
+#### 📖 0-Gap Webtoon Stitching & Manga Double-Spread Splitter
+- **0-Gap Slicing:** Subpixel rounding compensation (-0.5px) and pure AMOLED #000000 framing eliminating all white/dark separator gaps.
+- **Double-Spread Auto-Split:** Direction-aware splitting of wide landscape scans into 2 portrait pages (RTL for Manga, LTR for Western) with subtle status badges.
 
-#### 🤖 Zero-Key AI Live Translation
-- **Offline OCR:** On-device Japanese & Korean character extraction.
-- **Smart Bubble Clustering:** Groups vertical RTL columns and horizontal dialogue into seamless translated speech bubbles.
-- **Zero-Key Neural Engine:** Uncensored literary translation without requiring user API keys.
+#### 🔒 Privacy & Security Suite
+- **Biometric App Lock:** Fingerprint/PIN protection on resume with configurable lock timeout (Immediately, 1m, 5m).
+- **App Switcher Privacy Mask:** Android FLAG_SECURE prevents screen captures and masks app previews in Recent Apps.
+- **Incognito Reading:** 1-tap top-bar ghost mode prevents reading history and progress tracking.
 
-#### 🌐 6 Production Providers
-- **MangaDex, 8Muses, AllPornComic, NovelCrow, ComicsValley, Hentaiser**.
-- Dynamic Domain Auto-Resolver with live mirror discovery.
+#### 🏷️ Library Updates & Green +X Badges
+- **Automated Checker:** Periodic background update checks for bookmarked comics.
+- **Visual Indicators:** Neon-green +X badges for new chapters and NEW badges for recent bookmarks.
 
-#### 🛡️ Complete Network Bypass Suite
-- Cloudflare WARP VPN, ByeDPI anti-censorship engine, DNS over HTTPS (DoH 1.1.1.1), and Cloudflare WAF WebView clearance.
+#### 🔍 Search Overhaul & Genre Discovery
+- **Search History:** MMKV-backed search chips with 1-tap reuse and history clearing.
+- **15 Genre Tags:** Quick 1-tap comic category chips (Action, Romance, Isekai, Manhwa, etc.).
 
-#### 📥 Offline CBZ Downloader
-- Multi-chapter parallel image downloading and automatic packing into standard .cbz comic archives.`;
+#### ⚡ Maximum Resolution & Performance Engine
+- **32-Bit ARGB_8888 Pipeline:** Full color fidelity with banding-free dark gradients and uncompressed full-res image loading.
+- **Instant Chapter Open:** Progressive chunking opens 1000+ page chapters in < 300ms.
+- **Preloader & Preferences:** 8-page lookahead preloader and per-comic reading mode memory.`;
 
 // handle check for update
 export const checkForUpdate = async (

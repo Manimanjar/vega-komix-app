@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.1] - 2026-11-15
+
+### 🚀 Major Feature & Optimization Update: Vega Komix v6.1.1
+- **Version:** `6.1.1`
+- **Version Code:** `311`
+- **Release Date:** November 15, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 📖 Subpixel 0-Gap Webtoon Stitching & Manga Double-Spread Splitter
+- **Webtoon 0-Gap Continuous Stitching:**
+  - Applied subpixel rounding compensation (`marginTop: -0.5px`) between consecutive vertical tiles, completely eliminating hairline white/black separator lines.
+  - Pure `#000000` AMOLED container and FlatList background framing for seamless black-level integration.
+  - Dynamically computes integer-rounded heights (`Math.ceil`) to prevent fractional pixel discrepancies.
+- **Manga Double-Spread Auto-Splitter:**
+  - Automatically identifies wide two-page scan spreads (aspect ratio > 1.25) in portrait reading mode.
+  - Direction-aware split: splits scans into 2 virtual portrait pages (Right-to-Left for Manga; Left-to-Right for Western comics).
+  - Renders each half edge-to-edge in full portrait height with subtle `Spread 1/2` and `Spread 2/2` status pills.
+  - Added a "Split Double-Page Spreads" toggle in the Reader Settings Sheet.
+
+#### 🔒 Privacy & Security Suite
+- **Biometric App Lock:** Optional biometric/PIN authentication on app resume with configurable auto-lock timeout (Immediately, 1 Minute, 5 Minutes).
+- **App Switcher Privacy Mask:** Android `FLAG_SECURE` privacy protection to blank app previews in Recent Apps switcher and prevent sensitive screen captures.
+- **Incognito / Ghost Reading Mode:** One-tap ghost reading toggle in the reader top bar that temporarily disables reading history logging, progress tracking, and recent activity recording.
+
+#### 🏷️ Green `+X` Chapter Badges & Library Update Checker
+- **Automated Update Checker:** Background verification on library opening/refresh comparing provider chapter count with `lastKnownChapterCount`.
+- **Visual Badges:** Prominent neon-green `+X` pill badge on comic cards with newly detected chapters, plus `NEW` badge for newly added bookmarked items.
+
+#### 🔍 Search Overhaul & Quick Genre Discovery
+- **Local Search History:** MMKV-backed search queries displayed as dismissible chips with 1-tap reuse and a "Clear History" button.
+- **15 One-Tap Genre Suggestions:** Instant access tags (Action, Romance, Isekai, Fantasy, Manhwa, Manga, Comedy, Sci-Fi, Drama, Mystery, Supernatural, Slice of Life, Adventure, Horror, Martial Arts).
+
+#### ⚙️ Per-Comic Reader Preferences
+- Remembers reading mode (Continuous / Manga / Comic / Double Spread), orientation lock, image fit, and zoom settings independently for each comic series.
+
+### Changed & Performance
+- **32-Bit High-Fidelity ARGB_8888 Image Pipeline:** Configured ExpoImage with high priority, `allowDownscaling={false}`, and 32-bit ARGB_8888 decoding for smooth, banding-free dark gradients.
+- **Full Resolution Source Scrapers:** Stripped CDN downscaling suffixes (`-350x476`, `-scaled`, `?resize=`, `?w=`) across all provider scrapers to load 100% original uncompressed images.
+- **Instant Chapter Opening (< 300ms):** Progressive chunking streams initial pages immediately without blocking on large 1000-page metadata arrays.
+- **8-Page Lookahead Preloader:** Sliding memory-safe preloader pre-caches upcoming images and unloads distant bitmaps to maintain 60fps scrolling without OOM.
+- **Purged Legacy Video Subsystems:** Deleted obsolete video players, HLS downloaders, torrent engines, and subtitle caches.
+
+### Fixed
+- **Reader Slider Direct Jump:** Decoupled 60fps slider dragging UI feedback from scroll execution; commits jump once on finger release.
+- **Center-Tap HUD & Orientation Persistence:** Center tap strictly toggles HUD visibility without causing orientation resets or layout remounts; 3.5s and scroll auto-hiding HUD.
+- **Chronological Chapter Navigation:** Corrected navigation inversion where descending chapter lists caused "Next Chapter" to navigate backwards in the story.
+
+---
+
 ## [6.0.0] - 2026-11-15
 
 ### 🚀 Major Release: Vega Komix v6.0.0 (Master Release)
