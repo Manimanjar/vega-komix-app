@@ -545,9 +545,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
             } catch {}
           }, 50);
         }}
-        windowSize={11}
-        maxToRenderPerBatch={4}
-        initialNumToRender={3}
+        windowSize={7}
+        maxToRenderPerBatch={6}
+        initialNumToRender={4}
         onEndReached={onReachEnd}
         onEndReachedThreshold={0.05}
       />

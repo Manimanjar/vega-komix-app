@@ -3,6 +3,7 @@ import {cacheStorage} from '../storage';
 import {providerManager} from '../services/ProviderManager';
 import {fetchPagesWithFailover} from '../aggregator/failoverLoader';
 import {autoDomainResolver} from '../network/autoDomainResolver';
+import {resolvePageHeaders} from '../../components/reader/usePagePreloader';
 import type {ChapterLink, EpisodeLink, PageImage} from '../providers/types';
 import type {ConsolidatedChapterLink} from '../aggregator/seriesRoomEngine';
 
@@ -41,13 +42,13 @@ class InstantChapterLauncher {
   }
 
   /**
-   * Preloads Page 1 and Page 2 image assets into disk/memory cache using ExpoImage
+   * Preloads the first 4 page image assets into disk/memory cache with resolved headers using ExpoImage
    */
   preloadPageImages(pages: PageImage[]): void {
     if (!Array.isArray(pages) || pages.length === 0) return;
 
-    // Preload first 2 pages immediately
-    const targetPages = pages.slice(0, 2);
+    // Preload first 4 pages immediately
+    const targetPages = pages.slice(0, 4);
     for (const page of targetPages) {
       const rawUrl = page.imageUrl || (page as any).url || (page as any).link || '';
       if (!rawUrl || this.preloadedUrls.has(rawUrl)) continue;
@@ -55,9 +56,14 @@ class InstantChapterLauncher {
       const url = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
       this.preloadedUrls.add(rawUrl);
 
-      try {
-        ExpoImage.prefetch(url).catch(() => {});
-      } catch {}
+      resolvePageHeaders(url, page.headers)
+        .then(headers => {
+          ExpoImage.prefetch(url, {
+            headers,
+            cachePolicy: 'memory-disk',
+          }).catch(() => {});
+        })
+        .catch(() => {});
     }
   }
 

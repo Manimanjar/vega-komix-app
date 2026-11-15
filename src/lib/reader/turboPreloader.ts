@@ -102,17 +102,20 @@ class TurboPreloader {
     const signal = abortController.signal;
 
     const totalPages = pages.length;
-    const maxAhead = settingsStorage.getTurboPreloadCount();
+    const maxAhead = 8; // Actively look ahead 8 upcoming pages
 
-    // Tier 1: Priority 1 (Immediate) - Current page + next 2 pages [index, index + 1, index + 2]
+    // Priority 1 (Immediate): Current page + next 3 pages in view direction + previous page for back-scroll
     const immediateIndices: number[] = [];
-    for (let i = currentPageIndex; i <= currentPageIndex + 2 && i < totalPages; i++) {
-      if (i >= 0) immediateIndices.push(i);
+    if (currentPageIndex > 0) {
+      immediateIndices.push(currentPageIndex - 1);
+    }
+    for (let i = currentPageIndex; i <= currentPageIndex + 3 && i < totalPages; i++) {
+      if (i >= 0 && !immediateIndices.includes(i)) immediateIndices.push(i);
     }
 
-    // Tier 2: Priority 2 (Sliding Window) - Pages [index + 3 ... index + maxAhead]
+    // Priority 2 (Sliding Lookahead): Pages [index + 4 ... index + 8]
     const slidingIndices: number[] = [];
-    for (let i = currentPageIndex + 3; i <= currentPageIndex + maxAhead && i < totalPages; i++) {
+    for (let i = currentPageIndex + 4; i <= currentPageIndex + maxAhead && i < totalPages; i++) {
       slidingIndices.push(i);
     }
 
@@ -124,27 +127,22 @@ class TurboPreloader {
     await Promise.allSettled(p1Promises);
 
     if (signal.aborted) return;
-
-    // Update ready stats after P1
     this.updateStats(pages, currentPageIndex);
 
-    // Concurrently trigger Priority 2 in batches of 2
-    for (let i = 0; i < slidingIndices.length; i += 2) {
-      if (signal.aborted) break;
-      const batch = slidingIndices.slice(i, i + 2);
-      const batchPromises = batch.map(async idx => {
-        const page = pages[idx];
-        if (page) await this.preloadPageImage(page);
-      });
-      await Promise.allSettled(batchPromises);
-      this.updateStats(pages, currentPageIndex);
-    }
+    // Concurrently trigger Priority 2 in parallel
+    const p2Promises = slidingIndices.map(async idx => {
+      if (signal.aborted) return;
+      const page = pages[idx];
+      if (page) await this.preloadPageImage(page);
+    });
+    await Promise.allSettled(p2Promises);
 
     if (signal.aborted) return;
+    this.updateStats(pages, currentPageIndex);
 
-    // Tier 3: Priority 3 (Seamless Next Chapter Handoff)
-    // When currentPageIndex >= Math.floor(totalPages * 0.70), preload NEXT serial chapter
-    const handoffThreshold = Math.floor(totalPages * 0.7);
+    // Tier 3: Priority 3 (Seamless Next Chapter Warmup)
+    // When user reaches >= 75% scroll or last 5 pages of the current chapter
+    const handoffThreshold = Math.min(Math.floor(totalPages * 0.75), Math.max(0, totalPages - 5));
     if (currentPageIndex >= handoffThreshold && allChapters.length > 0) {
       const nextIndex = currentChapterIndex + 1;
       if (nextIndex < allChapters.length) {
@@ -211,9 +209,9 @@ class TurboPreloader {
         },
       );
 
-      // Preload first 3 pages of the next chapter
+      // Preload first 4 pages of the next chapter
       if (Array.isArray(pages) && pages.length > 0) {
-        const firstPages = pages.slice(0, 3);
+        const firstPages = pages.slice(0, 4);
         for (const p of firstPages) {
           await this.preloadPageImage(p);
         }

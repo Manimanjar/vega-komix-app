@@ -267,6 +267,54 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     setPageError(null);
 
     const loadPages = async () => {
+      // Instant progressive chunking helper: renders first 5 pages immediately, then streams rest
+      const applyPagesProgressively = (rawPages: any[]) => {
+        if (!active) return;
+        const normalize = (item: any, idx: number): ReaderPageItem => {
+          const rawUrl = item.imageUrl || item.link || item.url || '';
+          const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+          return {
+            index: typeof item.index === 'number' ? item.index : idx,
+            imageUrl: imgUrl,
+            width: item.width,
+            height: item.height,
+            headers: item.headers,
+          };
+        };
+
+        if (rawPages.length <= 5) {
+          const normalized = rawPages.map(normalize);
+          setPages(normalized);
+          setLoadingPages(false);
+          instantChapterLauncher.preloadPageImages(rawPages);
+          instantChapterLauncher.preloadSerialSequence(
+            episodeList,
+            currentChapterIndex,
+            providerValue,
+          );
+        } else {
+          // Instant initial render (< 300ms): Mount first 5 pages immediately
+          const initialChunk = rawPages.slice(0, 5).map(normalize);
+          setPages(initialChunk);
+          setLoadingPages(false);
+          instantChapterLauncher.preloadPageImages(initialChunk);
+
+          // Stream / append the full chapter on the next frame without dropping 60fps
+          setTimeout(() => {
+            if (active) {
+              const fullList = rawPages.map(normalize);
+              setPages(fullList);
+              instantChapterLauncher.preloadPageImages(rawPages);
+              instantChapterLauncher.preloadSerialSequence(
+                episodeList,
+                currentChapterIndex,
+                providerValue,
+              );
+            }
+          }, 16);
+        }
+      };
+
       try {
         // 1. Direct local file/folder check
         if (
@@ -276,8 +324,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         ) {
           const offlinePages = await loadLocalChapterPages(chapterLink);
           if (offlinePages && offlinePages.length > 0 && active) {
-            setPages(offlinePages);
-            setLoadingPages(false);
+            applyPagesProgressively(offlinePages);
             return;
           }
         }
@@ -298,8 +345,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             matchingDownload.filePath,
           );
           if (offlinePages && offlinePages.length > 0 && active) {
-            setPages(offlinePages);
-            setLoadingPages(false);
+            applyPagesProgressively(offlinePages);
             return;
           }
         }
@@ -313,41 +359,20 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
 
         const dirPages = await loadLocalChapterPages(expectedDir);
         if (dirPages && dirPages.length > 0 && active) {
-          setPages(dirPages);
-          setLoadingPages(false);
+          applyPagesProgressively(dirPages);
           return;
         }
 
         const cbzPages = await loadLocalChapterPages(`${expectedDir}.cbz`);
         if (cbzPages && cbzPages.length > 0 && active) {
-          setPages(cbzPages);
-          setLoadingPages(false);
+          applyPagesProgressively(cbzPages);
           return;
         }
 
         // 4. Instant Chapter Launcher Cache Check (0ms cached open)
         const cachedManifest = instantChapterLauncher.getCachedPages(chapterLink, providerValue);
         if (cachedManifest && cachedManifest.length > 0 && active) {
-          const normalized: ReaderPageItem[] = cachedManifest.map(
-            (item: any, idx: number) => {
-              const rawUrl = item.imageUrl || item.link || item.url || '';
-              const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
-              return {
-                index: typeof item.index === 'number' ? item.index : idx,
-                imageUrl: imgUrl,
-                width: item.width,
-                height: item.height,
-                headers: item.headers,
-              };
-            },
-          );
-          setPages(normalized);
-          setLoadingPages(false);
-          instantChapterLauncher.preloadSerialSequence(
-            episodeList,
-            currentChapterIndex,
-            providerValue,
-          );
+          applyPagesProgressively(cachedManifest);
           return;
         }
 
@@ -389,27 +414,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         }
 
         if (pageList.length > 0) {
-          // Normalize to ReaderPageItem and apply autoDomainResolver
-          const normalized: ReaderPageItem[] = pageList.map(
-            (item: any, idx: number) => {
-              const rawUrl = item.imageUrl || item.link || item.url || '';
-              const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
-              return {
-                index: typeof item.index === 'number' ? item.index : idx,
-                imageUrl: imgUrl,
-                width: item.width,
-                height: item.height,
-                headers: item.headers,
-              };
-            },
-          );
-          setPages(normalized);
-          instantChapterLauncher.preloadPageImages(pageList);
-          instantChapterLauncher.preloadSerialSequence(
-            episodeList,
-            currentChapterIndex,
-            providerValue,
-          );
+          applyPagesProgressively(pageList);
         } else {
           setPageError('No pages returned by provider');
         }
