@@ -262,6 +262,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
 export interface WebtoonViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
+  sliderJumpTarget?: {index: number; timestamp: number} | null;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
   onReachEnd?: () => void;
@@ -281,6 +282,7 @@ export interface WebtoonViewProps {
 export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   pages,
   currentPageIndex,
+  sliderJumpTarget,
   onPageChange,
   onToggleHUD,
   onReachEnd,
@@ -300,33 +302,105 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const listRef = useRef<FlatList<ReaderPageItem>>(null);
   const currentScrollY = useRef<number>(0);
   const isUserScrolling = useRef<boolean>(false);
+  const isJumpingRef = useRef<boolean>(false);
+  const jumpTimerRef = useRef<any>(null);
   const lastReportedIndex = useRef<number>(currentPageIndex);
+  const pageHeights = useRef<Record<number, number>>({});
+
+  const handlePageMeasured = useCallback((idx: number, height: number) => {
+    pageHeights.current[idx] = height;
+  }, []);
 
   const onPageChangeRef = useRef(onPageChange);
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
   }, [onPageChange]);
 
-  // Sync scroll to index when currentPageIndex is changed externally (e.g. from HUD slider)
-  useEffect(() => {
-    if (!isUserScrolling.current && Math.abs(currentPageIndex - lastReportedIndex.current) > 0) {
-      lastReportedIndex.current = currentPageIndex;
+  // Accurate offset calculation for instant jump without intermediate render passes
+  const calculatePageOffset = useCallback(
+    (targetIndex: number): number => {
+      let offset = 0;
+      const effectiveW = Math.round(windowWidth * (zoomScale || 1.0));
+      for (let i = 0; i < targetIndex && i < pages.length; i++) {
+        const page = pages[i];
+        const measured = pageHeights.current[i];
+        if (measured && measured > 0) {
+          offset += measured;
+        } else if (page && page.width && page.height && page.width > 0) {
+          offset += Math.round(effectiveW * (page.height / page.width));
+        } else {
+          offset += Math.round(effectiveW * 1.45);
+        }
+      }
+      return offset;
+    },
+    [pages, windowWidth, zoomScale],
+  );
+
+  // Jump directly with animated: false and lock scroll listener for 400ms to eliminate jitter
+  const jumpToPage = useCallback(
+    (targetIndex: number) => {
+      if (pages.length === 0) return;
+      const clampedIndex = Math.min(Math.max(targetIndex, 0), pages.length - 1);
+
+      isJumpingRef.current = true;
+      if (jumpTimerRef.current) {
+        clearTimeout(jumpTimerRef.current);
+      }
+      jumpTimerRef.current = setTimeout(() => {
+        isJumpingRef.current = false;
+      }, 400);
+
+      lastReportedIndex.current = clampedIndex;
+      onPageChangeRef.current(clampedIndex);
+
+      const offset = calculatePageOffset(clampedIndex);
+      currentScrollY.current = offset;
+
       try {
-        const clampedIndex = Math.min(Math.max(currentPageIndex, 0), pages.length - 1);
-        listRef.current?.scrollToIndex({
-          index: clampedIndex,
+        listRef.current?.scrollToOffset({
+          offset,
           animated: false,
         });
       } catch {
         try {
-          listRef.current?.scrollToOffset({
-            offset: currentPageIndex * (windowHeight * 0.8),
+          listRef.current?.scrollToIndex({
+            index: clampedIndex,
             animated: false,
           });
         } catch {}
       }
+    },
+    [pages.length, calculatePageOffset],
+  );
+
+  // Direct jump triggered by slider commit
+  useEffect(() => {
+    if (sliderJumpTarget) {
+      jumpToPage(sliderJumpTarget.index);
     }
-  }, [currentPageIndex, pages.length, windowHeight]);
+  }, [sliderJumpTarget, jumpToPage]);
+
+  // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change)
+  useEffect(() => {
+    if (
+      !isUserScrolling.current &&
+      !isJumpingRef.current &&
+      Math.abs(currentPageIndex - lastReportedIndex.current) > 0
+    ) {
+      lastReportedIndex.current = currentPageIndex;
+      jumpToPage(currentPageIndex);
+    }
+  }, [currentPageIndex, jumpToPage]);
+
+  // Clear jump timer on unmount
+  useEffect(() => {
+    return () => {
+      if (jumpTimerRef.current) {
+        clearTimeout(jumpTimerRef.current);
+      }
+    };
+  }, []);
 
   // Hands-Free Auto-Scroll: Smooth continuous scroll, pauses automatically on touch
   useEffect(() => {
@@ -336,7 +410,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       autoScrollSpeed === 'slow' ? 1.0 : autoScrollSpeed === 'medium' ? 2.4 : 4.5;
 
     const timer = setInterval(() => {
-      if (!isUserScrolling.current && listRef.current) {
+      if (!isUserScrolling.current && !isJumpingRef.current && listRef.current) {
         currentScrollY.current += speedPx;
         listRef.current.scrollToOffset({
           offset: currentScrollY.current,
@@ -359,6 +433,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
 
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
+      if (isJumpingRef.current) return;
       if (viewableItems && viewableItems.length > 0) {
         const topItem = viewableItems[0];
         if (typeof topItem.index === 'number') {
@@ -402,6 +477,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           translateEnabled={translateEnabled}
           translationBubbles={bubbles}
           onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(index) : undefined}
+          onPageMeasured={handlePageMeasured}
           onToggleHUD={onToggleHUD}
         />
       );
@@ -416,6 +492,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       translateEnabled,
       pageTranslations,
       onRetryTranslation,
+      handlePageMeasured,
       onToggleHUD,
     ],
   );

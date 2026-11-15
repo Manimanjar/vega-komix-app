@@ -18,6 +18,7 @@ import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEn
 interface PagedViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
+  sliderJumpTarget?: {index: number; timestamp: number} | null;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
   onReachEnd?: () => void;
@@ -45,6 +46,7 @@ interface SpreadPageGroup {
 export const PagedView: React.FC<PagedViewProps> = ({
   pages,
   currentPageIndex,
+  sliderJumpTarget,
   onPageChange,
   onToggleHUD,
   onReachEnd,
@@ -66,6 +68,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
 
   const listRef = useRef<FlatList>(null);
   const isUserScrolling = useRef<boolean>(false);
+  const isJumpingRef = useRef<boolean>(false);
+  const jumpTimerRef = useRef<any>(null);
   const lastTargetIndex = useRef<number>(currentPageIndex);
 
   // Group pages into double spreads when in landscape double_spread mode
@@ -148,17 +152,63 @@ export const PagedView: React.FC<PagedViewProps> = ({
     [spreadGroups.length, windowWidth],
   );
 
+  const jumpToPage = useCallback(
+    (targetPageIndex: number) => {
+      if (spreadGroups.length === 0) return;
+      const targetGroupIdx = spreadGroups.findIndex(
+        g => g.indexA === targetPageIndex || g.indexB === targetPageIndex,
+      );
+      const clampedGroupIdx = Math.min(
+        Math.max(0, targetGroupIdx !== -1 ? targetGroupIdx : targetPageIndex),
+        spreadGroups.length - 1,
+      );
+
+      isJumpingRef.current = true;
+      if (jumpTimerRef.current) {
+        clearTimeout(jumpTimerRef.current);
+      }
+      jumpTimerRef.current = setTimeout(() => {
+        isJumpingRef.current = false;
+      }, 400);
+
+      lastTargetIndex.current = clampedGroupIdx;
+      goToGroupIndex(clampedGroupIdx, false);
+    },
+    [spreadGroups, goToGroupIndex],
+  );
+
+  // Jump when slider commit is received
+  useEffect(() => {
+    if (sliderJumpTarget) {
+      jumpToPage(sliderJumpTarget.index);
+    }
+  }, [sliderJumpTarget, jumpToPage]);
+
   // Sync scroll position when activeGroupIndex updates externally
   useEffect(() => {
-    if (!isUserScrolling.current && Math.abs(activeGroupIndex - lastTargetIndex.current) > 0) {
+    if (
+      !isUserScrolling.current &&
+      !isJumpingRef.current &&
+      Math.abs(activeGroupIndex - lastTargetIndex.current) > 0
+    ) {
       lastTargetIndex.current = activeGroupIndex;
       goToGroupIndex(activeGroupIndex, false);
     }
   }, [activeGroupIndex, goToGroupIndex]);
 
+  // Clean up jump timer on unmount
+  useEffect(() => {
+    return () => {
+      if (jumpTimerRef.current) {
+        clearTimeout(jumpTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       isUserScrolling.current = false;
+      if (isJumpingRef.current) return;
       const offsetX = e.nativeEvent.contentOffset.x;
       const rawIdx = Math.round(offsetX / windowWidth);
       const newGroupIdx = Math.min(Math.max(0, rawIdx), spreadGroups.length - 1);

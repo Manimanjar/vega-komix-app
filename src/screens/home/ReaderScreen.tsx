@@ -109,6 +109,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const [translationStatus, setTranslationStatus] = useState<TranslationStatus>('idle');
   const [pageTranslations, setPageTranslations] = useState<Record<number, PageTranslationResult>>({});
   const [reloadKey, setReloadKey] = useState<number>(0);
+  const [sliderJumpTarget, setSliderJumpTarget] = useState<{index: number; timestamp: number} | null>(null);
 
   useEffect(() => {
     return mangaTranslatorEngine.subscribeStatus((status) => {
@@ -422,6 +423,38 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     ],
   );
 
+  // Handle direct slider commit (jump directly to target page with animated: false)
+  const handlePageSliderCommit = useCallback(
+    (targetIndex: number) => {
+      const clamped = Math.max(0, Math.min(targetIndex, pages.length - 1));
+      setCurrentPageIndex(clamped);
+      setSliderJumpTarget({index: clamped, timestamp: Date.now()});
+      saveStoredReaderProgress({
+        comicLink: infoUrl || chapterLink,
+        chapterId: chapterLink,
+        chapterTitle,
+        chapterIndex: currentChapterIndex,
+        currentPageIndex: clamped,
+        totalPages: pages.length,
+        readingMode: settings.readingMode,
+        comicTitle: primaryTitle,
+        poster: poster?.poster || poster?.background,
+        providerValue,
+      });
+    },
+    [
+      pages.length,
+      infoUrl,
+      chapterLink,
+      chapterTitle,
+      currentChapterIndex,
+      settings.readingMode,
+      primaryTitle,
+      poster,
+      providerValue,
+    ],
+  );
+
   // Trigger single page translation with instant MMKV cache check
   const triggerPageTranslation = useCallback(
     async (pageIdx: number) => {
@@ -551,9 +584,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
 
   // Quick Tools: Jump to First Page
   const handleJumpToFirstPage = useCallback(() => {
-    setCurrentPageIndex(0);
+    handlePageSliderCommit(0);
     ToastAndroid.show('Jumped to Page 1', ToastAndroid.SHORT);
-  }, []);
+  }, [handlePageSliderCommit]);
 
   // Quick Tools: Reload Current Page
   const handleReloadCurrentPage = useCallback(() => {
@@ -717,6 +750,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         <WebtoonContinuousReader
           pages={pages}
           currentPageIndex={currentPageIndex}
+          sliderJumpTarget={sliderJumpTarget}
           onPageChange={handlePageChange}
           onToggleHUD={() => setHudVisible(v => !v)}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
@@ -736,6 +770,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         <PagedView
           pages={pages}
           currentPageIndex={currentPageIndex}
+          sliderJumpTarget={sliderJumpTarget}
           onPageChange={handlePageChange}
           onToggleHUD={() => setHudVisible(v => !v)}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
@@ -817,6 +852,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onSelectChapter={handleSelectChapter}
         onPrevChapter={handlePrevChapter}
         onNextChapter={handleNextChapter}
+        onPageSliderCommit={handlePageSliderCommit}
         onPageSliderChange={handlePageChange}
         onToggleReadingMode={handleToggleReadingMode}
         onToggleOrientation={handleToggleOrientation}

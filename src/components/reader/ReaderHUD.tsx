@@ -42,7 +42,8 @@ interface ReaderHUDProps {
   onSelectChapter: (index: number) => void;
   onPrevChapter: () => void;
   onNextChapter: () => void;
-  onPageSliderChange: (pageIndex: number) => void;
+  onPageSliderChange?: (pageIndex: number) => void;
+  onPageSliderCommit?: (pageIndex: number) => void;
   onToggleReadingMode: () => void;
   onToggleOrientation: () => void;
   onToggleInteractionMode?: () => void;
@@ -71,6 +72,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onPrevChapter,
   onNextChapter,
   onPageSliderChange,
+  onPageSliderCommit,
   onToggleReadingMode,
   onToggleOrientation,
   onToggleInteractionMode,
@@ -79,6 +81,8 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   const insets = useSafeAreaInsets();
   const themeColors = THEME_COLORS[theme];
   const [chapterModalVisible, setChapterModalVisible] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubbingValue, setScrubbingValue] = useState<number | null>(null);
 
   if (!visible) return null;
 
@@ -230,33 +234,56 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
           },
         ]}>
         {/* Upper row: Clean page scrubber slider */}
-        <View style={styles.sliderRow}>
-          <AppText
-            role="labelMedium"
-            style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 46, textAlign: 'center'}}>
-            Page {currentPage + 1} / {Math.max(1, totalPages)}
-          </AppText>
+        {(() => {
+          const displayedPage =
+            isScrubbing && scrubbingValue !== null ? scrubbingValue : currentPage;
+          return (
+            <View style={styles.sliderRow}>
+              <AppText
+                role="labelMedium"
+                style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 46, textAlign: 'center'}}>
+                Page {displayedPage + 1} / {Math.max(1, totalPages)}
+              </AppText>
 
-          <Slider
-            style={{flex: 1, height: 38}}
-            minimumValue={1}
-            maximumValue={Math.max(1, totalPages)}
-            step={1}
-            value={currentPage + 1}
-            minimumTrackTintColor="#7C4DFF"
-            maximumTrackTintColor="rgba(255, 255, 255, 0.22)"
-            thumbTintColor="#7C4DFF"
-            onValueChange={val => onPageSliderChange(val - 1)}
-          />
+              <Slider
+                style={{flex: 1, height: 38}}
+                minimumValue={1}
+                maximumValue={Math.max(1, totalPages)}
+                step={1}
+                value={displayedPage + 1}
+                minimumTrackTintColor="#7C4DFF"
+                maximumTrackTintColor="rgba(255, 255, 255, 0.22)"
+                thumbTintColor="#7C4DFF"
+                onSlidingStart={() => {
+                  setIsScrubbing(true);
+                  setScrubbingValue(currentPage);
+                }}
+                onValueChange={val => {
+                  const targetPage = Math.max(0, Math.min(Math.round(val) - 1, totalPages - 1));
+                  setScrubbingValue(targetPage);
+                }}
+                onSlidingComplete={val => {
+                  const finalPage = Math.max(0, Math.min(Math.round(val) - 1, totalPages - 1));
+                  setIsScrubbing(false);
+                  setScrubbingValue(null);
+                  if (onPageSliderCommit) {
+                    onPageSliderCommit(finalPage);
+                  } else if (onPageSliderChange) {
+                    onPageSliderChange(finalPage);
+                  }
+                }}
+              />
 
-          <AppText
-            role="labelSmall"
-            style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 40, textAlign: 'center'}}>
-            {totalPages > 0
-              ? `${Math.round(((currentPage + 1) / totalPages) * 100)}%`
-              : '0%'}
-          </AppText>
-        </View>
+              <AppText
+                role="labelSmall"
+                style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 40, textAlign: 'center'}}>
+                {totalPages > 0
+                  ? `${Math.round(((displayedPage + 1) / totalPages) * 100)}%`
+                  : '0%'}
+              </AppText>
+            </View>
+          );
+        })()}
 
         {/* Lower row: 5 evenly spaced modern icon+label buttons */}
         <View style={styles.controlsRow}>
