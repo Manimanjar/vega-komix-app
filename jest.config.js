@@ -3,7 +3,10 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native(-.*)?|@react-native(-.*)?|@react-navigation(-.*)?|@?expo.*|@dr\\.pogodin)/)',
   ],
-  setupFiles: ['./node_modules/react-native-gesture-handler/jestSetup.js'],
+  setupFiles: [
+    './node_modules/react-native-gesture-handler/jestSetup.js',
+    './jest.setup.js',
+  ],
   moduleNameMapper: {
     '\\.css$': '<rootDir>/__mocks__/styleMock.js',
     '^react-native-video$': '<rootDir>/__mocks__/react-native-video.js',
@@ -23,10 +26,38 @@ module.exports = {
     '^expo-blur$': '<rootDir>/__mocks__/expo-blur.js',
     '^expo-crypto$': '<rootDir>/__mocks__/expo-crypto.js',
     '^expo-file-system(/.*)?$': '<rootDir>/__mocks__/expo-file-system.js',
+    '^expo-document-picker$': '<rootDir>/__mocks__/expo-document-picker.js',
+    '^expo-constants$': '<rootDir>/__mocks__/expo-constants.js',
     '^@expo/vector-icons(/.*)?$': '<rootDir>/__mocks__/vector-icons.js',
     '^@expo/ui/jetpack-compose$':
       '<rootDir>/__mocks__/expo-ui-jetpack-compose.js',
     '^@expo/ui/jetpack-compose/modifiers$':
       '<rootDir>/__mocks__/expo-ui-jetpack-compose-modifiers.js',
+    '^@preeternal/react-native-cookie-manager$':
+      '<rootDir>/__mocks__/@preeternal/react-native-cookie-manager.js',
+    '^@notifee/react-native$':
+      '<rootDir>/__mocks__/@notifee/react-native.js',
+    '^@himanshu8443/react-native-apk-installer$':
+      '<rootDir>/__mocks__/@himanshu8443/react-native-apk-installer.js',
+    '^expo-intent-launcher$':
+      '<rootDir>/__mocks__/expo-intent-launcher.js',
+    '^react-native-webview$':
+      '<rootDir>/__mocks__/react-native-webview.js',
+    '^react-native-orientation-locker$':
+      '<rootDir>/__mocks__/react-native-orientation-locker.js',
+    '^react-native-volume-manager$':
+      '<rootDir>/__mocks__/react-native-volume-manager.js',
+    '^react-native-bootsplash$':
+      '<rootDir>/__mocks__/react-native-bootsplash.js',
+    '^expo-keep-awake$':
+      '<rootDir>/__mocks__/expo-keep-awake.js',
+    '^expo-updates$':
+      '<rootDir>/__mocks__/expo-updates.js',
+    '^expo-modules-core$':
+      '<rootDir>/__mocks__/expo-modules-core.js',
+    '^nativewind$':
+      '<rootDir>/__mocks__/nativewind.js',
+    '^react-native-safe-area-context$':
+      '<rootDir>/__mocks__/react-native-safe-area-context.js',
   },
 };

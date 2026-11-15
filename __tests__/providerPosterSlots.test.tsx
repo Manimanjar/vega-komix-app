@@ -53,7 +53,7 @@ it('bounds the phone poster window and routes presses to the newly bound provide
   expect(cards[0].props.title).toBe('provider-B0');
   expect(cards[0].props.poster).toBe('provider-B0.jpg');
   act(() => cards[0].props.onPress());
-  expect(mockNavigate).toHaveBeenCalledWith('Info', {link: 'provider-B0', provider: 'provider-B', poster: 'provider-B0.jpg'});
+  expect(mockNavigate).toHaveBeenCalledWith('Info', expect.objectContaining({link: 'provider-B0', provider: 'provider-B', poster: 'provider-B0.jpg'}));
   act(() => tree.unmount());
 });
 

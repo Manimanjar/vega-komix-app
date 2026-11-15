@@ -21,6 +21,8 @@ const Animated = {
   Image,
   ScrollView,
   createAnimatedComponent,
+  addWhitelistedUIProps: () => {},
+  addWhitelistedNativeProps: () => {},
   timing: () => ({ start: (cb) => cb && cb() }),
   spring: () => ({ start: (cb) => cb && cb() }),
   Value: function (v) {
@@ -36,10 +38,29 @@ const LayoutAnimation = {
   stiffness: () => LayoutAnimation,
 };
 
+const Easing = {
+  linear: t => t,
+  ease: t => t,
+  quad: t => t,
+  cubic: t => t,
+  poly: () => t => t,
+  sin: t => t,
+  circle: t => t,
+  exp: t => t,
+  elastic: () => t => t,
+  back: () => t => t,
+  bounce: t => t,
+  bezier: () => t => t,
+  in: easing => easing || (t => t),
+  out: easing => easing || (t => t),
+  inOut: easing => easing || (t => t),
+};
+
 module.exports = {
   __esModule: true,
   default: Animated,
   ...Animated,
+  Easing,
   useSharedValue,
   useAnimatedStyle,
   withTiming,

@@ -26,6 +26,12 @@ jest.mock('../src/lib/storage', () => ({settingsStorage: {
   getSubtitleTextOpacity: () => 1,
   getSubtitleOpacity: () => 1,
   getSubtitleBottomPadding: () => 10,
+  getPrimaryColor: () => '#fff',
+  isCustomTheme: () => false,
+  getAccentSource: () => 'default',
+  setPrimaryColor: jest.fn(),
+  setCustomTheme: jest.fn(),
+  setAccentSource: jest.fn(),
 }}));
 
 let mockIsTV = false;
