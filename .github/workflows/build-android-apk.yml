@@ -90,75 +90,63 @@ jobs:
           fi
 
           echo "Found generated APK: $APK_PATH"
-          cp "$APK_PATH" output/Vega-Komix-v6.0.0.apk
+          cp "$APK_PATH" output/Vega-Komix-v6.1.0.apk
           ls -la output/
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Vega-Komix-v6.0.0-APK
-          path: output/Vega-Komix-v6.0.0.apk
+          name: Vega-Komix-v6.1.0-APK
+          path: output/Vega-Komix-v6.1.0.apk
           retention-days: 30
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v6.0.0
-          name: "Vega Komix v6.0.0 (Release Build - November 15, 2026)"
+          tag_name: v6.1.0
+          name: "Vega Komix v6.1.0 (Feature Release - Reader HUD & Settings Overhaul)"
           body: |
-            # 🚀 Vega Komix v6.0.0 Official Release
+            # 🚀 Vega Komix v6.1.0 Feature Release
 
             **Release Date:** November 15, 2026  
             **Build Target:** Android 6.0+ (ARM64 & Universal)  
-            **Package:** `com.vegakomix.app` (versionCode: 300)
+            **Package:** `com.vegakomix.app` (versionCode: 310)
 
             ---
 
-            ### 📖 What's New in Vega Komix v6.0.0 (Master Release)
+            ### 📖 What's New in Vega Komix v6.1.0
 
-            Vega Komix has completed its full transformation into a zero-latency, high-performance native Comic, Manga, Manhwa, and Doujinshi reader for Android!
+            #### 1. 🎛️ Complete Reader HUD & Function Bar Redesign
+            - **1-Tap Reading Mode Toggle:** Seamlessly switch between **Continuous** (vertical strip) and **Page by Page** (horizontal swipe) in one tap directly from the top bar.
+            - **1-Tap Interaction / Scroll Mode:** Toggle between **Scroll** (natural webpage scrolling), **One Tap** (left/right tap zones), and **Swipe** on the fly with a glowing accent indicator.
+            - **Strict 2-State Orientation Lock:** Instant 1-tap toggle between **Portrait** and **Landscape** (fits 100% full screen width without pillar-boxing).
+            - **Accurate Page Progress Scrubber:** Replaced raw pixel coordinates with true `Page X / Total` (e.g., `2 / 24`) and dynamic completion percentage.
+            - **Streamlined Top Bar:** Removed the intrusive top-right shield button for a distraction-free reading experience.
 
-            #### 1. ⚡ Complete Comic Reader Engine (4 Modes)
-            - **Auto-Height Webtoon Continuous Mode:** Edge-to-edge full width rendering (`width: screenWidth`) with dynamic natural aspect ratio calculation (`screenWidth * (height / width)`). Eliminates narrow pillar-boxing and vertical squeezing.
-            - **Paged Manga (RTL) & Comic (LTR) Modes:** Smooth horizontal pagination with zero native crashes (`.runOnJS(true)`-backed gestures & native `<Pressable>` edge tap zones).
-            - **Landscape Double-Page Spread:** Side-by-side reading on tablets and foldable devices.
-            - **Custom Themes:** True AMOLED Black (`#000000`), Dark Slate, Sepia Paper, and Pure White.
+            #### 2. ⚙️ Redesigned In-Reader Settings Sheet
+            - **Pure AMOLED Black (`#000000`):** True black theme across both the comic reader and detail/info screens.
+            - **Live Zoom Controller:** Adjust zoom from 50% to 300% with real-time pinch/zoom support.
+            - **Image Fit & Aspect Modes:** Choose between Fit Width, Fit Height, or Original size.
+            - **Hands-Free Auto-Scroll:** Variable auto-scroll speeds (1x to 4x) with touch-to-pause and auto-resume.
+            - **Night Mode & Warm Dimmer Filter:** Adjustable software dimmer overlay for comfortable night reading.
+            - **Quick Reader Tools:** Jump to 1st page, reload current page/cache, toggle image quality, and download chapter for offline reading.
 
-            #### 2. 🤖 Zero-Key AI Speech Bubble Live Translation
-            - **Zero-Key Neural Engine:** Offline OCR + public AI translation without requiring personal API keys or cloud billing.
-            - **Spatial Bubble Clustering:** Automatically clusters Japanese vertical RTL columns and Western/Korean horizontal dialogue into unified readable speech bubbles.
-            - **Custom Endpoint Support:** Optionally connect custom OpenAI / Anthropic-compatible endpoints.
-            - **Bubble Overlay Styles:** Semi-transparent white bubble mask or high-contrast dark box.
+            #### 3. 🖼️ Info & Comic Details Polish
+            - Removed distracting blurred background thumbnail in `Info.tsx` for 100% crisp, readable synopsis and chapter listings.
+            - Added universal Single-Chapter fallback synthesis for single-file gallery and webcomic releases.
 
-            #### 3. 🌐 8 Production Comic Providers Included
-            - **MangaDex:** High-res `.512.jpg` covers and chapter streams.
-            - **Komix Gallery:** Zero-latency western comic archives with auto-domain mirror discovery.
-            - **Webtoon & Manhwa:** Fast Korean manhwa and webtoon strip provider.
-            - **8Muses:** Rich content catalog with high-res image extractions.
-            - **AllPornComic:** Madara engine with multi-CDN failover.
-            - **NovelCrow:** Fast manhwa & comic chapters with zero fallbacks.
-            - **ComicsValley:** High-speed comic catalog and scraper.
-            - **Hentaiser:** Fast v1 REST API integration directly from the app repository.
-
-            #### 4. 🛡️ Network & ISP Bypass Suite
-            - **Cloudflare WARP VPN:** Built-in WARP mode to bypass ISP blocks.
-            - **ByeDPI Anti-DPI Engine:** Circumvent censorship without VPN.
-            - **DNS over HTTPS (DoH):** Cloudflare 1.1.1.1, Google, AdGuard, and custom DoH resolvers.
-            - **WAF WebView Bypass:** Integrated Cloudflare challenge solver.
-            - **Cookie Manager:** Manage and clear provider clearance cookies.
-
-            #### 5. 📥 Offline CBZ Comic Archive Downloader
-            - High-speed parallel chapter image downloading.
-            - Automatic packing into standard `.cbz` comic book archives.
-            - Built-in Local Content manager to read downloaded `.cbz` files offline anytime.
+            #### 4. 🌐 Provider Improvements & Bug Fixes
+            - Removed discontinued/broken providers (`komixGallery`, `webtoonManhwa`).
+            - Hardened scrapers for `allporncomics`, `comicsvalley`, and `novelcrow`.
+            - Added universal single-file chapter support for WordPress comic galleries.
 
             ---
 
             ### 📦 Download & Installation
             Download the signed APK below and install it directly on your Android device:
-            - **Vega-Komix-v6.0.0.apk** (ARM64 & Universal)
-          files: output/Vega-Komix-v6.0.0.apk
+            - **Vega-Komix-v6.1.0.apk** (ARM64 & Universal)
+          files: output/Vega-Komix-v6.1.0.apk
           draft: false
           prerelease: false
         env:
