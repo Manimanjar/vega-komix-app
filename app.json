@@ -3,9 +3,11 @@
     "name": "Vega Komix",
     "displayName": "Vega Komix",
     "slug": "vega-komix",
+    "version": "6.0.0",
     "scheme": "vegakomix",
     "android": {
-      "package": "com.vegakomix.app"
+      "package": "com.vegakomix.app",
+      "versionCode": 300
     }
   }
 }

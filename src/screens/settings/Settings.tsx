@@ -386,7 +386,7 @@ const Settings = ({navigation}: Props) => {
               <SettingsSection title="About">
                 <SettingsRow
                   title="About Vega Komix"
-                  description="Comic, manga & doujinshi reader"
+                  description="v6.0.0 (Updated Nov 15, 2026) • Release details & changelog"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />

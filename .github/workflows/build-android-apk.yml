@@ -90,37 +90,75 @@ jobs:
           fi
 
           echo "Found generated APK: $APK_PATH"
-          cp "$APK_PATH" output/Vega-Komix-v5.3.3.apk
+          cp "$APK_PATH" output/Vega-Komix-v6.0.0.apk
           ls -la output/
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Vega-Komix-APK
-          path: output/Vega-Komix-v5.3.3.apk
+          name: Vega-Komix-v6.0.0-APK
+          path: output/Vega-Komix-v6.0.0.apk
           retention-days: 30
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v5.3.3
-          name: "Vega Komix v5.3.3 (Android Release)"
+          tag_name: v6.0.0
+          name: "Vega Komix v6.0.0 (Release Build - November 15, 2026)"
           body: |
-            ## Vega Komix v5.3.3 Release APK
-            
-            Native high-performance Comic, Manga, Manhwa, and Doujinshi reader app.
-            
-            ### Highlights & Features:
-            - **4 Native Reading Modes:** Webtoon (continuous vertical strip), Manga (RTL), Comic (LTR), and Double Spread (landscape side-by-side).
-            - **Offline-First CBZ Downloader:** Parallel chapter image downloader, export to `.cbz` comic archives, and import local `.cbz` files.
-            - **Live Zero-Key Uncensored Translator:** Offline/off-thread OCR with spatial bubble clustering (Japanese vertical RTL columns + Korean/Western rows) and zero-key uncensored AI literary translation with instant neural failover.
-            - **Instant 0ms Stale-While-Revalidate Engine:** Cached card feeds and touch-down speculative prefetching.
-            - **High-Res 2:3 Cover Pipeline:** Anti-hotlink header injection, dynamic resolution upgrading, and 2:3 vertical aspect ratio.
-            - **Turbo 8-Page Preloader & OOM Bitmap Guard:** Sliding-window preloading with bitmap memory unmounting outside active reading viewports.
-            - **Auto Domain Resolver:** 4-stage automatic TLD rotation resolver (`.to`, `.net`, `.org`, `.cc`, etc.).
-            - **Production Providers:** MangaDex, Komix Gallery, and Webtoon & Manhwa pre-configured out of the box.
-          files: output/Vega-Komix-v5.3.3.apk
+            # 🚀 Vega Komix v6.0.0 Official Release
+
+            **Release Date:** November 15, 2026  
+            **Build Target:** Android 6.0+ (ARM64 & Universal)  
+            **Package:** `com.vegakomix.app` (versionCode: 300)
+
+            ---
+
+            ### 📖 What's New in Vega Komix v6.0.0 (Master Release)
+
+            Vega Komix has completed its full transformation into a zero-latency, high-performance native Comic, Manga, Manhwa, and Doujinshi reader for Android!
+
+            #### 1. ⚡ Complete Comic Reader Engine (4 Modes)
+            - **Auto-Height Webtoon Continuous Mode:** Edge-to-edge full width rendering (`width: screenWidth`) with dynamic natural aspect ratio calculation (`screenWidth * (height / width)`). Eliminates narrow pillar-boxing and vertical squeezing.
+            - **Paged Manga (RTL) & Comic (LTR) Modes:** Smooth horizontal pagination with zero native crashes (`.runOnJS(true)`-backed gestures & native `<Pressable>` edge tap zones).
+            - **Landscape Double-Page Spread:** Side-by-side reading on tablets and foldable devices.
+            - **Custom Themes:** True AMOLED Black (`#000000`), Dark Slate, Sepia Paper, and Pure White.
+
+            #### 2. 🤖 Zero-Key AI Speech Bubble Live Translation
+            - **Zero-Key Neural Engine:** Offline OCR + public AI translation without requiring personal API keys or cloud billing.
+            - **Spatial Bubble Clustering:** Automatically clusters Japanese vertical RTL columns and Western/Korean horizontal dialogue into unified readable speech bubbles.
+            - **Custom Endpoint Support:** Optionally connect custom OpenAI / Anthropic-compatible endpoints.
+            - **Bubble Overlay Styles:** Semi-transparent white bubble mask or high-contrast dark box.
+
+            #### 3. 🌐 8 Production Comic Providers Included
+            - **MangaDex:** High-res `.512.jpg` covers and chapter streams.
+            - **Komix Gallery:** Zero-latency western comic archives with auto-domain mirror discovery.
+            - **Webtoon & Manhwa:** Fast Korean manhwa and webtoon strip provider.
+            - **8Muses:** Rich content catalog with high-res image extractions.
+            - **AllPornComic:** Madara engine with multi-CDN failover.
+            - **NovelCrow:** Fast manhwa & comic chapters with zero fallbacks.
+            - **ComicsValley:** High-speed comic catalog and scraper.
+            - **Hentaiser:** Fast v1 REST API integration directly from the app repository.
+
+            #### 4. 🛡️ Network & ISP Bypass Suite
+            - **Cloudflare WARP VPN:** Built-in WARP mode to bypass ISP blocks.
+            - **ByeDPI Anti-DPI Engine:** Circumvent censorship without VPN.
+            - **DNS over HTTPS (DoH):** Cloudflare 1.1.1.1, Google, AdGuard, and custom DoH resolvers.
+            - **WAF WebView Bypass:** Integrated Cloudflare challenge solver.
+            - **Cookie Manager:** Manage and clear provider clearance cookies.
+
+            #### 5. 📥 Offline CBZ Comic Archive Downloader
+            - High-speed parallel chapter image downloading.
+            - Automatic packing into standard `.cbz` comic book archives.
+            - Built-in Local Content manager to read downloaded `.cbz` files offline anytime.
+
+            ---
+
+            ### 📦 Download & Installation
+            Download the signed APK below and install it directly on your Android device:
+            - **Vega-Komix-v6.0.0.apk** (ARM64 & Universal)
+          files: output/Vega-Komix-v6.0.0.apk
           draft: false
           prerelease: false
         env:

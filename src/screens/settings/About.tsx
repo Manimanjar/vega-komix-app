@@ -94,6 +94,35 @@ const downloadUpdate = async (url: string, name: string) => {
   }
 };
 
+export const CURRENT_VERSION = '6.0.0';
+export const RELEASE_DATE = 'November 15, 2026';
+export const BUILD_NUMBER = '300';
+
+export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.0.0 Release Notes (Nov 15, 2026)
+
+**Build:** 300 | **Target:** Android 6.0+ (ARM64 & Universal)
+
+#### ⚡ 4-Mode Turbo Comic Reader
+- **Continuous Webtoon Strip:** Natural aspect-ratio scaling with dynamically computed height. Zero pillarboxing or squishing.
+- **Manga (RTL) & Comic (LTR) Pagination:** Native <Pressable> edge tap zones and .runOnJS(true) Reanimated worklets eliminating native crashes.
+- **Double-Page Spread:** Side-by-side reading on foldable and tablet devices.
+- **AMOLED Dark Background:** True #000000 black canvas for OLED battery savings.
+
+#### 🤖 Zero-Key AI Live Translation
+- **Offline OCR:** On-device Japanese & Korean character extraction.
+- **Smart Bubble Clustering:** Groups vertical RTL columns and horizontal dialogue into seamless translated speech bubbles.
+- **Zero-Key Neural Engine:** Uncensored literary translation without requiring user API keys.
+
+#### 🌐 8 Pre-Configured Providers
+- **MangaDex, Komix Gallery, Webtoon & Manhwa, 8Muses, AllPornComic, NovelCrow, ComicsValley, Hentaiser**.
+- Dynamic Domain Auto-Resolver with live mirror discovery.
+
+#### 🛡️ Complete Network Bypass Suite
+- Cloudflare WARP VPN, ByeDPI anti-censorship engine, DNS over HTTPS (DoH 1.1.1.1), and Cloudflare WAF WebView clearance.
+
+#### 📥 Offline CBZ Downloader
+- Multi-chapter parallel image downloading and automatic packing into standard .cbz comic archives.`;
+
 // handle check for update
 export const checkForUpdate = async (
   setUpdateLoading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -120,7 +149,7 @@ export const checkForUpdate = async (
     if (!data?.tag_name) {
       throw new Error('Invalid release data received from GitHub');
     }
-    const localVersion = Application.nativeApplicationVersion;
+    const localVersion = Application.nativeApplicationVersion || CURRENT_VERSION;
     const remoteVersion = Number(
       data.tag_name.replace('v', '')?.split('.').join(''),
     );
@@ -297,14 +326,65 @@ const About = ({navigation}: any) => {
           <AppText role="bodyLarge" className="mt-1 text-m3-on-surface-variant">
             The premier zero-latency comic, manga, manhwa & doujinshi reader for Android
           </AppText>
+          <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 8}}>
+            <View
+              style={{
+                backgroundColor: colors.primaryContainer,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 12,
+              }}>
+              <AppText
+                role="labelSmall"
+                style={{color: colors.onPrimaryContainer, fontWeight: '700'}}>
+                v{Application.nativeApplicationVersion || CURRENT_VERSION}
+              </AppText>
+            </View>
+            <View
+              style={{
+                backgroundColor: colors.surfaceContainerHigh,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 12,
+              }}>
+              <AppText
+                role="labelSmall"
+                style={{color: colors.onSurfaceVariant}}>
+                Updated {RELEASE_DATE}
+              </AppText>
+            </View>
+          </View>
         </View>
 
-        <SettingsSection title="App">
+        <SettingsSection title="App & Release Information">
           <SettingsRow
-            title="Version"
-            description={`Vega Komix ${Application.nativeApplicationVersion || '1.0.0'}`}
-            icon="information-outline"
+            title="App Version"
+            description={`Vega Komix v${Application.nativeApplicationVersion || CURRENT_VERSION} (Build ${BUILD_NUMBER})`}
+            icon="tag-outline"
+          />
+          <SettingsRow
+            title="Release Date"
+            description={RELEASE_DATE}
+            icon="calendar-clock-outline"
+          />
+          <SettingsRow
+            title="Build Target"
+            description="Android 6.0+ (ARM64 & Universal)"
+            icon="android"
+          />
+          <SettingsRow
+            title="What's New in v6.0.0 (Changelog)"
+            description="Tap to view complete release notes & changelog"
+            icon="clipboard-text-outline"
             divider={Constants.expoConfig?.extra?.isPlayStore}
+            onPress={() => {
+              showAppDialog({
+                title: `Vega Komix v${Application.nativeApplicationVersion || CURRENT_VERSION} Changelog`,
+                message: CHANGELOG_CONTENT,
+                messageFormat: 'markdown',
+                actions: [{label: 'Close', variant: 'primary'}],
+              });
+            }}
           />
 
           {!Constants.expoConfig?.extra?.isPlayStore && (
