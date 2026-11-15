@@ -17,6 +17,7 @@ import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
 import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
+import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
 import type {AutoScrollSpeed, ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
@@ -54,10 +55,10 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   onToggleHUD,
 }) => {
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
-    autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl),
+    cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl)),
   );
   useEffect(() => {
-    setCurrentUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl));
+    setCurrentUrl(cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl)));
   }, [item.imageUrl]);
 
   const [resolvedHeaders, setResolvedHeaders] = useState<Record<string, string> | undefined>(
@@ -196,11 +197,13 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: '#000000',
       }}>
       <Animated.View
         style={{
           width: effectiveWidth, // width: screenWidth
           height: pageHeight,
+          backgroundColor: '#000000',
           transform: [{scale: scaleAnim}],
         }}>
         <ExpoImage
@@ -211,6 +214,11 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           }}
           style={{width: '100%', height: '100%'}}
           contentFit="contain"
+          priority="high"
+          recyclingKey={item.imageUrl}
+          enableLiveTextInteraction={false}
+          allowDownscaling={false}
+          decodeFormat="argb"
           cachePolicy="memory-disk"
           onLoad={handleImageLoad}
           onError={handleImageError}

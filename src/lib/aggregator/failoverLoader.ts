@@ -1,5 +1,6 @@
 import {PageImage} from '../providers/types';
 import {autoDomainResolver} from '../network/autoDomainResolver';
+import {cleanHighResImageUrl} from '../reader/highResImageCleaner';
 import {ConsolidatedChapterLink, ChapterSourceItem} from './seriesRoomEngine';
 import {providerManager} from '../services/ProviderManager';
 
@@ -139,10 +140,10 @@ export async function fetchPagesWithFailover(
       }
 
       if (pages.length > 0) {
-        // Normalize page image URLs with autoDomainResolver
+        // Normalize page image URLs with autoDomainResolver and clean high-res cleaner
         const resolvedPages = pages.map(p => ({
           ...p,
-          imageUrl: autoDomainResolver.rewriteUrlWithResolvedDomain(p.imageUrl),
+          imageUrl: cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(p.imageUrl)),
         }));
 
         return {

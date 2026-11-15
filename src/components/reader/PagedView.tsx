@@ -273,7 +273,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
           <View
             style={[
               styles.pageContainer,
-              {width: windowWidth, height: windowHeight, flexDirection: 'row'},
+              {width: windowWidth, height: windowHeight, flexDirection: 'row', backgroundColor: '#000000'},
             ]}>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
               <ReaderImage
@@ -321,7 +321,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
 
       // Single page view
       return (
-        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight}]}>
+        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: '#000000'}]}>
           <ReaderImage
             imageUrl={item.pageA.imageUrl}
             index={item.indexA}
@@ -372,7 +372,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   const themeColors = THEME_COLORS[theme];
 
   return (
-    <View style={[styles.container, {backgroundColor: themeColors.background}]}>
+    <View style={[styles.container, {backgroundColor: '#000000'}]}>
       <FlatList
         ref={listRef}
         data={spreadGroups}

@@ -19,6 +19,7 @@ import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
 import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
+import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
 import type {ImageScale, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
@@ -117,10 +118,10 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
-    autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl),
+    cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl)),
   );
   useEffect(() => {
-    setCurrentUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl));
+    setCurrentUrl(cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(imageUrl)));
   }, [imageUrl]);
 
   const [resolvedHeaders, setResolvedHeaders] = useState<Record<string, string> | undefined>();
@@ -311,7 +312,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
         {
           width: containerDimensions.width,
           height: containerDimensions.height,
-          backgroundColor: themeColors.background,
+          backgroundColor: '#000000',
         },
       ]}>
       <GestureDetector gesture={gesture}>
@@ -321,6 +322,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             {
               width: containerDimensions.width,
               height: containerDimensions.height,
+              backgroundColor: '#000000',
               overflow: cropWhiteBorders ? 'hidden' : 'visible',
             },
             animatedStyle,
@@ -332,8 +334,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               headers: resolvedHeaders,
             }}
             contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
-            cachePolicy="memory-disk"
+            priority="high"
             recyclingKey={currentUrl}
+            enableLiveTextInteraction={false}
+            allowDownscaling={false}
+            decodeFormat="argb"
+            cachePolicy="memory-disk"
             onProgress={e => {
               if (e.total > 0) {
                 setLoadProgress(e.loaded / e.total);

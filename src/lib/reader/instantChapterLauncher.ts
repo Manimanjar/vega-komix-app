@@ -3,6 +3,7 @@ import {cacheStorage} from '../storage';
 import {providerManager} from '../services/ProviderManager';
 import {fetchPagesWithFailover} from '../aggregator/failoverLoader';
 import {autoDomainResolver} from '../network/autoDomainResolver';
+import {cleanHighResImageUrl} from './highResImageCleaner';
 import {resolvePageHeaders} from '../../components/reader/usePagePreloader';
 import type {ChapterLink, EpisodeLink, PageImage} from '../providers/types';
 import type {ConsolidatedChapterLink} from '../aggregator/seriesRoomEngine';
@@ -53,7 +54,7 @@ class InstantChapterLauncher {
       const rawUrl = page.imageUrl || (page as any).url || (page as any).link || '';
       if (!rawUrl || this.preloadedUrls.has(rawUrl)) continue;
 
-      const url = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+      const url = cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl));
       this.preloadedUrls.add(rawUrl);
 
       resolvePageHeaders(url, page.headers)
@@ -122,7 +123,7 @@ class InstantChapterLauncher {
           // Normalize and rewrite URLs through autoDomainResolver
           const normalized: PageImage[] = results.map((item: any, idx: number) => {
             const rawUrl = item.imageUrl || item.link || item.url || '';
-            const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+            const imgUrl = cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl));
             return {
               index: typeof item.index === 'number' ? item.index : idx,
               imageUrl: imgUrl,

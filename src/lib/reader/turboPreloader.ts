@@ -2,6 +2,7 @@ import {Image as ExpoImage} from 'expo-image';
 import type {EpisodeLink, PageImage} from '../providers/types';
 import {resolvePageHeaders} from '../../components/reader/usePagePreloader';
 import {autoDomainResolver} from '../network/autoDomainResolver';
+import {cleanHighResImageUrl} from './highResImageCleaner';
 import {instantChapterLauncher} from './instantChapterLauncher';
 import {settingsStorage} from '../storage/SettingsStorage';
 
@@ -165,7 +166,7 @@ class TurboPreloader {
     const rawUrl = page.imageUrl || (page as any).url || (page as any).link || '';
     if (!rawUrl || rawUrl.startsWith('file://')) return;
 
-    const targetUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+    const targetUrl = cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl));
     if (this.prefetchedUrls.has(targetUrl)) return;
 
     const existingPromise = this.inFlight.get(targetUrl);

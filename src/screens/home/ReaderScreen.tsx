@@ -20,6 +20,7 @@ import {providerManager} from '../../lib/services/ProviderManager';
 import {openWebView} from '../../lib/services/wafResolver';
 import {fetchPagesWithFailover} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
+import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
 import {instantChapterLauncher} from '../../lib/reader/instantChapterLauncher';
 import type {ConsolidatedChapterLink} from '../../lib/aggregator/seriesRoomEngine';
 import {
@@ -272,7 +273,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         if (!active) return;
         const normalize = (item: any, idx: number): ReaderPageItem => {
           const rawUrl = item.imageUrl || item.link || item.url || '';
-          const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
+          const imgUrl = cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl));
           return {
             index: typeof item.index === 'number' ? item.index : idx,
             imageUrl: imgUrl,
