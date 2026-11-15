@@ -48,14 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for optional custom OpenAI / Anthropic-compatible endpoints.
 - **Visual Bubble Overlay:** High-contrast text overlays matching original bubble geometry.
 
-#### 🌐 8 Pre-Configured Comic Providers
+#### 🌐 6 Production Comic Providers
 - **MangaDex:** High-resolution `.512.jpg` covers and chapter streams with metadata caching.
-- **Komix Gallery:** Western comic catalog with automated mirror failover.
-- **Webtoon & Manhwa:** Fast Korean manhwa and digital strip scraper.
 - **8Muses:** Dedicated comic reader integration.
-- **AllPornComic:** Madara engine scraper with multi-CDN resolution.
-- **NovelCrow:** Fast manhwa & comic chapters with zero fallbacks.
-- **ComicsValley:** High-speed comic catalog and scraper.
+- **AllPornComic:** Madara engine scraper with AJAX chapter discovery and single-gallery fallback.
+- **NovelCrow:** Fast manhwa & comic chapters with WAF auto-solver.
+- **ComicsValley:** High-speed comic catalog with native single-file gallery scraping.
 - **Hentaiser:** High-performance v1 REST API integration directly from app repository.
 - **Dynamic Domain Auto-Resolver:** Automatically detects dead or ISP-blocked provider domains and hot-swaps to working mirror pools in real time.
 

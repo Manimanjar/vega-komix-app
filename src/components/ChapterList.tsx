@@ -107,8 +107,31 @@ const ChapterList: React.FC<ChapterListProps> = ({
     if (directChapters && directChapters.length > 0) {
       return directChapters;
     }
-    return episodesQuery.data || [];
-  }, [directChapters, episodesQuery.data]);
+    if (activeLink?.directLinks && activeLink.directLinks.length > 0) {
+      return activeLink.directLinks as (EpisodeLink | ChapterLink)[];
+    }
+    for (const linkItem of LinkList) {
+      if (linkItem.directLinks && linkItem.directLinks.length > 0) {
+        return linkItem.directLinks as (EpisodeLink | ChapterLink)[];
+      }
+    }
+    if (episodesQuery.data && episodesQuery.data.length > 0) {
+      return episodesQuery.data;
+    }
+    // Universal single-chapter fallback
+    if (routeParams?.link) {
+      return [
+        {
+          id: 'single-1',
+          title: metaTitle || 'Read Full Comic',
+          chapterNumber: 1,
+          link: routeParams.link,
+          type: 'comic' as const,
+        },
+      ];
+    }
+    return [];
+  }, [directChapters, activeLink?.directLinks, LinkList, episodesQuery.data, routeParams?.link, metaTitle]);
 
   const [deepChapters, setDeepChapters] = useState<ConsolidatedChapterLink[]>([]);
 

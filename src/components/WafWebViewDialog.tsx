@@ -29,6 +29,74 @@ import TVTouchable from './tv/TVTouchable';
 const GRAB_HTML_JS =
   '(function(){try{window.ReactNativeWebView.postMessage(JSON.stringify({__waf:true,html:document.documentElement.outerHTML}));}catch(e){}})(); true;';
 
+const AUTO_SOLVE_POLLER_JS = `
+(function() {
+  if (window.__wafPollerActive) return;
+  window.__wafPollerActive = true;
+
+  var comicSelectors = [
+    '.page-item-detail',
+    '.wp-manga',
+    '.entry-content',
+    '.reading-content',
+    '.c-blog__heading',
+    '.post-title',
+    '.tab-summary',
+    '.listing-chapters_wrap',
+    '.wp-manga-chapter',
+    '.page-break',
+    '.chapter-item',
+    '.chapter-list',
+    '.entry-title'
+  ];
+
+  function checkChallengeComplete() {
+    try {
+      var bodyText = document.body ? (document.body.innerText || '') : '';
+      var html = document.documentElement ? (document.documentElement.outerHTML || '') : '';
+
+      // Check if challenge is still actively running
+      var isChallenging =
+        document.querySelector('#challenge-running') !== null ||
+        document.querySelector('#cf-turnstile') !== null ||
+        document.querySelector('.cf-turnstile') !== null ||
+        document.querySelector('#challenge-stage') !== null ||
+        document.querySelector('#challenge-form') !== null ||
+        bodyText.includes('Just a moment...') ||
+        bodyText.includes('Verifying you are human') ||
+        bodyText.includes('Checking your browser');
+
+      if (isChallenging) {
+        return;
+      }
+
+      // Check if any real comic DOM element exists
+      var foundComicEl = false;
+      for (var i = 0; i < comicSelectors.length; i++) {
+        if (document.querySelector(comicSelectors[i]) !== null) {
+          foundComicEl = true;
+          break;
+        }
+      }
+
+      if (foundComicEl || (html.length > 5000 && !bodyText.includes('Attention Required!') && !bodyText.includes('Cloudflare'))) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          __waf: true,
+          autoSolved: true,
+          html: document.documentElement.outerHTML
+        }));
+      }
+    } catch(e) {}
+  }
+
+  setInterval(checkChallengeComplete, 800);
+  checkChallengeComplete();
+})();
+true;
+`;
+
+const INJECTED_BOOTSTRAP_JS = `${AUTO_SOLVE_POLLER_JS}\\n${GRAB_HTML_JS}`;
+
 const WafWebViewDialog = () => {
   const request = useWafStore(state => state.requests[0]);
   const remove = useWafStore(state => state.remove);
@@ -194,6 +262,14 @@ const WafWebViewDialog = () => {
       try {
         const msg = JSON.parse(event.nativeEvent.data);
         if (msg && msg.__waf) {
+          if (msg.autoSolved && typeof msg.html === 'string') {
+            if (!settledRef.current && request) {
+              settledRef.current = true;
+              htmlRef.current = msg.html;
+              finalizeResolve(request);
+            }
+            return;
+          }
           if (msg.data !== undefined || msg.token !== undefined) {
             if (!settledRef.current && request) {
               settledRef.current = true;
@@ -315,8 +391,8 @@ const WafWebViewDialog = () => {
               sharedCookiesEnabled={true}
               injectedJavaScript={
                 request.injectedJavaScript
-                  ? `${request.injectedJavaScript};\n${GRAB_HTML_JS}`
-                  : GRAB_HTML_JS
+                  ? `${request.injectedJavaScript};\n${INJECTED_BOOTSTRAP_JS}`
+                  : INJECTED_BOOTSTRAP_JS
               }
               onMessage={onMessage}
               onLoadEnd={() => {
@@ -325,7 +401,7 @@ const WafWebViewDialog = () => {
                     `${request.injectedJavaScript};\n true;`,
                   );
                 }
-                webViewRef.current?.injectJavaScript(GRAB_HTML_JS);
+                webViewRef.current?.injectJavaScript(INJECTED_BOOTSTRAP_JS);
               }}
             />
             ) : null}

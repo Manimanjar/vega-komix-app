@@ -359,8 +359,47 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     ],
   );
 
+  // Derive chapters from info.chapters, info.linkList, or filteredLinkList
+  const derivedChapters = useMemo<(EpisodeLink | ChapterLink)[]>(() => {
+    if (info?.chapters && info.chapters.length > 0) {
+      return info.chapters;
+    }
+    const links = filteredLinkList.length > 0 ? filteredLinkList : info?.linkList || [];
+    for (const linkItem of links) {
+      if (linkItem.directLinks && linkItem.directLinks.length > 0) {
+        return linkItem.directLinks as (EpisodeLink | ChapterLink)[];
+      }
+    }
+    // Universal App-Side Single-File Fallback:
+    // If chapters.length === 0 after getMeta completes, automatically synthesize 1 single playable chapter row
+    if (!isLoading || info || hasOptimisticData) {
+      const fallbackTitle = displayTitle || optTitle || route.params.title || 'Read Full Comic';
+      return [
+        {
+          id: 'single-1',
+          title: fallbackTitle,
+          chapterNumber: 1,
+          link: route.params.link,
+          type: 'comic',
+        } as any,
+      ];
+    }
+    return [];
+  }, [
+    info?.chapters,
+    info?.linkList,
+    filteredLinkList,
+    isLoading,
+    info,
+    hasOptimisticData,
+    displayTitle,
+    optTitle,
+    route.params.title,
+    route.params.link,
+  ]);
+
   const handleStartReading = useCallback(() => {
-    const chapters = info?.chapters || [];
+    const chapters = derivedChapters;
     let targetIndex = 0;
     if (resumeItem && chapters.length > 0) {
       const targetLink = resumeItem.episode?.link;
@@ -372,7 +411,9 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
       }
     }
     const targetChapter = chapters[targetIndex] || resumeItem?.episode || {
-      title: resumeItem?.episodeTitle || 'Chapter 1',
+      id: 'single-1',
+      title: displayTitle || 'Read Full Comic',
+      chapterNumber: 1,
       link: route.params.link,
     };
     rootNavigation.navigate('Player', {
@@ -390,12 +431,12 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
       infoUrl: route.params.link,
     });
   }, [
-    info?.chapters,
-    info?.type,
+    derivedChapters,
     resumeItem,
+    displayTitle,
     route.params.link,
     rootNavigation,
-    displayTitle,
+    info?.type,
     displayLogo,
     posterImage,
     backgroundImage,
@@ -517,7 +558,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   headerPosterAspectRatio={backdropAspectRatio}
                   genres={info?.genres || meta?.genres || optTags}
                   inLibrary={inLibrary}
-                  isLoading={isLoading && !info}
+                  isLoading={isLoading && !info && !hasOptimisticData}
                   logo={displayLogo}
                   onBack={navigation.goBack}
                   onOpenMenu={() => setMetadataMenuVisible(true)}
@@ -560,7 +601,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                     paddingHorizontal: 18,
                     paddingTop: 24,
                   }}>
-                  {isLoading && !info ? (
+                  {isLoading && !info && !hasOptimisticData ? (
                     <View style={{gap: 12}}>
                       <SkeletonLoader show height={28} width={120} />
                       <SkeletonLoader show height={72} width="100%" />
@@ -569,7 +610,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                     <LocalEpisodeList title={localTitle} />
                   ) : (
                     <ChapterList
-                      chapters={info?.chapters}
+                      chapters={derivedChapters}
                       LinkList={filteredLinkList}
                       providerValue={providerValue}
                       metaTitle={displayTitle || ''}

@@ -113,8 +113,8 @@ export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.0.0 Release Notes (Nov 
 - **Smart Bubble Clustering:** Groups vertical RTL columns and horizontal dialogue into seamless translated speech bubbles.
 - **Zero-Key Neural Engine:** Uncensored literary translation without requiring user API keys.
 
-#### 🌐 8 Pre-Configured Providers
-- **MangaDex, Komix Gallery, Webtoon & Manhwa, 8Muses, AllPornComic, NovelCrow, ComicsValley, Hentaiser**.
+#### 🌐 6 Production Providers
+- **MangaDex, 8Muses, AllPornComic, NovelCrow, ComicsValley, Hentaiser**.
 - Dynamic Domain Auto-Resolver with live mirror discovery.
 
 #### 🛡️ Complete Network Bypass Suite
