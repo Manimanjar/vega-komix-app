@@ -96,9 +96,23 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const [hudVisible, setHudVisible] = useState<boolean>(false);
   const [settingsSheetVisible, setSettingsSheetVisible] = useState<boolean>(false);
   const [quality, setQuality] = useState<'original' | 'compressed'>('original');
+  const [isIncognito, setIsIncognito] = useState<boolean>(false);
   const [turboStats, setTurboStats] = useState<TurboStats>(() =>
     turboPreloader.getStats(),
   );
+
+  const handleToggleIncognito = useCallback(() => {
+    setIsIncognito(prev => {
+      const next = !prev;
+      ToastAndroid.show(
+        next
+          ? 'Ghost / Incognito Mode ON: History & progress paused'
+          : 'Incognito Mode OFF: Reading progress active',
+        ToastAndroid.SHORT,
+      );
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     return turboPreloader.subscribe(setTurboStats);
@@ -561,26 +575,29 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [pages, currentPageIndex, episodeList, currentChapterIndex, providerValue]);
 
-  // Save Progress on every page turn
+  // Save Progress on every page turn (Skipped in Incognito / Ghost Mode)
   const handlePageChange = useCallback(
     (newPageIndex: number) => {
       setCurrentPageIndex(newPageIndex);
-      saveStoredReaderProgress({
-        comicLink: infoUrl || chapterLink,
-        chapterId: chapterLink,
-        chapterTitle,
-        chapterIndex: currentChapterIndex,
-        currentPageIndex: newPageIndex,
-        totalPages: pages.length,
-        readingMode: settings.readingMode,
-        comicTitle: primaryTitle,
-        poster: poster?.poster || poster?.background,
-        providerValue,
-      });
-      watchListStorage.recordLastReadChapter(infoUrl || chapterLink, currentChapterIndex + 1);
-      watchListStorage.acknowledgeChapters(infoUrl || chapterLink);
+      if (!isIncognito) {
+        saveStoredReaderProgress({
+          comicLink: infoUrl || chapterLink,
+          chapterId: chapterLink,
+          chapterTitle,
+          chapterIndex: currentChapterIndex,
+          currentPageIndex: newPageIndex,
+          totalPages: pages.length,
+          readingMode: settings.readingMode,
+          comicTitle: primaryTitle,
+          poster: poster?.poster || poster?.background,
+          providerValue,
+        });
+        watchListStorage.recordLastReadChapter(infoUrl || chapterLink, currentChapterIndex + 1);
+        watchListStorage.acknowledgeChapters(infoUrl || chapterLink);
+      }
     },
     [
+      isIncognito,
       infoUrl,
       chapterLink,
       chapterTitle,
@@ -599,20 +616,23 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       const clamped = Math.max(0, Math.min(targetIndex, pages.length - 1));
       setCurrentPageIndex(clamped);
       setSliderJumpTarget({index: clamped, timestamp: Date.now()});
-      saveStoredReaderProgress({
-        comicLink: infoUrl || chapterLink,
-        chapterId: chapterLink,
-        chapterTitle,
-        chapterIndex: currentChapterIndex,
-        currentPageIndex: clamped,
-        totalPages: pages.length,
-        readingMode: settings.readingMode,
-        comicTitle: primaryTitle,
-        poster: poster?.poster || poster?.background,
-        providerValue,
-      });
+      if (!isIncognito) {
+        saveStoredReaderProgress({
+          comicLink: infoUrl || chapterLink,
+          chapterId: chapterLink,
+          chapterTitle,
+          chapterIndex: currentChapterIndex,
+          currentPageIndex: clamped,
+          totalPages: pages.length,
+          readingMode: settings.readingMode,
+          comicTitle: primaryTitle,
+          poster: poster?.poster || poster?.background,
+          providerValue,
+        });
+      }
     },
     [
+      isIncognito,
       pages.length,
       infoUrl,
       chapterLink,
@@ -1085,6 +1105,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onOpenWafBypass={handleOpenWafBypass}
         onOpenSettings={() => setSettingsSheetVisible(true)}
         onTouchActivity={resetAutoHideTimer}
+        incognitoEnabled={isIncognito}
+        onToggleIncognito={handleToggleIncognito}
       />
 
       {/* Reader Settings Bottom Sheet */}
@@ -1098,6 +1120,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onReloadCurrentPage={handleReloadCurrentPage}
         onToggleQuality={handleToggleQuality}
         onDownloadChapter={handleDownloadChapter}
+        incognitoEnabled={isIncognito}
+        onToggleIncognito={handleToggleIncognito}
       />
     </View>
   );

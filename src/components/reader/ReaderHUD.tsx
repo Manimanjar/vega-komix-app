@@ -38,6 +38,8 @@ interface ReaderHUDProps {
   translateEnabled?: boolean;
   translationStatus?: TranslationStatus;
   onToggleTranslate?: () => void;
+  incognitoEnabled?: boolean;
+  onToggleIncognito?: () => void;
   onBack: () => void;
   onSelectChapter: (index: number) => void;
   onPrevChapter: () => void;
@@ -70,6 +72,8 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   translateEnabled = false,
   translationStatus = 'idle',
   onToggleTranslate,
+  incognitoEnabled = false,
+  onToggleIncognito,
   onBack,
   onSelectChapter,
   onPrevChapter,
@@ -228,6 +232,30 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                   }}>
                   {translationStatus === 'translating' ? 'A/文...' : 'A/文'}
                 </AppText>
+              </TouchableOpacity>
+            )}
+
+            {/* 1-Tap Incognito / Ghost Reading Mode Toggle */}
+            {onToggleIncognito && (
+              <TouchableOpacity
+                onPress={onToggleIncognito}
+                style={[
+                  styles.incognitoPill,
+                  incognitoEnabled && styles.incognitoPillActive,
+                ]}
+                accessibilityLabel={`Incognito Mode: ${incognitoEnabled ? 'ON' : 'OFF'}`}>
+                <MaterialCommunityIcons
+                  name="ghost"
+                  size={16}
+                  color={incognitoEnabled ? '#E040FB' : 'rgba(255, 255, 255, 0.7)'}
+                />
+                {incognitoEnabled && (
+                  <AppText
+                    role="labelSmall"
+                    style={styles.incognitoPillText}>
+                    Incognito
+                  </AppText>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -531,6 +559,26 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
+  },
+  incognitoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  incognitoPillActive: {
+    backgroundColor: 'rgba(224, 64, 251, 0.22)',
+    borderColor: '#E040FB',
+  },
+  incognitoPillText: {
+    color: '#E040FB',
+    fontWeight: '800',
+    fontSize: 11,
   },
   bottomHud: {
     position: 'absolute',

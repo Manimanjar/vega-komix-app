@@ -29,6 +29,8 @@ interface ReaderSettingsSheetProps {
   onReloadCurrentPage?: () => void;
   onToggleQuality?: () => void;
   onDownloadChapter?: () => void;
+  incognitoEnabled?: boolean;
+  onToggleIncognito?: () => void;
 }
 
 const ZOOM_LEVELS: Array<{value: number; label: string}> = [
@@ -78,6 +80,8 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   onReloadCurrentPage,
   onToggleQuality,
   onDownloadChapter,
+  incognitoEnabled = false,
+  onToggleIncognito,
 }) => {
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['75%', '92%'], []);
@@ -305,6 +309,31 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     }
                     thumbColor={isWarmFilter ? '#FFAA00' : '#71717A'}
                     trackColor={{false: '#27272A', true: 'rgba(255, 170, 0, 0.4)'}}
+                  />
+                </View>
+
+                {/* Incognito / Ghost Reading Mode */}
+                <View style={[styles.warmFilterRow, {marginTop: 10}]}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1}}>
+                    <MaterialCommunityIcons
+                      name="ghost"
+                      size={22}
+                      color={incognitoEnabled ? '#E040FB' : '#71717A'}
+                    />
+                    <View style={{flex: 1}}>
+                      <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                        Incognito / Ghost Mode
+                      </AppText>
+                      <AppText role="bodySmall" style={{color: '#71717A'}}>
+                        Do not record chapter progress or reading history
+                      </AppText>
+                    </View>
+                  </View>
+                  <Switch
+                    value={incognitoEnabled}
+                    onValueChange={onToggleIncognito}
+                    thumbColor={incognitoEnabled ? '#E040FB' : '#71717A'}
+                    trackColor={{false: '#27272A', true: 'rgba(224, 64, 251, 0.4)'}}
                   />
                 </View>
               </View>

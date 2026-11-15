@@ -62,6 +62,8 @@ import ProviderSandboxHost from './components/ProviderSandboxHost';
 import {syncDohSettings} from './lib/services/dohService';
 import {syncWarpSettings} from './lib/services/warpService';
 import {syncByeDpiSettings} from './lib/services/byeDpiService';
+import {securityService} from './services/security';
+import BiometricLockOverlay from './components/security/BiometricLockOverlay';
 import {
   getInitialSourceIntent,
   setPendingSourceToken,
@@ -545,6 +547,11 @@ const App = () => {
       isFirebaseNativeReady(),
   );
 
+  // Initialize Privacy & Security suite (App switcher mask & Biometric lock)
+  useEffect(() => {
+    securityService.init();
+  }, []);
+
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -583,6 +590,7 @@ const App = () => {
   // foreground, background and 30 s tick ran the sync twice.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state: any) => {
+      securityService.handleAppStateChange(state);
       if (state === 'active') {
         endUIInteraction('app-background');
         reconcileCompletedDownloadOutputs().catch(error =>
@@ -780,6 +788,8 @@ const App = () => {
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}
               <ProviderSandboxHost />
+              {/* Full-screen Biometric App Lock & PIN challenge overlay */}
+              <BiometricLockOverlay />
             </GestureHandlerRootView>
           </QueryClientProvider>
         </GlobalErrorBoundary>

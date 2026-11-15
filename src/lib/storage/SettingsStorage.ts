@@ -147,6 +147,11 @@ export enum SettingsKeys {
 
   // Vega Komix: Download Format
   CBZ_DOWNLOAD_FORMAT = 'cbzDownloadFormat',
+
+  // Vega Komix: Privacy & Security
+  BIOMETRIC_LOCK_ENABLED = 'biometricLockEnabled',
+  BIOMETRIC_LOCK_TIMEOUT = 'biometricLockTimeout',
+  MASK_IN_RECENTS = 'maskInRecents',
 }
 
 /**
@@ -1189,6 +1194,31 @@ export class SettingsStorage {
 
   setCbzDownloadFormat(format: 'cbz' | 'folder'): void {
     mainStorage.setString(SettingsKeys.CBZ_DOWNLOAD_FORMAT, format);
+  }
+
+  // --- Vega Komix: Privacy & Security ---
+  isBiometricLockEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.BIOMETRIC_LOCK_ENABLED, false);
+  }
+
+  setBiometricLockEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.BIOMETRIC_LOCK_ENABLED, enabled);
+  }
+
+  getBiometricLockTimeout(): 'immediately' | '1min' | '5min' {
+    return (mainStorage.getString(SettingsKeys.BIOMETRIC_LOCK_TIMEOUT) as any) || 'immediately';
+  }
+
+  setBiometricLockTimeout(timeout: 'immediately' | '1min' | '5min'): void {
+    mainStorage.setString(SettingsKeys.BIOMETRIC_LOCK_TIMEOUT, timeout);
+  }
+
+  isMaskInRecentsEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.MASK_IN_RECENTS, false);
+  }
+
+  setMaskInRecentsEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.MASK_IN_RECENTS, enabled);
   }
 }
 

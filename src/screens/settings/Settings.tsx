@@ -132,6 +132,7 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import Constants from 'expo-constants';
+import PrivacyPreference from './components/PrivacyPreference';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const AnimatedSection = ({
@@ -366,6 +367,13 @@ const Settings = ({navigation}: Props) => {
                   divider={false}
                   onPress={() => navigation.navigate('Preferences')}
                 />
+              </SettingsSection>
+            </AnimatedSection>
+
+            {/* Privacy & Security section */}
+            <AnimatedSection delay={250}>
+              <SettingsSection title="Privacy & Security">
+                <PrivacyPreference />
               </SettingsSection>
             </AnimatedSection>
 

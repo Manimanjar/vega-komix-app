@@ -97,6 +97,9 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.TELEMETRY_OPT_IN]: 'bool',
   [SettingsKeys.AUTO_DOMAIN_RESOLVER_ENABLED]: 'bool',
   [SettingsKeys.SINGLE_ROOM_COLLECTOR_ENABLED]: 'bool',
+  [SettingsKeys.BIOMETRIC_LOCK_ENABLED]: 'bool',
+  [SettingsKeys.BIOMETRIC_LOCK_TIMEOUT]: 'string',
+  [SettingsKeys.MASK_IN_RECENTS]: 'bool',
 };
 
 type SettingValue = boolean | string | number | string[];
