@@ -22,6 +22,20 @@ import {fetchPagesWithFailover} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
 import {instantChapterLauncher} from '../../lib/reader/instantChapterLauncher';
+import {
+  isChapterListDescending,
+  getChronologicalNavigation,
+} from '../../lib/reader/chapterChronology';
+import {
+  comicPreferencesStorage,
+  toInternalReadingMode,
+  fromInternalReadingMode,
+  toInternalOrientation,
+  fromInternalOrientation,
+  toInternalPageFit,
+  fromInternalPageFit,
+  type ComicPreferences,
+} from '../../services/comicPreferencesStorage';
 import type {ConsolidatedChapterLink} from '../../lib/aggregator/seriesRoomEngine';
 import {
   loadLocalChapterPages,
@@ -90,10 +104,70 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     return turboPreloader.subscribe(setTurboStats);
   }, []);
 
-  // Load persistent settings
-  const [settings, setSettings] = useState<ReaderSettings>(() =>
-    getStoredReaderSettings(),
+  // Detect if chapter list is in descending order (newest/latest at index 0, oldest at end)
+  const isDescending = useMemo(() => isChapterListDescending(episodeList), [episodeList]);
+
+  // Compute story-chronological navigation and boundaries
+  const {
+    hasNext: hasChronologicalNext,
+    hasPrev: hasChronologicalPrev,
+    nextIndex: chronologicalNextIndex,
+    prevIndex: chronologicalPrevIndex,
+  } = useMemo(
+    () =>
+      getChronologicalNavigation({
+        currentIndex: currentChapterIndex,
+        totalChapters: episodeList.length,
+        isDescending,
+      }),
+    [currentChapterIndex, episodeList.length, isDescending],
   );
+
+  // Helper to load effective settings (per-comic preferences if present, falling back to global defaults)
+  const getEffectiveSettings = useCallback((): ReaderSettings => {
+    const globalDefaults = getStoredReaderSettings();
+    const targetLink =
+      infoUrl ||
+      episodeList[currentChapterIndex]?.link ||
+      episodeList[linkIndex]?.link ||
+      '';
+    if (targetLink) {
+      const perComic = comicPreferencesStorage.getPreferences(targetLink);
+      if (perComic) {
+        const mappedMode = toInternalReadingMode(perComic.readingMode);
+        const mappedOri = toInternalOrientation(perComic.orientation);
+        const mappedFit = toInternalPageFit(perComic.pageFit);
+        return {
+          ...globalDefaults,
+          ...(mappedMode ? {readingMode: mappedMode} : {}),
+          ...(mappedOri ? {orientationMode: mappedOri} : {}),
+          ...(mappedFit ? {imageScale: mappedFit} : {}),
+        };
+      }
+    }
+    return globalDefaults;
+  }, [infoUrl, episodeList, currentChapterIndex, linkIndex]);
+
+  // Load persistent settings with per-comic override
+  const [settings, setSettings] = useState<ReaderSettings>(() => {
+    const globalDefaults = getStoredReaderSettings();
+    const targetLink = infoUrl || episodeList[linkIndex]?.link || '';
+    if (targetLink) {
+      const perComic = comicPreferencesStorage.getPreferences(targetLink);
+      if (perComic) {
+        const mappedMode = toInternalReadingMode(perComic.readingMode);
+        const mappedOri = toInternalOrientation(perComic.orientation);
+        const mappedFit = toInternalPageFit(perComic.pageFit);
+        return {
+          ...globalDefaults,
+          ...(mappedMode ? {readingMode: mappedMode} : {}),
+          ...(mappedOri ? {orientationMode: mappedOri} : {}),
+          ...(mappedFit ? {imageScale: mappedFit} : {}),
+        };
+      }
+    }
+    return globalDefaults;
+  });
 
   // Interaction Mode: Continuous default 'scroll', Paged default 'swipe'
   const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => {
@@ -118,15 +192,15 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     });
   }, []);
 
-  // Reload persistent settings on focus
+  // Reload persistent settings on focus (respecting per-comic preferences)
   useFocusEffect(
     useCallback(() => {
-      const refreshed = getStoredReaderSettings();
+      const refreshed = getEffectiveSettings();
       setSettings(refreshed);
       if (typeof refreshed.liveTranslateEnabled === 'boolean') {
         setTranslateEnabled(refreshed.liveTranslateEnabled);
       }
-    }, []),
+    }, [getEffectiveSettings]),
   );
 
   useEffect(() => {
@@ -138,6 +212,27 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const currentChapter: EpisodeLink | undefined = episodeList[currentChapterIndex];
   const chapterLink = currentChapter?.link || '';
   const chapterTitle = currentChapter?.title || secondaryTitle || `Chapter ${currentChapterIndex + 1}`;
+
+  // Apply per-comic preferences once chapterLink is resolved if infoUrl was absent
+  useEffect(() => {
+    const targetLink = infoUrl || chapterLink;
+    if (targetLink) {
+      const perComic = comicPreferencesStorage.getPreferences(targetLink);
+      if (perComic) {
+        const mappedMode = toInternalReadingMode(perComic.readingMode);
+        const mappedOri = toInternalOrientation(perComic.orientation);
+        const mappedFit = toInternalPageFit(perComic.pageFit);
+        if (mappedMode || mappedOri || mappedFit) {
+          setSettings(prev => ({
+            ...prev,
+            ...(mappedMode ? {readingMode: mappedMode} : {}),
+            ...(mappedOri ? {orientationMode: mappedOri} : {}),
+            ...(mappedFit ? {imageScale: mappedFit} : {}),
+          }));
+        }
+      }
+    }
+  }, [infoUrl, chapterLink]);
 
   // Keep screen awake effect
   useEffect(() => {
@@ -248,10 +343,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
 
   // Restore saved progress on mount or chapter change
   useEffect(() => {
-    const saved = getStoredReaderProgress(infoUrl || chapterLink);
+    const targetLink = infoUrl || chapterLink;
+    const perComic = targetLink ? comicPreferencesStorage.getPreferences(targetLink) : null;
+    const saved = getStoredReaderProgress(targetLink);
     if (saved && saved.chapterIndex === currentChapterIndex) {
       setCurrentPageIndex(saved.currentPageIndex);
-      if (saved.readingMode) {
+      if (saved.readingMode && !perComic?.readingMode) {
         setSettings(s => ({...s, readingMode: saved.readingMode}));
       }
     } else {
@@ -292,6 +389,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             episodeList,
             currentChapterIndex,
             providerValue,
+            isDescending,
           );
         } else {
           // Instant initial render (< 300ms): Mount first 5 pages immediately
@@ -310,6 +408,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
                 episodeList,
                 currentChapterIndex,
                 providerValue,
+                isDescending,
               );
             }
           }, 16);
@@ -606,25 +705,27 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     [chapterLink, triggerPageTranslation],
   );
 
-  // Navigate to Next Chapter
+  // Navigate to Next Chapter in story
   const handleNextChapter = useCallback(() => {
-    if (currentChapterIndex < episodeList.length - 1) {
+    if (hasChronologicalNext) {
       ToastAndroid.show('Loading Next Chapter...', ToastAndroid.SHORT);
-      setCurrentChapterIndex(idx => idx + 1);
+      setCurrentChapterIndex(chronologicalNextIndex);
       setCurrentPageIndex(0);
     } else {
       ToastAndroid.show('You reached the latest chapter!', ToastAndroid.SHORT);
     }
-  }, [currentChapterIndex, episodeList.length]);
+  }, [hasChronologicalNext, chronologicalNextIndex]);
 
-  // Navigate to Prev Chapter
+  // Navigate to Prev Chapter in story
   const handlePrevChapter = useCallback(() => {
-    if (currentChapterIndex > 0) {
+    if (hasChronologicalPrev) {
       ToastAndroid.show('Loading Previous Chapter...', ToastAndroid.SHORT);
-      setCurrentChapterIndex(idx => idx - 1);
+      setCurrentChapterIndex(chronologicalPrevIndex);
       setCurrentPageIndex(0);
+    } else {
+      ToastAndroid.show('You are at the first chapter!', ToastAndroid.SHORT);
     }
-  }, [currentChapterIndex]);
+  }, [hasChronologicalPrev, chronologicalPrevIndex]);
 
   // Select Chapter from Dropdown Modal
   const handleSelectChapter = useCallback((index: number) => {
@@ -647,11 +748,22 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       saveStoredReaderSettings(updated);
       return updated;
     });
+
+    const targetComicLink = infoUrl || chapterLink;
+    if (targetComicLink) {
+      const prefMode = fromInternalReadingMode(nextMode);
+      if (prefMode) {
+        comicPreferencesStorage.savePreferences(targetComicLink, {
+          readingMode: prefMode,
+        });
+      }
+    }
+
     ToastAndroid.show(
       nextMode === 'webtoon' ? 'Reading Mode: Continuous Webtoon' : 'Reading Mode: Page by Page',
       ToastAndroid.SHORT,
     );
-  }, [settings.readingMode]);
+  }, [settings.readingMode, infoUrl, chapterLink]);
 
   // Quick Tools: Jump to First Page
   const handleJumpToFirstPage = useCallback(() => {
@@ -714,7 +826,17 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       saveStoredReaderSettings(updated);
       return updated;
     });
-  }, [settings.orientationMode, navigation]);
+
+    const targetComicLink = infoUrl || chapterLink;
+    if (targetComicLink) {
+      const prefOri = fromInternalOrientation(nextOrientation);
+      if (prefOri) {
+        comicPreferencesStorage.savePreferences(targetComicLink, {
+          orientation: prefOri,
+        });
+      }
+    }
+  }, [settings.orientationMode, navigation, infoUrl, chapterLink]);
 
   // Toggle Interaction Mode:
   // Continuous (webtoon): cycles 'scroll' <-> 'one_tap'
@@ -770,7 +892,27 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       saveStoredReaderSettings(updated);
       return updated;
     });
-  }, []);
+
+    const targetComicLink = infoUrl || chapterLink;
+    if (targetComicLink) {
+      const prefsUpdate: Partial<ComicPreferences> = {};
+      if (newPartial.readingMode) {
+        const m = fromInternalReadingMode(newPartial.readingMode);
+        if (m) prefsUpdate.readingMode = m;
+      }
+      if (newPartial.orientationMode) {
+        const o = fromInternalOrientation(newPartial.orientationMode);
+        if (o) prefsUpdate.orientation = o;
+      }
+      if (newPartial.imageScale) {
+        const f = fromInternalPageFit(newPartial.imageScale);
+        if (f) prefsUpdate.pageFit = f;
+      }
+      if (Object.keys(prefsUpdate).length > 0) {
+        comicPreferencesStorage.savePreferences(targetComicLink, prefsUpdate);
+      }
+    }
+  }, [infoUrl, chapterLink]);
 
   const themeColors = THEME_COLORS[settings.theme];
 
@@ -832,7 +974,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
-          onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
+          onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
           autoScrollSpeed={settings.autoScrollSpeed}
@@ -853,7 +995,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
-          onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
+          onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
@@ -932,6 +1074,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onSelectChapter={handleSelectChapter}
         onPrevChapter={handlePrevChapter}
         onNextChapter={handleNextChapter}
+        hasPrevChapter={hasChronologicalPrev}
+        hasNextChapter={hasChronologicalNext}
         onPageSliderCommit={handlePageSliderCommit}
         onPageSliderChange={handlePageChange}
         onToggleReadingMode={handleToggleReadingMode}

@@ -42,6 +42,8 @@ interface ReaderHUDProps {
   onSelectChapter: (index: number) => void;
   onPrevChapter: () => void;
   onNextChapter: () => void;
+  hasPrevChapter?: boolean;
+  hasNextChapter?: boolean;
   onPageSliderChange?: (pageIndex: number) => void;
   onPageSliderCommit?: (pageIndex: number) => void;
   onToggleReadingMode: () => void;
@@ -72,6 +74,8 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onSelectChapter,
   onPrevChapter,
   onNextChapter,
+  hasPrevChapter,
+  hasNextChapter,
   onPageSliderChange,
   onPageSliderCommit,
   onToggleReadingMode,
@@ -296,22 +300,28 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
         {/* Lower row: 5 evenly spaced modern icon+label buttons */}
         <View style={styles.controlsRow}>
           {/* 1. Prev Ch */}
-          <TouchableOpacity
-            onPress={onPrevChapter}
-            disabled={currentChapterIndex <= 0}
-            style={[
-              styles.controlButton,
-              currentChapterIndex <= 0 && {opacity: 0.35},
-            ]}>
-            <MaterialCommunityIcons
-              name="skip-previous"
-              size={22}
-              color="#FFFFFF"
-            />
-            <AppText role="labelSmall" style={styles.controlButtonLabel}>
-              Prev Ch
-            </AppText>
-          </TouchableOpacity>
+          {(() => {
+            const canGoPrev =
+              hasPrevChapter !== undefined ? hasPrevChapter : currentChapterIndex > 0;
+            return (
+              <TouchableOpacity
+                onPress={onPrevChapter}
+                disabled={!canGoPrev}
+                style={[
+                  styles.controlButton,
+                  !canGoPrev && {opacity: 0.35},
+                ]}>
+                <MaterialCommunityIcons
+                  name="skip-previous"
+                  size={22}
+                  color="#FFFFFF"
+                />
+                <AppText role="labelSmall" style={styles.controlButtonLabel}>
+                  Prev Ch
+                </AppText>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 2. 1-Tap Scrolling / Navigation Mode Button */}
           {onToggleInteractionMode && (
@@ -351,22 +361,30 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
           </TouchableOpacity>
 
           {/* 4. Next Ch */}
-          <TouchableOpacity
-            onPress={onNextChapter}
-            disabled={currentChapterIndex >= allChapters.length - 1}
-            style={[
-              styles.controlButton,
-              currentChapterIndex >= allChapters.length - 1 && {opacity: 0.35},
-            ]}>
-            <MaterialCommunityIcons
-              name="skip-next"
-              size={22}
-              color="#FFFFFF"
-            />
-            <AppText role="labelSmall" style={styles.controlButtonLabel}>
-              Next Ch
-            </AppText>
-          </TouchableOpacity>
+          {(() => {
+            const canGoNext =
+              hasNextChapter !== undefined
+                ? hasNextChapter
+                : currentChapterIndex < allChapters.length - 1;
+            return (
+              <TouchableOpacity
+                onPress={onNextChapter}
+                disabled={!canGoNext}
+                style={[
+                  styles.controlButton,
+                  !canGoNext && {opacity: 0.35},
+                ]}>
+                <MaterialCommunityIcons
+                  name="skip-next"
+                  size={22}
+                  color="#FFFFFF"
+                />
+                <AppText role="labelSmall" style={styles.controlButtonLabel}>
+                  Next Ch
+                </AppText>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 5. Settings */}
           <TouchableOpacity

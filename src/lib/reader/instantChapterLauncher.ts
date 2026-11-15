@@ -163,6 +163,7 @@ class InstantChapterLauncher {
     chapters: (EpisodeLink | ChapterLink)[],
     resumeIndex: number,
     providerValue: string,
+    isDescending?: boolean,
   ): void {
     if (!chapters || chapters.length === 0 || !providerValue) return;
 
@@ -175,9 +176,9 @@ class InstantChapterLauncher {
       });
     }
 
-    // 2. Preload next serial chapter (if available)
-    const nextIndex = resumeIndex + 1;
-    if (nextIndex < chapters.length) {
+    // 2. Preload next chronological chapter (if available)
+    const nextIndex = isDescending ? resumeIndex - 1 : resumeIndex + 1;
+    if (nextIndex >= 0 && nextIndex < chapters.length) {
       const next = chapters[nextIndex];
       if (next?.link) {
         setTimeout(() => {

@@ -66,3 +66,17 @@ export {
 } from './WatchProgressStorage';
 export type {WatchProgress} from './WatchProgressStorage';
 
+// Export ComicPreferencesStorage
+export {
+  comicPreferencesStorage,
+  getComicPreferences,
+  saveComicPreferences,
+  clearComicPreferences,
+} from './comicPreferencesStorage';
+export type {
+  ComicPreferences,
+  ComicReadingMode,
+  ComicOrientation,
+  ComicPageFit,
+} from './comicPreferencesStorage';
+

@@ -36,3 +36,14 @@ export const markComicAsNew = (
 export const getNewComicStatus = (
   comicLink: string,
 ) => watchListStorage.getNewComicStatus(comicLink);
+
+export {
+  comicPreferencesStorage,
+  getComicPreferences,
+  saveComicPreferences,
+  clearComicPreferences,
+  type ComicPreferences,
+  type ComicReadingMode,
+  type ComicOrientation,
+  type ComicPageFit,
+} from './comicPreferencesStorage';
