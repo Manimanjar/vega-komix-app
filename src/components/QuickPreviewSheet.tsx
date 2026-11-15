@@ -68,7 +68,13 @@ export const QuickPreviewSheet: React.FC<QuickPreviewSheetProps> = ({
   if (!visible || !post) return null;
 
   const displayTitle = details?.title || post.title || 'Comic Preview';
-  const displayImage = details?.image || post.image;
+  const displayImage =
+    details?.image ||
+    details?.poster ||
+    (details as any)?.cover ||
+    post.image ||
+    post.poster ||
+    (post as any).cover;
   const displaySynopsis =
     details?.synopsis ||
     (post as any).synopsis ||

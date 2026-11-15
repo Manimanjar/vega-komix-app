@@ -14,7 +14,19 @@ import {getCookieHeader} from '../lib/services/cookieManager';
 import AppText from './ui/Text';
 
 export interface ComicThumbnailProps {
-  source?: string | {uri?: string; headers?: Record<string, string>};
+  source?:
+    | string
+    | {
+        uri?: string;
+        image?: string;
+        poster?: string;
+        cover?: string;
+        headers?: Record<string, string>;
+      };
+  uri?: string;
+  image?: string;
+  poster?: string;
+  cover?: string;
   width?: DimensionValue;
   height?: DimensionValue;
   aspectRatio?: number;
@@ -34,10 +46,13 @@ export interface ComicThumbnailProps {
 // In-memory cache for resolved headers by origin
 const headersCache = new Map<string, Record<string, string>>();
 
+const DEFAULT_UA =
+  'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+
 /**
  * Automatically upgrades low-res image thumbnails to high-res covers
- * - MangaDex: .256.jpg -> .512.jpg
  * - Protocol-relative // -> https://
+ * - Preserves MangaDex URLs intact without regex corruption
  * - Generic CDN thumbnail size params
  */
 export const upgradeThumbnailUrl = (rawUrl?: string): string => {
@@ -49,11 +64,9 @@ export const upgradeThumbnailUrl = (rawUrl?: string): string => {
     url = `https:${url}`;
   }
 
-  // Upgrade MangaDex cover sizes
+  // Do NOT corrupt MangaDex cover URLs with broken regex replacements
   if (url.includes('mangadex.org') || url.includes('/covers/')) {
-    url = url
-      .replace(/\.256\.(jpg|png|webp)/gi, '.512.$1')
-      .replace(/\.thumb\.(jpg|png|webp)/gi, '.$1');
+    return url;
   }
 
   // Upgrade generic thumbnail patterns
@@ -61,12 +74,50 @@ export const upgradeThumbnailUrl = (rawUrl?: string): string => {
     .replace(/([?&])(?:w|width)=\d+/gi, '$1width=600')
     .replace(/([?&])(?:h|height)=\d+/gi, '$1height=900');
 
-  // Pass through AutoDomainResolver
-  return autoDomainResolver.rewriteUrlWithResolvedDomain(url);
+  return url;
+};
+
+const getAttempt1Headers = (
+  url?: string,
+  initialHeaders?: Record<string, string>,
+): Record<string, string> | undefined => {
+  if (!url || !url.startsWith('http')) return initialHeaders;
+  const isMangaDex =
+    url.includes('mangadex.org') || url.includes('uploads.mangadex.org');
+
+  if (isMangaDex) {
+    // Attempt 1 for MangaDex: Only standard UA, never send cross-origin Referer
+    return {
+      'User-Agent': DEFAULT_UA,
+      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      ...(initialHeaders || {}),
+    };
+  }
+
+  try {
+    const origin = new URL(url).origin;
+    const cached = headersCache.get(origin);
+    if (cached) {
+      return {...cached, ...(initialHeaders || {})};
+    }
+    return {
+      Referer: `${origin}/`,
+      Origin: origin,
+      'User-Agent': DEFAULT_UA,
+      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      ...(initialHeaders || {}),
+    };
+  } catch {
+    return initialHeaders;
+  }
 };
 
 export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
   source,
+  uri,
+  image,
+  poster,
+  cover,
   width = '100%',
   height,
   aspectRatio = 2 / 3,
@@ -81,46 +132,47 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
   onLoad,
   onError,
 }) => {
-  const rawUri = typeof source === 'string' ? source : source?.uri;
-  const initialHeaders = typeof source === 'object' ? source?.headers : undefined;
+  // Support fallback image props: uri || image || poster || cover
+  const rawUri =
+    (typeof source === 'string'
+      ? source
+      : source?.uri || source?.image || source?.poster || source?.cover) ||
+    uri ||
+    image ||
+    poster ||
+    cover ||
+    '';
+
+  const initialHeaders =
+    typeof source === 'object' && source !== null ? source.headers : undefined;
 
   const upgradedUrl = useMemo(() => upgradeThumbnailUrl(rawUri), [rawUri]);
 
   const [currentUrl, setCurrentUrl] = useState<string>(upgradedUrl);
   const [retryStage, setRetryStage] = useState<number>(0);
-  const [hasError, setHasError] = useState<boolean>(false);
-  const [headers, setHeaders] = useState<Record<string, string>>(() => {
-    if (!upgradedUrl || !upgradedUrl.startsWith('http')) return initialHeaders || {};
-    try {
-      const origin = new URL(upgradedUrl).origin;
-      const cached = headersCache.get(origin);
-      if (cached) {
-        return {...cached, ...(initialHeaders || {})};
-      }
-      return {
-        Referer: `${origin}/`,
-        Origin: origin,
-        'User-Agent':
-          'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        ...(initialHeaders || {}),
-      };
-    } catch {
-      return initialHeaders || {};
-    }
-  });
+  const [hasError, setHasError] = useState<boolean>(!upgradedUrl);
+  const [headers, setHeaders] = useState<Record<string, string> | undefined>(
+    () => getAttempt1Headers(upgradedUrl, initialHeaders),
+  );
 
-  // Keep currentUrl in sync when source changes
+  // Sync state when rawUri or source changes
   useEffect(() => {
     const nextUrl = upgradeThumbnailUrl(rawUri);
     setCurrentUrl(nextUrl);
     setRetryStage(0);
     setHasError(!nextUrl);
-  }, [rawUri]);
+    setHeaders(getAttempt1Headers(nextUrl, initialHeaders));
+  }, [rawUri, initialHeaders]);
 
-  // Inject cookies from @preeternal/react-native-cookie-manager
+  // Inject cookies from @preeternal/react-native-cookie-manager for scraper providers
   useEffect(() => {
     if (!currentUrl || !currentUrl.startsWith('http')) return;
+    if (retryStage > 0) return; // Do not inject custom headers on retry stages
+
+    const isMangaDex =
+      currentUrl.includes('mangadex.org') ||
+      currentUrl.includes('uploads.mangadex.org');
+    if (isMangaDex) return; // Never send cross-origin cookies or referers to MangaDex
 
     let isMounted = true;
     (async () => {
@@ -132,9 +184,9 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
           const resolved: Record<string, string> = {
             Referer: `${origin}/`,
             Origin: origin,
-            'User-Agent':
-              'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'User-Agent': DEFAULT_UA,
+            Accept:
+              'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             ...(initialHeaders || {}),
           };
 
@@ -145,16 +197,17 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
           headersCache.set(origin, resolved);
           setHeaders(resolved);
         }
-      } catch (err) {
-        // Silently continue with existing headers
+      } catch {
+        // Silently continue
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [currentUrl, initialHeaders]);
+  }, [currentUrl, initialHeaders, retryStage]);
 
+  // 3-Stage Image Fallback State Machine
   const handleImageError = useCallback(
     (e: any) => {
       if (!currentUrl) {
@@ -163,25 +216,32 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
         return;
       }
 
-      // Retry policy:
-      // Stage 0: Failed with Origin Referer -> Stage 1: Try without Referer
-      // Stage 1: Failed without Referer -> Stage 2: Try original raw URL (un-upgraded)
-      // Stage 2: Failed -> Mark hasError
+      // Stage 0 -> Stage 1: Retry raw original URL with zero custom headers
       if (retryStage === 0) {
         setRetryStage(1);
-        setHeaders(prev => {
-          const updated = {...prev};
-          delete updated.Referer;
-          delete updated.Origin;
-          return updated;
-        });
-      } else if (retryStage === 1 && rawUri && rawUri !== currentUrl) {
-        setRetryStage(2);
-        setCurrentUrl(rawUri);
-      } else {
-        setHasError(true);
-        onError?.(e);
+        setCurrentUrl(rawUri || currentUrl);
+        setHeaders(undefined);
+        return;
       }
+
+      // Stage 1 -> Stage 2: Retry through autoDomainResolver
+      if (retryStage === 1) {
+        setRetryStage(2);
+        try {
+          const resolved = autoDomainResolver.rewriteUrlWithResolvedDomain(
+            rawUri || currentUrl,
+          );
+          if (resolved && resolved !== currentUrl) {
+            setCurrentUrl(resolved);
+            setHeaders(undefined);
+            return;
+          }
+        } catch {}
+      }
+
+      // Stage 2 (or unrecoverable): All 3 attempts failed -> Show fallback icon
+      setHasError(true);
+      onError?.(e);
     },
     [currentUrl, rawUri, retryStage, onError],
   );

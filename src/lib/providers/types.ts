@@ -14,11 +14,14 @@ export interface Post {
   title: string;
   link: string;
   image: string;
+  poster?: string;
+  cover?: string;
   provider?: string;
   aspectRatio?: number | string;
   borderRadius?: number;
   tag?: string;
   cornerTag?: string;
+  [key: string]: any;
 }
 
 export declare enum TextTrackType {
@@ -82,6 +85,7 @@ export interface Info {
   image: string;
   logo?: string;
   poster?: string;
+  cover?: string;
   synopsis: string;
   imdbId?: string;
   tmdbId?: number | string;

@@ -7,6 +7,7 @@ import {
   Linking,
   Pressable,
   ScrollView,
+  Text,
   TouchableOpacity,
   View,
   findNodeHandle,
@@ -493,97 +494,101 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
           gap: 10,
         }}>
         {/* Primary Action Button: "Start Reading" or "Resume Ch. X • Page Y" */}
-        <Button
-          variant="filled"
+        <TouchableOpacity
+          activeOpacity={0.8}
           onPress={onStartReading}
           style={{
-            height: 48,
+            backgroundColor: '#E2E8F0',
+            minHeight: 48,
+            paddingHorizontal: 20,
             borderRadius: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
             justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: {width: 0, height: 2},
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 4,
           }}>
-          <View
+          <MaterialCommunityIcons
+            name="book-open-page-variant"
+            size={22}
+            color="#0F172A"
+          />
+          <Text
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
+              color: '#0F172A',
+              fontSize: 16,
+              fontWeight: '700',
+              marginLeft: 8,
             }}>
-            <MaterialCommunityIcons
-              name="book-open-page-variant"
-              size={20}
-              color={colors.onPrimary}
-            />
-            <AppText
-              role="titleMediumEmphasized"
-              style={{color: colors.onPrimary, fontSize: 15}}>
-              {resumeText || 'Start Reading'}
-            </AppText>
-          </View>
-        </Button>
+            {resumeText || 'Start Reading'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Secondary Action Row: Add to Library & Open in WebView */}
         <View style={{flexDirection: 'row', gap: 10}}>
-          <Button
-            variant={inLibrary ? 'tonal' : 'outlined'}
+          <TouchableOpacity
+            activeOpacity={0.8}
             onPress={onToggleLibrary}
             style={{
+              borderWidth: 1.5,
+              borderColor: inLibrary ? '#38BDF8' : '#475569',
+              backgroundColor: '#1E293B',
+              minHeight: 44,
               flex: 1,
-              height: 42,
               borderRadius: 12,
-              borderColor: 'rgba(255, 255, 255, 0.15)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}>
-            <View
+            <MaterialCommunityIcons
+              name={inLibrary ? 'bookmark-check' : 'bookmark-plus-outline'}
+              size={18}
+              color="#F8FAFC"
+            />
+            <Text
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
+                color: '#F8FAFC',
+                fontSize: 14,
+                fontWeight: '600',
+                marginLeft: 8,
               }}>
-              <MaterialCommunityIcons
-                name={inLibrary ? 'bookmark-check' : 'bookmark-plus-outline'}
-                size={18}
-                color={inLibrary ? colors.primary : colors.onSurface}
-              />
-              <AppText
-                role="labelMediumEmphasized"
-                style={{
-                  color: inLibrary ? colors.primary : colors.onSurface,
-                }}>
-                {inLibrary ? 'In Library' : 'Add to Library'}
-              </AppText>
-            </View>
-          </Button>
+              {inLibrary ? 'In Library' : 'Library'}
+            </Text>
+          </TouchableOpacity>
 
-          {onOpenWeb && (
-            <Button
-              variant="outlined"
-              onPress={onOpenWeb}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onOpenWeb}
+            style={{
+              borderWidth: 1.5,
+              borderColor: '#475569',
+              backgroundColor: '#1E293B',
+              minHeight: 44,
+              flex: 1,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: onOpenWeb ? 1 : 0.6,
+            }}>
+            <MaterialCommunityIcons
+              name="web"
+              size={18}
+              color="#F8FAFC"
+            />
+            <Text
               style={{
-                flex: 1,
-                height: 42,
-                borderRadius: 12,
-                borderColor: 'rgba(255, 255, 255, 0.15)',
+                color: '#F8FAFC',
+                fontSize: 14,
+                fontWeight: '600',
+                marginLeft: 8,
               }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}>
-                <MaterialCommunityIcons
-                  name="shield-check-outline"
-                  size={18}
-                  color={colors.onSurface}
-                />
-                <AppText
-                  role="labelMediumEmphasized"
-                  style={{color: colors.onSurface}}>
-                  Open in WebView
-                </AppText>
-              </View>
-            </Button>
-          )}
+              WebView
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 

@@ -146,7 +146,10 @@ const ScrollListCard = memo(({
           borderColor: isFocused ? focusBorderColor : 'rgba(255, 255, 255, 0.08)',
         }}>
         <ComicThumbnail
-          source={item.image}
+          source={item.image || (item as any).poster || (item as any).cover}
+          image={item.image}
+          poster={(item as any).poster}
+          cover={(item as any).cover}
           borderRadius={activeBorderRadius}
           altTitle={item.title}
           contentFit="cover"

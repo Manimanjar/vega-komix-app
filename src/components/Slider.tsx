@@ -69,7 +69,9 @@ const SliderPosterItem = memo(
     return (
       <MediaPosterCard
         title={item.title}
-        poster={item.image}
+        poster={item.image || (item as any).poster || (item as any).cover}
+        image={item.image}
+        cover={(item as any).cover}
         width={cardWidth}
         aspectRatio={2 / 3}
         borderRadius={item.borderRadius}

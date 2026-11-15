@@ -54,6 +54,8 @@ export const getResponsiveCardWidth = (
 interface MediaPosterCardProps {
   title: string;
   poster?: string;
+  image?: string;
+  cover?: string;
   width: number;
   subtitle?: string;
   badge?: number | string;
@@ -101,6 +103,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
     {
       title,
       poster,
+      image,
+      cover,
       width,
       subtitle,
       badge,
@@ -142,6 +146,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       hasTVPreferredFocus,
     });
     const [isFocused, setIsFocused] = React.useState(false);
+    const effectivePoster = poster || image || cover;
     const activeAspectRatio = parseAspectRatio(aspectRatio, 2 / 3);
     const activeBorderRadius =
       typeof borderRadius === 'number' && borderRadius >= 0 ? borderRadius : 18;
@@ -364,9 +369,9 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                     </View>
                   ) : null}
 
-                  {poster ? (
+                  {effectivePoster ? (
                     <ComicThumbnail
-                      source={poster}
+                      source={effectivePoster}
                       contentFit="cover"
                       aspectRatio={activeAspectRatio}
                       borderRadius={activeBorderRadius}

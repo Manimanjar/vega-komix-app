@@ -148,16 +148,23 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     meta?.description || info?.synopsis || optSynopsis || 'No synopsis available';
   const posterImage =
     info?.poster ||
+    (info as any)?.cover ||
+    info?.image ||
     meta?.poster ||
+    (meta as any)?.cover ||
     optImage ||
     route.params.poster ||
-    info?.image ||
+    (route.params as any)?.cover ||
+    (route.params as any)?.image ||
     'https://placehold.jp/24/363636/ffffff/500x750.png?text=Vega';
   const backgroundImage =
     meta?.background ||
     info?.image ||
+    info?.poster ||
+    (info as any)?.cover ||
     optImage ||
     route.params.poster ||
+    (route.params as any)?.cover ||
     'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Vega';
   // Posters and small images are blurred behind the page, with the sharp
   // poster shown in the header instead of stretched across it.
