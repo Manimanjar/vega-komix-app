@@ -43,13 +43,16 @@ export async function retryPageImageWithUpdatedHeaders(
   // 3. Update Referer and Origin headers to match new domain
   const headers = {...(page.headers || {})};
   try {
-    const updatedOrigin = new URL(updatedUrl).origin;
+    const parsed = new URL(updatedUrl);
+    const parts = parsed.hostname.split('.');
+    const apex = parts.length > 2 ? parts.slice(-2).join('.') : parsed.hostname;
+    const apexOrigin = `${parsed.protocol}//${apex}`;
     if (headers.Referer || headers.referer) {
-      headers.Referer = updatedOrigin;
+      headers.Referer = `${apexOrigin}/`;
       delete headers.referer;
     }
     if (headers.Origin || headers.origin) {
-      headers.Origin = updatedOrigin;
+      headers.Origin = apexOrigin;
       delete headers.origin;
     }
   } catch {}

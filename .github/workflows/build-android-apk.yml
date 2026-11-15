@@ -90,63 +90,50 @@ jobs:
           fi
 
           echo "Found generated APK: $APK_PATH"
-          cp "$APK_PATH" output/Vega-Komix-v6.1.0.apk
+          cp "$APK_PATH" output/Vega-Komix-v6.1.1.apk
           ls -la output/
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Vega-Komix-v6.1.0-APK
-          path: output/Vega-Komix-v6.1.0.apk
+          name: Vega-Komix-v6.1.1-APK
+          path: output/Vega-Komix-v6.1.1.apk
           retention-days: 30
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v6.1.0
-          name: "Vega Komix v6.1.0 (Feature Release - Reader HUD & Settings Overhaul)"
+          tag_name: v6.1.1
+          name: "Vega Komix v6.1.1 (Maintenance Release - Provider & Image Pipeline Fixes)"
           body: |
-            # 🚀 Vega Komix v6.1.0 Feature Release
+            # 🚀 Vega Komix v6.1.1 Maintenance Release
 
             **Release Date:** November 15, 2026  
             **Build Target:** Android 6.0+ (ARM64 & Universal)  
-            **Package:** `com.vegakomix.app` (versionCode: 310)
+            **Package:** `com.vegakomix.app` (versionCode: 311)
 
             ---
 
-            ### 📖 What's New in Vega Komix v6.1.0
+            ### 📖 What's New in Vega Komix v6.1.1
 
-            #### 1. 🎛️ Complete Reader HUD & Function Bar Redesign
-            - **1-Tap Reading Mode Toggle:** Seamlessly switch between **Continuous** (vertical strip) and **Page by Page** (horizontal swipe) in one tap directly from the top bar.
-            - **1-Tap Interaction / Scroll Mode:** Toggle between **Scroll** (natural webpage scrolling), **One Tap** (left/right tap zones), and **Swipe** on the fly with a glowing accent indicator.
-            - **Strict 2-State Orientation Lock:** Instant 1-tap toggle between **Portrait** and **Landscape** (fits 100% full screen width without pillar-boxing).
-            - **Accurate Page Progress Scrubber:** Replaced raw pixel coordinates with true `Page X / Total` (e.g., `2 / 24`) and dynamic completion percentage.
-            - **Streamlined Top Bar:** Removed the intrusive top-right shield button for a distraction-free reading experience.
+            #### 1. 🖼️ Native ExpoImage Pipeline & Zero-Failure Readers
+            - Migrated `WebtoonView` from React Native `Animated.Image` to `ExpoImage` with `cachePolicy="memory-disk"`, fixing failed-to-load page errors on CDN-protected images.
+            - Migrated `ComicThumbnail` to `ExpoImage` with apex-domain referer derivation, guaranteeing reliable thumbnail rendering across all providers.
+            - Replaced desktop User-Agent in preloader and stream headers with native Android Mobile User-Agent to bypass Cloudflare bot challenges.
 
-            #### 2. ⚙️ Redesigned In-Reader Settings Sheet
-            - **Pure AMOLED Black (`#000000`):** True black theme across both the comic reader and detail/info screens.
-            - **Live Zoom Controller:** Adjust zoom from 50% to 300% with real-time pinch/zoom support.
-            - **Image Fit & Aspect Modes:** Choose between Fit Width, Fit Height, or Original size.
-            - **Hands-Free Auto-Scroll:** Variable auto-scroll speeds (1x to 4x) with touch-to-pause and auto-resume.
-            - **Night Mode & Warm Dimmer Filter:** Adjustable software dimmer overlay for comfortable night reading.
-            - **Quick Reader Tools:** Jump to 1st page, reload current page/cache, toggle image quality, and download chapter for offline reading.
-
-            #### 3. 🖼️ Info & Comic Details Polish
-            - Removed distracting blurred background thumbnail in `Info.tsx` for 100% crisp, readable synopsis and chapter listings.
-            - Added universal Single-Chapter fallback synthesis for single-file gallery and webcomic releases.
-
-            #### 4. 🌐 Provider Improvements & Bug Fixes
-            - Removed discontinued/broken providers (`komixGallery`, `webtoonManhwa`).
-            - Hardened scrapers for `allporncomics`, `comicsvalley`, and `novelcrow`.
-            - Added universal single-file chapter support for WordPress comic galleries.
+            #### 2. 🌐 Provider Fixes & Silence Background WAF Popups
+            - **NovelCrow:** Suppressed non-interactive Cloudflare WAF WebView popups during background search and aggregation.
+            - **AllPornComic:** Fixed thumbnail extraction from lazyload `data-src` / `data-srcset` attributes, restored complete multi-page chapter extraction, and bumped provider version to `v1.1.0`.
+            - **ComicsValley:** Updated mobile headers, added fallback search resilience, and bumped provider to `v1.1.0`.
+            - Bumped all provider extensions in `manifest.json` to trigger immediate in-app updates.
 
             ---
 
             ### 📦 Download & Installation
             Download the signed APK below and install it directly on your Android device:
-            - **Vega-Komix-v6.1.0.apk** (ARM64 & Universal)
-          files: output/Vega-Komix-v6.1.0.apk
+            - **Vega-Komix-v6.1.1.apk** (ARM64 & Universal)
+          files: output/Vega-Komix-v6.1.1.apk
           draft: false
           prerelease: false
         env:

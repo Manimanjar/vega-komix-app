@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   type ViewToken,
 } from 'react-native';
+import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
@@ -153,7 +154,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     (e: any) => {
       setLoading(false);
       setLoadError(false);
-      const src = (e.nativeEvent as any)?.source || (e as any)?.source;
+      const src = e?.source || (e.nativeEvent as any)?.source;
       const naturalWidth = src?.width || item.width;
       const naturalHeight = src?.height || item.height;
       if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
@@ -196,22 +197,25 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <Animated.Image
-        key={`${currentUrl}-${retryKey}`}
-        source={{
-          uri: currentUrl,
-          ...(resolvedHeaders ? {headers: resolvedHeaders} : {}),
-        }}
+      <Animated.View
         style={{
           width: effectiveWidth, // width: screenWidth
           height: pageHeight,
           transform: [{scale: scaleAnim}],
-        }}
-        resizeMode="contain"
-        resizeMethod="resize"
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-      />
+        }}>
+        <ExpoImage
+          key={`${currentUrl}-${retryKey}`}
+          source={{
+            uri: currentUrl,
+            headers: resolvedHeaders,
+          }}
+          style={{width: '100%', height: '100%'}}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      </Animated.View>
 
       {/* Loading state indicator */}
       {loading && !loadError && (

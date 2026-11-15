@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   DimensionValue,
-  Image,
   ImageSourcePropType,
   ImageStyle,
   StyleProp,
@@ -9,6 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {autoDomainResolver} from '../lib/network/autoDomainResolver';
 import AppText from './ui/Text';
@@ -147,13 +147,16 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
         return;
       }
 
-      // Stage 0 -> Stage 1: Retry with Referer: origin + '/'
+      // Stage 0 -> Stage 1: Retry with Referer: apex domain + '/'
       if (retryStage === 0) {
         setRetryStage(1);
         try {
-          const origin = new URL(currentUrl).origin;
+          const parsed = new URL(currentUrl);
+          const parts = parsed.hostname.split('.');
+          const apex = parts.length > 2 ? parts.slice(-2).join('.') : parsed.hostname;
           setHeaders({
-            Referer: `${origin}/`,
+            Referer: `${parsed.protocol}//${apex}/`,
+            Origin: `${parsed.protocol}//${apex}`,
             'User-Agent': DEFAULT_UA,
           });
           return;
@@ -226,13 +229,13 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
 
   return (
     <View style={containerStyle}>
-      <Image
+      <ExpoImage
         source={{
           uri: currentUrl,
           ...(headers ? {headers} : {}),
         }}
-        resizeMode={resizeMode}
-        resizeMethod="resize"
+        contentFit={contentFit}
+        cachePolicy="memory-disk"
         onLoad={onLoad}
         onError={handleImageError}
         style={[

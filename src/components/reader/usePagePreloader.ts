@@ -20,19 +20,21 @@ export const resolvePageHeaders = async (
 
   const merged: Record<string, string> = {
     'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
     Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     ...(headers || {}),
   };
 
-  // Derive referer/origin if not provided
+  // Derive referer/origin if not provided (use apex domain with trailing slash for hotlink CDN bypass)
   try {
     const parsed = new URL(imageUrl);
+    const parts = parsed.hostname.split('.');
+    const apex = parts.length > 2 ? parts.slice(-2).join('.') : parsed.hostname;
     if (!merged.Referer && !merged.referer) {
-      merged.Referer = `${parsed.protocol}//${parsed.host}/`;
+      merged.Referer = `${parsed.protocol}//${apex}/`;
     }
     if (!merged.Origin && !merged.origin) {
-      merged.Origin = `${parsed.protocol}//${parsed.host}`;
+      merged.Origin = `${parsed.protocol}//${apex}`;
     }
   } catch {}
 
