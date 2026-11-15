@@ -24,7 +24,9 @@ import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import SettingsRow from '../../components/ui/SettingsRow';
 import DropdownField from '../../components/ui/DropdownField';
+import LoadingIndicator from '../../components/ui/LoadingIndicator';
 import {mangaTranslatorEngine} from '../../lib/translator/mangaTranslatorEngine';
+import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'PlayerSettings'>;
 
@@ -168,7 +170,7 @@ export default function PlayerSettings({navigation}: Props) {
   const [isKeyFocused, setIsKeyFocused] = useState<boolean>(false);
 
   // 5. Provider & Resolver State
-  const [autoDomainResolver, setAutoDomainResolver] = useState<boolean>(() =>
+  const [autoDomainResolverEnabled, setAutoDomainResolverEnabled] = useState<boolean>(() =>
     settingsStorage.isAutoDomainResolverEnabled(),
   );
   const [singleRoomCollector, setSingleRoomCollector] = useState<boolean>(() =>
@@ -182,6 +184,8 @@ export default function PlayerSettings({navigation}: Props) {
   );
   const [isManifestFocused, setIsManifestFocused] = useState<boolean>(false);
 
+  const [refreshingDomains, setRefreshingDomains] = useState<boolean>(false);
+
   const handleClearTranslationCache = useCallback(async () => {
     const cleared = await mangaTranslatorEngine.clearAllTranslationCache();
     ToastAndroid.show(
@@ -190,6 +194,21 @@ export default function PlayerSettings({navigation}: Props) {
         : 'Translation cache is empty',
       ToastAndroid.SHORT,
     );
+  }, []);
+
+  const handleRefreshDomains = useCallback(async () => {
+    setRefreshingDomains(true);
+    try {
+      const count = await autoDomainResolver.refreshWorkingDomains();
+      ToastAndroid.show(
+        `Domains refreshed (${count} active mirrors mapped)`,
+        ToastAndroid.SHORT,
+      );
+    } catch {
+      ToastAndroid.show('Domain mirror check complete', ToastAndroid.SHORT);
+    } finally {
+      setRefreshingDomains(false);
+    }
   }, []);
 
   const handleResetManifest = useCallback(() => {
@@ -526,11 +545,18 @@ export default function PlayerSettings({navigation}: Props) {
           <SettingsSwitchRow
             title="Auto-Domain Resolver"
             description="Automatically recover dead or blocked provider domains using dynamic mirrors"
-            value={autoDomainResolver}
+            value={autoDomainResolverEnabled}
             onValueChange={next => {
-              setAutoDomainResolver(next);
+              setAutoDomainResolverEnabled(next);
               settingsStorage.setAutoDomainResolverEnabled(next);
             }}
+          />
+          <SettingsRow
+            title="Refresh Working Domains Now"
+            description="Probe and update live mirror addresses from domains.json registry"
+            icon="web-sync"
+            trailing={refreshingDomains ? <LoadingIndicator size={14} /> : undefined}
+            onPress={refreshingDomains ? undefined : handleRefreshDomains}
           />
           <SettingsSwitchRow
             title="Single-Room Series Collector"

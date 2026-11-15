@@ -246,6 +246,14 @@ export class AutoDomainResolver {
   }
 
   /**
+   * Refresh working domains immediately from remote domains.json registry
+   */
+  public async refreshWorkingDomains(sourceAuthor?: string): Promise<number> {
+    const registry = await this.fetchRemoteDomainsRegistry(sourceAuthor);
+    return Object.keys(registry || {}).length;
+  }
+
+  /**
    * Stage B: Fetch Remote domains.json registry from provider source or mirrors
    */
   public async fetchRemoteDomainsRegistry(

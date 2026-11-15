@@ -1,5 +1,6 @@
 import {ChapterLink, EpisodeLink, Post} from '../providers/types';
 import {providerManager} from '../services/ProviderManager';
+import {settingsStorage} from '../storage';
 
 export interface CanonicalSeriesInfo {
   canonicalKey: string;
@@ -178,6 +179,9 @@ export function clusterPostsIntoSeriesRooms(posts: Post[]): Post[] {
   if (!Array.isArray(posts) || posts.length === 0) {
     return [];
   }
+  if (!settingsStorage.isSingleRoomCollectorEnabled()) {
+    return posts;
+  }
 
   const clusters = new Map<string, {master: Post; count: number; maxChapter?: number; minChapter?: number}>();
   const orderedKeys: string[] = [];
@@ -346,7 +350,7 @@ export async function collectAllSeriesChapters(
   const {baseTitle, providerValue, currentChapters = [], signal} = options;
   const initial = sortAndMergeChapters(currentChapters);
 
-  if (!baseTitle || !providerValue) {
+  if (!baseTitle || !providerValue || !settingsStorage.isSingleRoomCollectorEnabled()) {
     return initial;
   }
 
