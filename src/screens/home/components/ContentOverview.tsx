@@ -63,6 +63,7 @@ interface ContentOverviewProps {
   language?: string;
   onTapTag?: (tag: string) => void;
   onStartReading?: () => void;
+  resumeChapter?: string | number;
   resumeText?: string;
 }
 
@@ -188,6 +189,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   language,
   onTapTag,
   onStartReading,
+  resumeChapter,
   resumeText,
 }) => {
   const insets = useSafeAreaInsets();
@@ -490,26 +492,22 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
       <View
         style={{
           paddingHorizontal: 20,
-          paddingTop: 8,
-          gap: 10,
+          width: '100%',
         }}>
-        {/* Primary Action Button: "Start Reading" or "Resume Ch. X • Page Y" */}
+        {/* Primary Action Button: "Start Reading" or "Resume Ch. X" */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={onStartReading}
           style={{
-            backgroundColor: '#E2E8F0',
+            backgroundColor: '#F1F5F9',
             minHeight: 48,
-            paddingHorizontal: 20,
-            borderRadius: 14,
+            borderRadius: 24,
+            paddingHorizontal: 24,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: {width: 0, height: 2},
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-            elevation: 4,
+            marginVertical: 12,
+            width: '100%',
           }}>
           <MaterialCommunityIcons
             name="book-open-page-variant"
@@ -523,25 +521,35 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
               fontWeight: '700',
               marginLeft: 8,
             }}>
-            {resumeText || 'Start Reading'}
+            {resumeChapter
+              ? `Resume Ch. ${resumeChapter}`
+              : resumeText || 'Start Reading'}
           </Text>
         </TouchableOpacity>
 
-        {/* Secondary Action Row: Add to Library & Open in WebView */}
-        <View style={{flexDirection: 'row', gap: 10}}>
+        {/* Two Secondary Buttons Row */}
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: 12,
+            width: '100%',
+            marginBottom: 16,
+          }}>
+          {/* Button 1 (Library) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={onToggleLibrary}
             style={{
+              flex: 1,
+              minHeight: 44,
+              borderRadius: 22,
               borderWidth: 1.5,
               borderColor: inLibrary ? '#38BDF8' : '#475569',
               backgroundColor: '#1E293B',
-              minHeight: 44,
-              flex: 1,
-              borderRadius: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              paddingHorizontal: 12,
             }}>
             <MaterialCommunityIcons
               name={inLibrary ? 'bookmark-check' : 'bookmark-plus-outline'}
@@ -553,29 +561,31 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
                 color: '#F8FAFC',
                 fontSize: 14,
                 fontWeight: '600',
-                marginLeft: 8,
+                marginLeft: 6,
               }}>
-              {inLibrary ? 'In Library' : 'Library'}
+              {inLibrary ? 'In Library' : 'Add to Library'}
             </Text>
           </TouchableOpacity>
 
+          {/* Button 2 (WebView / Bypass) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={onOpenWeb}
             style={{
+              flex: 1,
+              minHeight: 44,
+              borderRadius: 22,
               borderWidth: 1.5,
               borderColor: '#475569',
               backgroundColor: '#1E293B',
-              minHeight: 44,
-              flex: 1,
-              borderRadius: 12,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              paddingHorizontal: 12,
               opacity: onOpenWeb ? 1 : 0.6,
             }}>
             <MaterialCommunityIcons
-              name="web"
+              name="earth"
               size={18}
               color="#F8FAFC"
             />
@@ -584,7 +594,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
                 color: '#F8FAFC',
                 fontSize: 14,
                 fontWeight: '600',
-                marginLeft: 8,
+                marginLeft: 6,
               }}>
               WebView
             </Text>

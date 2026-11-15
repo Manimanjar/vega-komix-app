@@ -311,6 +311,11 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     return `Resume Ch. ${ch} • Page ${page}`;
   }, [resumeItem]);
 
+  const resumeChapter = useMemo(() => {
+    if (!resumeItem) return undefined;
+    return resumeItem.chapterNumber || resumeItem.episodeTitle;
+  }, [resumeItem]);
+
   const handleTapTag = useCallback(
     (tag: string) => {
       searchNavigation.navigate('SearchStack', {
@@ -546,6 +551,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   language={info?.language}
                   onTapTag={handleTapTag}
                   onStartReading={handleStartReading}
+                  resumeChapter={resumeChapter}
                   resumeText={resumeText}
                 />
                 <View

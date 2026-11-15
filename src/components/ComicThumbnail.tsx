@@ -1,16 +1,16 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   DimensionValue,
+  Image,
   ImageSourcePropType,
+  ImageStyle,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from 'react-native';
-import {Image as ExpoImage, ImageStyle} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {autoDomainResolver} from '../lib/network/autoDomainResolver';
-import {getCookieHeader} from '../lib/services/cookieManager';
 import AppText from './ui/Text';
 
 export interface ComicThumbnailProps {
@@ -21,12 +21,14 @@ export interface ComicThumbnailProps {
         image?: string;
         poster?: string;
         cover?: string;
+        url?: string;
         headers?: Record<string, string>;
       };
   uri?: string;
   image?: string;
   poster?: string;
   cover?: string;
+  url?: string;
   width?: DimensionValue;
   height?: DimensionValue;
   aspectRatio?: number;
@@ -43,11 +45,34 @@ export interface ComicThumbnailProps {
   onError?: (error: any) => void;
 }
 
-// In-memory cache for resolved headers by origin
-const headersCache = new Map<string, Record<string, string>>();
-
 const DEFAULT_UA =
   'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+
+/**
+ * Extracts raw URL from any props format
+ */
+export const extractThumbnailUrl = (props: ComicThumbnailProps): string => {
+  const {source, uri, image, poster, cover, url} = props;
+  if (typeof source === 'string' && source.trim()) {
+    return source.trim();
+  }
+  if (typeof source === 'object' && source !== null) {
+    const sUri =
+      source.uri ||
+      (source as any).url ||
+      source.image ||
+      source.poster ||
+      source.cover;
+    if (sUri && typeof sUri === 'string' && sUri.trim()) {
+      return sUri.trim();
+    }
+  }
+  const direct = uri || image || poster || cover || url;
+  if (direct && typeof direct === 'string' && direct.trim()) {
+    return direct.trim();
+  }
+  return '';
+};
 
 /**
  * Automatically upgrades low-res image thumbnails to high-res covers
@@ -57,155 +82,61 @@ const DEFAULT_UA =
  */
 export const upgradeThumbnailUrl = (rawUrl?: string): string => {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
-  let url = rawUrl.trim();
+  let cleanUrl = rawUrl.trim();
 
   // Fix protocol-relative URLs
-  if (url.startsWith('//')) {
-    url = `https:${url}`;
+  if (cleanUrl.startsWith('//')) {
+    cleanUrl = `https:${cleanUrl}`;
   }
 
   // Do NOT corrupt MangaDex cover URLs with broken regex replacements
-  if (url.includes('mangadex.org') || url.includes('/covers/')) {
-    return url;
+  if (cleanUrl.includes('mangadex.org') || cleanUrl.includes('/covers/')) {
+    return cleanUrl;
   }
 
-  // Upgrade generic thumbnail patterns
-  url = url
+  // Upgrade generic thumbnail patterns (never strip .jpg/.png)
+  cleanUrl = cleanUrl
     .replace(/([?&])(?:w|width)=\d+/gi, '$1width=600')
     .replace(/([?&])(?:h|height)=\d+/gi, '$1height=900');
 
-  return url;
+  return cleanUrl;
 };
 
-const getAttempt1Headers = (
-  url?: string,
-  initialHeaders?: Record<string, string>,
-): Record<string, string> | undefined => {
-  if (!url || !url.startsWith('http')) return initialHeaders;
-  const isMangaDex =
-    url.includes('mangadex.org') || url.includes('uploads.mangadex.org');
+export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
+  const {
+    width = '100%',
+    height,
+    aspectRatio = 2 / 3,
+    borderRadius = 14,
+    style,
+    imageStyle,
+    contentFit = 'cover',
+    altTitle,
+    onLoad,
+    onError,
+  } = props;
 
-  if (isMangaDex) {
-    // Attempt 1 for MangaDex: Only standard UA, never send cross-origin Referer
-    return {
-      'User-Agent': DEFAULT_UA,
-      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-      ...(initialHeaders || {}),
-    };
-  }
-
-  try {
-    const origin = new URL(url).origin;
-    const cached = headersCache.get(origin);
-    if (cached) {
-      return {...cached, ...(initialHeaders || {})};
-    }
-    return {
-      Referer: `${origin}/`,
-      Origin: origin,
-      'User-Agent': DEFAULT_UA,
-      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-      ...(initialHeaders || {}),
-    };
-  } catch {
-    return initialHeaders;
-  }
-};
-
-export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
-  source,
-  uri,
-  image,
-  poster,
-  cover,
-  width = '100%',
-  height,
-  aspectRatio = 2 / 3,
-  borderRadius = 14,
-  style,
-  imageStyle,
-  contentFit = 'cover',
-  priority = 'normal',
-  recyclingKey,
-  altTitle,
-  placeholder,
-  onLoad,
-  onError,
-}) => {
-  // Support fallback image props: uri || image || poster || cover
-  const rawUri =
-    (typeof source === 'string'
-      ? source
-      : source?.uri || source?.image || source?.poster || source?.cover) ||
-    uri ||
-    image ||
-    poster ||
-    cover ||
-    '';
-
-  const initialHeaders =
-    typeof source === 'object' && source !== null ? source.headers : undefined;
-
+  const rawUri = extractThumbnailUrl(props);
   const upgradedUrl = useMemo(() => upgradeThumbnailUrl(rawUri), [rawUri]);
 
+  // Stage 0: Attempt 1 (clean, zero custom Referer, identical to Hero banner)
+  // Stage 1: Attempt 2 (with Referer: origin + '/')
+  // Stage 2: Attempt 3 (rewritten via autoDomainResolver)
   const [currentUrl, setCurrentUrl] = useState<string>(upgradedUrl);
+  const [headers, setHeaders] = useState<Record<string, string> | undefined>(
+    undefined,
+  );
   const [retryStage, setRetryStage] = useState<number>(0);
   const [hasError, setHasError] = useState<boolean>(!upgradedUrl);
-  const [headers, setHeaders] = useState<Record<string, string> | undefined>(
-    () => getAttempt1Headers(upgradedUrl, initialHeaders),
-  );
 
-  // Sync state when rawUri or source changes
+  // Sync state when rawUri changes
   useEffect(() => {
     const nextUrl = upgradeThumbnailUrl(rawUri);
     setCurrentUrl(nextUrl);
+    setHeaders(undefined); // Attempt 1: Always clean, NO Referer header
     setRetryStage(0);
     setHasError(!nextUrl);
-    setHeaders(getAttempt1Headers(nextUrl, initialHeaders));
-  }, [rawUri, initialHeaders]);
-
-  // Inject cookies from @preeternal/react-native-cookie-manager for scraper providers
-  useEffect(() => {
-    if (!currentUrl || !currentUrl.startsWith('http')) return;
-    if (retryStage > 0) return; // Do not inject custom headers on retry stages
-
-    const isMangaDex =
-      currentUrl.includes('mangadex.org') ||
-      currentUrl.includes('uploads.mangadex.org');
-    if (isMangaDex) return; // Never send cross-origin cookies or referers to MangaDex
-
-    let isMounted = true;
-    (async () => {
-      try {
-        const origin = new URL(currentUrl).origin;
-        const cookieHeader = await getCookieHeader(currentUrl);
-
-        if (isMounted) {
-          const resolved: Record<string, string> = {
-            Referer: `${origin}/`,
-            Origin: origin,
-            'User-Agent': DEFAULT_UA,
-            Accept:
-              'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-            ...(initialHeaders || {}),
-          };
-
-          if (cookieHeader) {
-            resolved.Cookie = cookieHeader;
-          }
-
-          headersCache.set(origin, resolved);
-          setHeaders(resolved);
-        }
-      } catch {
-        // Silently continue
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentUrl, initialHeaders, retryStage]);
+  }, [rawUri]);
 
   // 3-Stage Image Fallback State Machine
   const handleImageError = useCallback(
@@ -216,12 +147,19 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
         return;
       }
 
-      // Stage 0 -> Stage 1: Retry raw original URL with zero custom headers
+      // Stage 0 -> Stage 1: Retry with Referer: origin + '/'
       if (retryStage === 0) {
         setRetryStage(1);
-        setCurrentUrl(rawUri || currentUrl);
-        setHeaders(undefined);
-        return;
+        try {
+          const origin = new URL(currentUrl).origin;
+          setHeaders({
+            Referer: `${origin}/`,
+            'User-Agent': DEFAULT_UA,
+          });
+          return;
+        } catch {
+          // If URL parsing fails, proceed directly to stage 2
+        }
       }
 
       // Stage 1 -> Stage 2: Retry through autoDomainResolver
@@ -245,6 +183,12 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
     },
     [currentUrl, rawUri, retryStage, onError],
   );
+
+  const resizeMode = useMemo(() => {
+    if (contentFit === 'contain') return 'contain';
+    if (contentFit === 'fill') return 'stretch';
+    return 'cover';
+  }, [contentFit]);
 
   const containerStyle: StyleProp<ViewStyle> = useMemo(
     () => [
@@ -282,22 +226,18 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = ({
 
   return (
     <View style={containerStyle}>
-      <ExpoImage
+      <Image
         source={{
           uri: currentUrl,
-          headers,
+          ...(headers ? {headers} : {}),
         }}
-        contentFit={contentFit}
-        priority={priority}
-        cachePolicy="memory-disk"
-        recyclingKey={recyclingKey || currentUrl}
-        placeholder={placeholder}
-        transition={150}
+        resizeMode={resizeMode}
+        resizeMethod="resize"
         onLoad={onLoad}
         onError={handleImageError}
         style={[
           StyleSheet.absoluteFill,
-          {borderRadius},
+          {width: '100%', height: '100%', borderRadius},
           imageStyle,
         ]}
       />

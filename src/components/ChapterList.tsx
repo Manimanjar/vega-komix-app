@@ -258,23 +258,25 @@ const ChapterList: React.FC<ChapterListProps> = ({
             }
           }}
           style={({pressed}) => ({
-            backgroundColor: pressed
-              ? colors.surfaceContainerHigh
-              : colors.surfaceContainerLow,
-            borderRadius: 14,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-            marginVertical: 4,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderWidth: 1,
-            borderColor: isRead
-              ? 'rgba(76, 175, 80, 0.25)'
-              : 'rgba(255, 255, 255, 0.05)',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: '#1E293B',
+            backgroundColor: pressed
+              ? colors.surfaceContainerHigh
+              : 'transparent',
           })}>
-          {/* Left section: Read Toggle + Chapter Info */}
-          <View style={{flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, marginRight: 10}}>
+          {/* Left side: Read/Unread eye button + Chapter Info */}
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              minWidth: 0,
+            }}>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => toggleReadStatus(item)}
@@ -289,6 +291,7 @@ const ChapterList: React.FC<ChapterListProps> = ({
                   ? 'rgba(76, 175, 80, 0.15)'
                   : colors.surfaceContainerHighest,
                 marginRight: 12,
+                flexShrink: 0,
               }}>
               <MaterialCommunityIcons
                 name={isRead ? 'eye-check' : 'eye-outline'}
@@ -304,11 +307,19 @@ const ChapterList: React.FC<ChapterListProps> = ({
                 style={{
                   color: isRead ? colors.onSurfaceVariant : colors.onSurface,
                   fontSize: 15,
+                  fontWeight: '600',
                 }}>
                 {item.title || `Chapter ${chNum}`}
               </AppText>
 
-              <View style={{flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4}}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  marginTop: 4,
+                }}>
                 {scanlator ? (
                   <View
                     style={{
@@ -396,8 +407,14 @@ const ChapterList: React.FC<ChapterListProps> = ({
             </View>
           </View>
 
-          {/* Right section: Offline Download button */}
-          <View style={{alignItems: 'center', justifyContent: 'center'}}>
+          {/* Right side: Circular Download icon button */}
+          <View
+            style={{
+              marginLeft: 12,
+              flexShrink: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
             <Downloader
               downloadId={downloadId}
               episodeIndex={index}
