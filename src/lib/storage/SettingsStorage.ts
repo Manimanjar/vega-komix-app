@@ -115,6 +115,37 @@ export enum SettingsKeys {
 
   // VegaSync
   SYNC_ENABLED = 'syncEnabled',
+
+  // Vega Komix: Reader & Page Settings
+  DEFAULT_READING_MODE = 'defaultReadingMode',
+  PAGE_FIT = 'pageFit',
+  READER_BG_COLOR = 'readerBgColor',
+  TAP_ZONES_ENABLED = 'tapZonesEnabled',
+  VOLUME_KEYS_ENABLED = 'volumeKeysEnabled',
+  KEEP_AWAKE_ENABLED = 'keepAwakeEnabled',
+  PAGE_NUMBER_PILL_ENABLED = 'pageNumberPillEnabled',
+  AUTO_ADVANCE_CHAPTER = 'autoAdvanceChapter',
+  IMAGE_QUALITY = 'imageQuality',
+  TURBO_PRELOAD_COUNT = 'turboPreloadCount',
+  AUTO_CROP_MARGINS = 'autoCropMargins',
+
+  // Vega Komix: AI Translator & Language
+  DEFAULT_LIVE_TRANSLATION = 'defaultLiveTranslation',
+  TRANSLATION_SOURCE_LANG = 'translationSourceLang',
+  TRANSLATION_TARGET_LANG = 'translationTargetLang',
+  TRANSLATION_ENGINE = 'translationEngine',
+  CUSTOM_LLM_URL = 'customLlmUrl',
+  CUSTOM_LLM_API_KEY = 'customLlmApiKey',
+  TRANSLATION_BUBBLE_STYLE = 'translationBubbleStyle',
+
+  // Vega Komix: Provider & Resolver Settings
+  PROVIDER_MANIFEST_URL = 'providerManifestUrl',
+  AUTO_DOMAIN_RESOLVER_ENABLED = 'autoDomainResolverEnabled',
+  SINGLE_ROOM_COLLECTOR_ENABLED = 'singleRoomCollectorEnabled',
+  HIDE_DUPLICATE_POSTS = 'hideDuplicatePosts',
+
+  // Vega Komix: Download Format
+  CBZ_DOWNLOAD_FORMAT = 'cbzDownloadFormat',
 }
 
 /**
@@ -900,6 +931,198 @@ export class SettingsStorage {
 
   setSkipInAppWebview(skip: boolean): void {
     mainStorage.setBool(SettingsKeys.SKIP_IN_APP_WEBVIEW, skip);
+  }
+
+  // --- Vega Komix: Reader & Page Settings ---
+  getDefaultReadingMode(): 'webtoon' | 'manga' | 'comic' | 'double_spread' {
+    return (mainStorage.getString(SettingsKeys.DEFAULT_READING_MODE) as any) || 'manga';
+  }
+
+  setDefaultReadingMode(mode: 'webtoon' | 'manga' | 'comic' | 'double_spread'): void {
+    mainStorage.setString(SettingsKeys.DEFAULT_READING_MODE, mode);
+  }
+
+  getPageFit(): 'fit_width' | 'fit_screen' | 'fit_height' | 'original' {
+    return (mainStorage.getString(SettingsKeys.PAGE_FIT) as any) || 'fit_width';
+  }
+
+  setPageFit(fit: 'fit_width' | 'fit_screen' | 'fit_height' | 'original'): void {
+    mainStorage.setString(SettingsKeys.PAGE_FIT, fit);
+  }
+
+  getReaderBgColor(): 'amoled' | 'dark' | 'sepia' | 'white' {
+    return (mainStorage.getString(SettingsKeys.READER_BG_COLOR) as any) || 'amoled';
+  }
+
+  setReaderBgColor(color: 'amoled' | 'dark' | 'sepia' | 'white'): void {
+    mainStorage.setString(SettingsKeys.READER_BG_COLOR, color);
+  }
+
+  isTapZonesEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.TAP_ZONES_ENABLED, true);
+  }
+
+  setTapZonesEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.TAP_ZONES_ENABLED, enabled);
+  }
+
+  isVolumeKeysEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.VOLUME_KEYS_ENABLED, true);
+  }
+
+  setVolumeKeysEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.VOLUME_KEYS_ENABLED, enabled);
+  }
+
+  isKeepAwakeEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.KEEP_AWAKE_ENABLED, true);
+  }
+
+  setKeepAwakeEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.KEEP_AWAKE_ENABLED, enabled);
+  }
+
+  isPageNumberPillEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.PAGE_NUMBER_PILL_ENABLED, true);
+  }
+
+  setPageNumberPillEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.PAGE_NUMBER_PILL_ENABLED, enabled);
+  }
+
+  isAutoAdvanceChapter(): boolean {
+    return mainStorage.getBool(SettingsKeys.AUTO_ADVANCE_CHAPTER, true);
+  }
+
+  setAutoAdvanceChapter(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.AUTO_ADVANCE_CHAPTER, enabled);
+  }
+
+  getImageQuality(): 'raw' | 'dataSaver' {
+    return (mainStorage.getString(SettingsKeys.IMAGE_QUALITY) as any) || 'raw';
+  }
+
+  setImageQuality(quality: 'raw' | 'dataSaver'): void {
+    mainStorage.setString(SettingsKeys.IMAGE_QUALITY, quality);
+  }
+
+  getTurboPreloadCount(): number {
+    const count = mainStorage.getNumber(SettingsKeys.TURBO_PRELOAD_COUNT);
+    return typeof count === 'number' && count > 0 ? count : 8;
+  }
+
+  setTurboPreloadCount(count: number): void {
+    mainStorage.setNumber(SettingsKeys.TURBO_PRELOAD_COUNT, count);
+  }
+
+  isAutoCropMargins(): boolean {
+    return mainStorage.getBool(SettingsKeys.AUTO_CROP_MARGINS, false);
+  }
+
+  setAutoCropMargins(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.AUTO_CROP_MARGINS, enabled);
+  }
+
+  // --- Vega Komix: AI Translator & Language ---
+  isDefaultLiveTranslation(): boolean {
+    return mainStorage.getBool(SettingsKeys.DEFAULT_LIVE_TRANSLATION, false);
+  }
+
+  setDefaultLiveTranslation(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.DEFAULT_LIVE_TRANSLATION, enabled);
+  }
+
+  getTranslationSourceLang(): string {
+    return mainStorage.getString(SettingsKeys.TRANSLATION_SOURCE_LANG) || 'auto';
+  }
+
+  setTranslationSourceLang(lang: string): void {
+    mainStorage.setString(SettingsKeys.TRANSLATION_SOURCE_LANG, lang);
+  }
+
+  getTranslationTargetLang(): string {
+    return mainStorage.getString(SettingsKeys.TRANSLATION_TARGET_LANG) || 'en';
+  }
+
+  setTranslationTargetLang(lang: string): void {
+    mainStorage.setString(SettingsKeys.TRANSLATION_TARGET_LANG, lang);
+  }
+
+  getTranslationEngine(): 'zeroKeyAuto' | 'customLlm' | 'mangaTranslatorServer' {
+    return (mainStorage.getString(SettingsKeys.TRANSLATION_ENGINE) as any) || 'zeroKeyAuto';
+  }
+
+  setTranslationEngine(engine: 'zeroKeyAuto' | 'customLlm' | 'mangaTranslatorServer'): void {
+    mainStorage.setString(SettingsKeys.TRANSLATION_ENGINE, engine);
+  }
+
+  getCustomLlmUrl(): string {
+    return mainStorage.getString(SettingsKeys.CUSTOM_LLM_URL) || '';
+  }
+
+  setCustomLlmUrl(url: string): void {
+    mainStorage.setString(SettingsKeys.CUSTOM_LLM_URL, url);
+  }
+
+  getCustomLlmApiKey(): string {
+    return mainStorage.getString(SettingsKeys.CUSTOM_LLM_API_KEY) || '';
+  }
+
+  setCustomLlmApiKey(key: string): void {
+    mainStorage.setString(SettingsKeys.CUSTOM_LLM_API_KEY, key);
+  }
+
+  getTranslationBubbleStyle(): 'whiteBubble' | 'darkBox' {
+    return (mainStorage.getString(SettingsKeys.TRANSLATION_BUBBLE_STYLE) as any) || 'whiteBubble';
+  }
+
+  setTranslationBubbleStyle(style: 'whiteBubble' | 'darkBox'): void {
+    mainStorage.setString(SettingsKeys.TRANSLATION_BUBBLE_STYLE, style);
+  }
+
+  // --- Vega Komix: Provider & Resolver Settings ---
+  getProviderManifestUrl(): string {
+    return (
+      mainStorage.getString(SettingsKeys.PROVIDER_MANIFEST_URL) ||
+      'https://raw.githubusercontent.com/Manimanjar/vega-komix-providers/main/manifest.json'
+    );
+  }
+
+  setProviderManifestUrl(url: string): void {
+    mainStorage.setString(SettingsKeys.PROVIDER_MANIFEST_URL, url);
+  }
+
+  isAutoDomainResolverEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.AUTO_DOMAIN_RESOLVER_ENABLED, true);
+  }
+
+  setAutoDomainResolverEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.AUTO_DOMAIN_RESOLVER_ENABLED, enabled);
+  }
+
+  isSingleRoomCollectorEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.SINGLE_ROOM_COLLECTOR_ENABLED, true);
+  }
+
+  setSingleRoomCollectorEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.SINGLE_ROOM_COLLECTOR_ENABLED, enabled);
+  }
+
+  isHideDuplicatePosts(): boolean {
+    return mainStorage.getBool(SettingsKeys.HIDE_DUPLICATE_POSTS, false);
+  }
+
+  setHideDuplicatePosts(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.HIDE_DUPLICATE_POSTS, enabled);
+  }
+
+  // --- Vega Komix: Download Format ---
+  getCbzDownloadFormat(): 'cbz' | 'folder' {
+    return (mainStorage.getString(SettingsKeys.CBZ_DOWNLOAD_FORMAT) as any) || 'cbz';
+  }
+
+  setCbzDownloadFormat(format: 'cbz' | 'folder'): void {
+    mainStorage.setString(SettingsKeys.CBZ_DOWNLOAD_FORMAT, format);
   }
 }
 

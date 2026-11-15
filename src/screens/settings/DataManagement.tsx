@@ -12,32 +12,44 @@ import * as Updates from 'expo-updates';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import type {SettingsStackParamList} from '../../App';
 import BackupExportDialog from '../../components/BackupExportDialog';
+import {Image as ExpoImage} from 'expo-image';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import AppText from '../../components/ui/Text';
 import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
+import DropdownField from '../../components/ui/DropdownField';
 import {exportBackup, pickBackup, restoreBackup, type BackupSelection} from '../../lib/backup';
 import {clearAppCache} from '../../lib/clearAppCache';
 import {
   clearAllMMKVStorage,
+  mainStorage,
   settingsStorage,
 } from '../../lib/storage';
 import {
   clearSyncedWatchProgress,
   syncFromSharedFolder,
 } from '../../lib/sync/syncService';
+import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {isTV} from '../../lib/tv';
 import {showAppDialog} from '../../lib/zustand/appDialogStore';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'DataManagement'>;
 
+const CBZ_FORMAT_OPTIONS = [
+  {key: 'cbz', label: 'CBZ Comic Archive (.cbz - Recommended)'},
+  {key: 'folder', label: 'Extracted Page Folders (Raw Images)'},
+] as const;
+
 export default function DataManagement({navigation}: Props) {
   const colors = useM3Colors();
   const [backupOptionsVisible, setBackupOptionsVisible] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(() => settingsStorage.isSyncEnabled());
+  const [cbzFormat, setCbzFormat] = useState<'cbz' | 'folder'>(() =>
+    settingsStorage.getCbzDownloadFormat(),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -65,17 +77,26 @@ export default function DataManagement({navigation}: Props) {
 
   const confirmClearWatchProgress = useCallback(() => {
     showAppDialog({
-      title: 'Clear watch progress?',
+      title: 'Clear reading progress?',
       message:
-        'This clears saved episode and video playback positions on this device and, when sync is on, on other devices running the latest version. Watchlist, downloads, providers, and Continue watching will not be cleared.',
+        'This clears saved chapter pages, reading history, and progress positions for all comics on this device. Your library favorites and downloaded chapters will be kept.',
       actions: [
         {label: 'Cancel'},
         {
           label: 'Clear',
           variant: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             clearSyncedWatchProgress();
-            ToastAndroid.show('Watch progress cleared', ToastAndroid.SHORT);
+            try {
+              const allKeys = (await mainStorage.getKeys()) || [];
+              for (const k of allKeys) {
+                if (k.startsWith('vega-komix-reader-progress:')) {
+                  mainStorage.delete(k);
+                }
+              }
+              useContinueWatchingStore.getState().items = [];
+            } catch {}
+            ToastAndroid.show('Reading progress cleared', ToastAndroid.SHORT);
           },
         },
       ],
@@ -89,8 +110,12 @@ export default function DataManagement({navigation}: Props) {
         ignoreAndroidSystemSettings: false,
       });
     }
+    try {
+      await ExpoImage.clearDiskCache();
+      await ExpoImage.clearMemoryCache();
+    } catch {}
     await clearAppCache();
-    ToastAndroid.show('App cache cleared', ToastAndroid.SHORT);
+    ToastAndroid.show('Comic image & app cache cleared', ToastAndroid.SHORT);
   }, []);
 
   const reloadApp = useCallback(async (reason: string) => {
@@ -110,7 +135,7 @@ export default function DataManagement({navigation}: Props) {
     showAppDialog({
       title: 'Erase all local data?',
       message:
-        'This permanently erases every Vega MMKV store, including settings, installed provider data, Library, Continue watching, download records, and cached state. This cannot be undone. Downloaded media files on disk are not deleted.',
+        'This permanently erases every Vega Komix MMKV store, including settings, installed provider data, Library, Continue reading, download records, and cached state. This cannot be undone. Downloaded media files on disk are not deleted.',
       variant: 'error',
       actions: [
         {label: 'Cancel'},
@@ -148,9 +173,9 @@ export default function DataManagement({navigation}: Props) {
             backup.settings !== undefined && 'settings',
             backup.library !== undefined && 'library',
             backup.providers !== undefined && 'providers',
-            backup.history !== undefined && 'watch history',
-            backup.progress !== undefined && 'watch progress',
-          ].filter(Boolean).join(', ')}. Sections absent from the backup stay unchanged. Vega will restart after restoring.`,
+            backup.history !== undefined && 'reading history',
+            backup.progress !== undefined && 'reading progress',
+          ].filter(Boolean).join(', ')}. Sections absent from the backup stay unchanged. Vega Komix will restart after restoring.`,
         actions: [
           {label: 'Cancel'},
           {
@@ -215,51 +240,70 @@ export default function DataManagement({navigation}: Props) {
         <AppText
           role="bodyLarge"
           className="mb-7 mt-1 text-m3-on-surface-variant">
-          Backups, cache, watch progress, and sync
+          Backups, image cache, reading progress, and CBZ downloads
         </AppText>
 
-        <SettingsSection title="Sync">
-          <SettingsSwitchRow
-            title="Sync"
-            description="Sync watch history, watchlist, and downloads across devices via the download folder"
-            value={syncEnabled}
-            divider={false}
-            onValueChange={handleSyncToggle}
-          />
+        <SettingsSection title="Download & Storage Format">
+          <View style={{paddingHorizontal: 16, paddingVertical: 12}}>
+            <AppText role="bodyMedium" style={{color: colors.onSurface, marginBottom: 8}}>
+              Offline Comic File Format
+            </AppText>
+            <DropdownField
+              options={CBZ_FORMAT_OPTIONS}
+              value={CBZ_FORMAT_OPTIONS.find(o => o.key === cbzFormat)}
+              getKey={o => o.key}
+              getLabel={o => o.label}
+              onChange={o => {
+                setCbzFormat(o.key as any);
+                settingsStorage.setCbzDownloadFormat(o.key as any);
+                settingsStorage.setBool('exportAsCbz', o.key === 'cbz');
+              }}
+            />
+          </View>
         </SettingsSection>
 
-        <SettingsSection title="Watch Progress">
+        <SettingsSection title="Reading Progress">
           <SettingsRow
-            title="Clear watch progress"
-            description="Reset playback progress for all episodes and videos"
+            title="Clear reading progress"
+            description="Reset chapter progress for all manga, manhwa & comics"
             icon="history"
             divider={false}
             onPress={confirmClearWatchProgress}
           />
         </SettingsSection>
 
+        <SettingsSection title="Sync">
+          <SettingsSwitchRow
+            title="Sync"
+            description="Sync reading history, library, and downloads across devices via the shared download folder"
+            value={syncEnabled}
+            divider={false}
+            onValueChange={handleSyncToggle}
+          />
+        </SettingsSection>
+
         <SettingsSection title="Backup & Cache">
           <SettingsRow
-            title="Clear Cache"
-            description="Clear temporary cache and images"
+            title="Clear Comic Image Cache"
+            description="Free disk and memory cache from loaded and preloaded comic pages"
             icon="delete-outline"
             onPress={clearCacheHandler}
           />
           <SettingsRow
             title="Export backup"
-            description="Save settings, providers and library to a file"
+            description="Save settings, providers, reading history, and library to a file"
             icon="content-save-outline"
             onPress={() => setBackupOptionsVisible(true)}
           />
           <SettingsRow
             title="Import backup"
-            description="Restore settings, providers and library from a file"
+            description="Restore settings, providers, and library from a file"
             icon="backup-restore"
             onPress={importBackupHandler}
           />
           <SettingsRow
             title="Erase all local data"
-            description="Erase all local data"
+            description="Reset entire app to factory state (clears all settings and caches)"
             icon="delete-alert-outline"
             divider={false}
             onPress={confirmEraseAllLocalData}

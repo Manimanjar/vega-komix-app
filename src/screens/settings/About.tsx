@@ -291,18 +291,18 @@ const About = ({navigation}: any) => {
             <AppText
               role="headlineLargeEmphasized"
               className="text-m3-on-background">
-              About Vega
+              About Vega Komix
             </AppText>
           </View>
           <AppText role="bodyLarge" className="mt-1 text-m3-on-surface-variant">
-            App information and updates
+            The premier zero-latency comic, manga, manhwa & doujinshi reader for Android
           </AppText>
         </View>
 
         <SettingsSection title="App">
           <SettingsRow
             title="Version"
-            description={`Vega ${Application.nativeApplicationVersion || ''}`}
+            description={`Vega Komix ${Application.nativeApplicationVersion || '1.0.0'}`}
             icon="information-outline"
             divider={Constants.expoConfig?.extra?.isPlayStore}
           />
@@ -322,7 +322,7 @@ const About = ({navigation}: any) => {
               />
               <SettingsSwitchRow
                 title="Check on startup"
-                description="Look for a new release when Vega opens"
+                description="Look for a new release when Vega Komix opens"
                 value={autoCheckUpdate}
                 onValueChange={next => {
                   setAutoCheckUpdate(next);
@@ -345,6 +345,35 @@ const About = ({navigation}: any) => {
               />
             </>
           )}
+        </SettingsSection>
+
+        <SettingsSection title="Key Features">
+          <SettingsRow
+            title="Zero-Key AI Live Translation"
+            description="Offline & Public OCR speech bubble extraction and auto-translation with spatial clustering"
+            icon="translate"
+          />
+          <SettingsRow
+            title="4-Mode Turbo Reader"
+            description="Vertical Webtoon, RTL Manga, LTR Comic, and Landscape Double-Page Spread"
+            icon="book-open-page-variant"
+          />
+          <SettingsRow
+            title="CBZ Comic Downloader"
+            description="High-speed offline chapter archiving in standard .cbz format"
+            icon="folder-zip-outline"
+          />
+          <SettingsRow
+            title="Network Bypass Engine"
+            description="Built-in Cloudflare WARP, ByeDPI anti-DPI, and DNS over HTTPS"
+            icon="shield-check-outline"
+          />
+          <SettingsRow
+            title="Dynamic Domain Auto-Resolver"
+            description="Auto-rewrites dead and blocked provider domains using live mirror pools"
+            icon="web-sync"
+            divider={false}
+          />
         </SettingsSection>
 
         {!isTV && (

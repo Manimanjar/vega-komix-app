@@ -3,6 +3,7 @@ import type {EpisodeLink, PageImage} from '../providers/types';
 import {resolvePageHeaders} from '../../components/reader/usePagePreloader';
 import {autoDomainResolver} from '../network/autoDomainResolver';
 import {instantChapterLauncher} from './instantChapterLauncher';
+import {settingsStorage} from '../storage/SettingsStorage';
 
 export interface TurboStats {
   readyAheadCount: number;
@@ -30,7 +31,10 @@ class TurboPreloader {
    * Returns current turbo stats
    */
   public getStats(): TurboStats {
-    return this.lastStats;
+    return {
+      ...this.lastStats,
+      maxAheadCount: settingsStorage.getTurboPreloadCount(),
+    };
   }
 
   /**
@@ -98,6 +102,7 @@ class TurboPreloader {
     const signal = abortController.signal;
 
     const totalPages = pages.length;
+    const maxAhead = settingsStorage.getTurboPreloadCount();
 
     // Tier 1: Priority 1 (Immediate) - Current page + next 2 pages [index, index + 1, index + 2]
     const immediateIndices: number[] = [];
@@ -105,9 +110,9 @@ class TurboPreloader {
       if (i >= 0) immediateIndices.push(i);
     }
 
-    // Tier 2: Priority 2 (Sliding Window) - Pages [index + 3 ... index + 8] (up to 8 pages ahead)
+    // Tier 2: Priority 2 (Sliding Window) - Pages [index + 3 ... index + maxAhead]
     const slidingIndices: number[] = [];
-    for (let i = currentPageIndex + 3; i <= currentPageIndex + 8 && i < totalPages; i++) {
+    for (let i = currentPageIndex + 3; i <= currentPageIndex + maxAhead && i < totalPages; i++) {
       slidingIndices.push(i);
     }
 

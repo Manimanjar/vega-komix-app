@@ -1,4 +1,4 @@
-import {mainStorage, watchProgressStorage} from '../../lib/storage';
+import {mainStorage, settingsStorage, watchProgressStorage} from '../../lib/storage';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import type {EpisodeLink} from '../../lib/providers/types';
 import type {ReaderProgress, ReaderSettings} from './types';
@@ -12,7 +12,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   imageScale: 'fit_width',
   cropWhiteBorders: false,
   keepScreenAwake: true,
-  volumeKeysEnabled: false,
+  volumeKeysEnabled: true,
   showFloatingPageNumber: true,
   disableTapZonesInWebtoon: false,
   orientationMode: 'auto',
@@ -20,18 +20,41 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 };
 
 export const getStoredReaderSettings = (): ReaderSettings => {
+  const dynamicDefaults: ReaderSettings = {
+    theme: (settingsStorage.getReaderBgColor() as any) || 'amoled',
+    readingMode: (settingsStorage.getDefaultReadingMode() as any) || 'manga',
+    imageScale: ((settingsStorage.getPageFit() === 'fit_screen' ? 'fit_width' : settingsStorage.getPageFit()) as any) || 'fit_width',
+    cropWhiteBorders: settingsStorage.isAutoCropMargins(),
+    keepScreenAwake: settingsStorage.isKeepAwakeEnabled(),
+    volumeKeysEnabled: settingsStorage.isVolumeKeysEnabled(),
+    showFloatingPageNumber: settingsStorage.isPageNumberPillEnabled(),
+    disableTapZonesInWebtoon: !settingsStorage.isTapZonesEnabled(),
+    orientationMode: 'auto',
+    liveTranslateEnabled: settingsStorage.isDefaultLiveTranslation(),
+  };
+
   const stored = mainStorage.getObject<Partial<ReaderSettings>>(READER_SETTINGS_KEY);
   if (!stored) {
-    return DEFAULT_READER_SETTINGS;
+    return dynamicDefaults;
   }
   return {
-    ...DEFAULT_READER_SETTINGS,
+    ...dynamicDefaults,
     ...stored,
   };
 };
 
 export const saveStoredReaderSettings = (settings: ReaderSettings): void => {
   mainStorage.setObject(READER_SETTINGS_KEY, settings);
+  try {
+    if (settings.readingMode) settingsStorage.setDefaultReadingMode(settings.readingMode);
+    if (settings.theme) settingsStorage.setReaderBgColor(settings.theme);
+    if (settings.keepScreenAwake !== undefined) settingsStorage.setKeepAwakeEnabled(settings.keepScreenAwake);
+    if (settings.volumeKeysEnabled !== undefined) settingsStorage.setVolumeKeysEnabled(settings.volumeKeysEnabled);
+    if (settings.showFloatingPageNumber !== undefined) settingsStorage.setPageNumberPillEnabled(settings.showFloatingPageNumber);
+    if (settings.disableTapZonesInWebtoon !== undefined) settingsStorage.setTapZonesEnabled(!settings.disableTapZonesInWebtoon);
+    if (settings.cropWhiteBorders !== undefined) settingsStorage.setAutoCropMargins(settings.cropWhiteBorders);
+    if (settings.liveTranslateEnabled !== undefined) settingsStorage.setDefaultLiveTranslation(settings.liveTranslateEnabled);
+  } catch {}
 };
 
 export const getStoredReaderProgress = (

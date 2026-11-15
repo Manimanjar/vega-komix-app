@@ -143,6 +143,23 @@ class MangaTranslatorEngine {
   }
 
   /**
+   * Wipe all cached translations from MMKV storage
+   */
+  public async clearAllTranslationCache(): Promise<number> {
+    let clearedCount = 0;
+    try {
+      const allKeys: string[] = (await (MMKV as any).indexer?.getKeys()) || [];
+      for (const key of allKeys) {
+        if (key && key.startsWith(TRANSLATION_CACHE_PREFIX)) {
+          MMKV.removeItem(key);
+          clearedCount++;
+        }
+      }
+    } catch {}
+    return clearedCount;
+  }
+
+  /**
    * Cancel in-flight translation for a specific page
    */
   public cancelPageTranslation(chapterId: string, pageIndex: number): void {

@@ -316,13 +316,13 @@ const Settings = ({navigation}: Props) => {
               <SettingsSection title="Options">
                 <SettingsRow
                   title="Appearance"
-                  // description="Accent colors and launcher icon"
                   icon="palette-outline"
                   onPress={() => navigation.navigate('Appearance')}
                 />
                 <SettingsRow
-                  title="Player settings"
-                  icon="play-circle-outline"
+                  title="Reader & Page Settings"
+                  description="Reading mode, page fit, AMOLED background, and AI translation"
+                  icon="book-open-page-variant"
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
                 {hideDownloadsTab && (
@@ -346,7 +346,7 @@ const Settings = ({navigation}: Props) => {
               <SettingsSection title="Data Management">
                 <SettingsRow
                   title="Data management"
-                  description="Backups, cache, watch progress, and sync"
+                  description="Backups, image cache, reading progress, and CBZ downloads"
                   icon="database-outline"
                   divider={false}
                   onPress={() => navigation.navigate('DataManagement')}
@@ -358,7 +358,8 @@ const Settings = ({navigation}: Props) => {
             <AnimatedSection delay={400}>
               <SettingsSection title="About">
                 <SettingsRow
-                  title="About Vega"
+                  title="About Vega Komix"
+                  description="Comic, manga & doujinshi reader"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />

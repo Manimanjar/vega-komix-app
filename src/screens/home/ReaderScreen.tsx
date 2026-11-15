@@ -28,6 +28,7 @@ import {
 } from '../../lib/comicDownloader';
 import useDownloadsStore from '../../lib/zustand/downloadsStore';
 import AppText from '../../components/ui/Text';
+import {settingsStorage} from '../../lib/storage';
 import {
   DEFAULT_READER_SETTINGS,
   getStoredReaderProgress,
@@ -594,6 +595,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           currentPageIndex={currentPageIndex}
           onPageChange={handlePageChange}
           onToggleHUD={() => setHudVisible(v => !v)}
+          onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           scaleMode={settings.imageScale}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
@@ -608,7 +610,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           currentPageIndex={currentPageIndex}
           onPageChange={handlePageChange}
           onToggleHUD={() => setHudVisible(v => !v)}
-          onReachEnd={handleNextChapter}
+          onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
           cropWhiteBorders={settings.cropWhiteBorders}

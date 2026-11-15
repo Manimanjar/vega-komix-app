@@ -13,6 +13,7 @@ interface WebtoonViewProps {
   currentPageIndex: number;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
+  onReachEnd?: () => void;
   scaleMode?: ImageScale;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
@@ -27,6 +28,7 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
   currentPageIndex,
   onPageChange,
   onToggleHUD,
+  onReachEnd,
   scaleMode = 'fit_width',
   cropWhiteBorders = false,
   theme = 'amoled',
@@ -156,6 +158,8 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
         }}
         showsVerticalScrollIndicator={false}
         drawDistance={windowWidth * 2.5}
+        onEndReached={onReachEnd}
+        onEndReachedThreshold={0.05}
       />
     </View>
   );
