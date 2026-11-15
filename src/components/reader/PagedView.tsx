@@ -126,22 +126,32 @@ export const PagedView: React.FC<PagedViewProps> = ({
     return idx !== -1 ? idx : 0;
   }, [spreadGroups, currentPageIndex]);
 
+  const goToGroupIndex = useCallback(
+    (targetIndex: number, animated = true) => {
+      if (targetIndex < 0 || targetIndex >= spreadGroups.length) return;
+      try {
+        listRef.current?.scrollToIndex({ index: targetIndex, animated });
+      } catch {
+        listRef.current?.scrollToOffset({ offset: targetIndex * windowWidth, animated });
+      }
+    },
+    [spreadGroups.length, windowWidth],
+  );
+
   // Sync scroll position when activeGroupIndex updates externally
   useEffect(() => {
     if (!isUserScrolling.current && Math.abs(activeGroupIndex - lastTargetIndex.current) > 0) {
       lastTargetIndex.current = activeGroupIndex;
-      listRef.current?.scrollToIndex({
-        index: activeGroupIndex,
-        animated: false,
-      });
+      goToGroupIndex(activeGroupIndex, false);
     }
-  }, [activeGroupIndex]);
+  }, [activeGroupIndex, goToGroupIndex]);
 
   const handleMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       isUserScrolling.current = false;
       const offsetX = e.nativeEvent.contentOffset.x;
-      const newGroupIdx = Math.round(offsetX / windowWidth);
+      const rawIdx = Math.round(offsetX / windowWidth);
+      const newGroupIdx = Math.min(Math.max(0, rawIdx), spreadGroups.length - 1);
 
       if (newGroupIdx >= 0 && newGroupIdx < spreadGroups.length) {
         const group = spreadGroups[newGroupIdx];
@@ -157,8 +167,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
   );
 
   // 9-Grid Tap Handler:
-  // In Manga: Left = Next page, Right = Prev page
-  // In Comic / Double spread: Left = Prev page, Right = Next page
+  // In Manga (RTL): Left = Next page, Right = Prev page
+  // In Comic / Double spread (LTR): Left = Prev page, Right = Next page
   // Center = Toggle HUD
   const handleTap = useCallback(
     (tapX: number, _tapY: number) => {
@@ -168,33 +178,29 @@ export const PagedView: React.FC<PagedViewProps> = ({
       if (tapX < leftThreshold) {
         // Left tap
         if (isManga) {
-          // Next page in Manga
+          // Next page in Manga (RTL)
           if (activeGroupIndex < spreadGroups.length - 1) {
-            const nextIdx = activeGroupIndex + 1;
-            listRef.current?.scrollToIndex({index: nextIdx, animated: true});
+            goToGroupIndex(activeGroupIndex + 1, true);
           } else if (onReachEnd) {
             onReachEnd();
           }
         } else {
-          // Prev page in Comic
+          // Prev page in Comic (LTR)
           if (activeGroupIndex > 0) {
-            const prevIdx = activeGroupIndex - 1;
-            listRef.current?.scrollToIndex({index: prevIdx, animated: true});
+            goToGroupIndex(activeGroupIndex - 1, true);
           }
         }
       } else if (tapX > rightThreshold) {
         // Right tap
         if (isManga) {
-          // Prev page in Manga
+          // Prev page in Manga (RTL)
           if (activeGroupIndex > 0) {
-            const prevIdx = activeGroupIndex - 1;
-            listRef.current?.scrollToIndex({index: prevIdx, animated: true});
+            goToGroupIndex(activeGroupIndex - 1, true);
           }
         } else {
-          // Next page in Comic
+          // Next page in Comic (LTR)
           if (activeGroupIndex < spreadGroups.length - 1) {
-            const nextIdx = activeGroupIndex + 1;
-            listRef.current?.scrollToIndex({index: nextIdx, animated: true});
+            goToGroupIndex(activeGroupIndex + 1, true);
           } else if (onReachEnd) {
             onReachEnd();
           }
@@ -204,7 +210,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         onToggleHUD();
       }
     },
-    [windowWidth, isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onToggleHUD],
+    [windowWidth, isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onToggleHUD, goToGroupIndex],
   );
 
   const renderSpreadGroup = useCallback(
@@ -321,9 +327,16 @@ export const PagedView: React.FC<PagedViewProps> = ({
         extraData={currentPageIndex}
         horizontal
         pagingEnabled
+        inverted={isManga}
         showsHorizontalScrollIndicator={false}
         getItemLayout={getItemLayout}
         initialScrollIndex={activeGroupIndex}
+        onScrollToIndexFailed={(info: any) => {
+          const offset = typeof info.offset === 'number' ? info.offset : info.index * windowWidth;
+          setTimeout(() => {
+            listRef.current?.scrollToOffset({ offset, animated: false });
+          }, 50);
+        }}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
         }}

@@ -126,6 +126,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     }
     return undefined;
   });
+  const [calcHeight, setCalcHeight] = useState<number | undefined>(() => {
+    if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
+      return (windowWidth * naturalHeight) / naturalWidth;
+    }
+    return undefined;
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [loadProgress, setLoadProgress] = useState<number>(0);
   const [loadError, setLoadError] = useState<boolean>(false);
@@ -156,11 +162,13 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   const containerDimensions = useMemo(() => {
     if (isWebtoon) {
       const renderWidth = windowWidth;
-      const renderHeight = imageRatio
-        ? windowWidth / imageRatio
-        : (naturalHeight && naturalWidth
-            ? (windowWidth * naturalHeight) / naturalWidth
-            : windowHeight * 0.85);
+      const renderHeight =
+        calcHeight ||
+        (imageRatio
+          ? windowWidth / imageRatio
+          : naturalHeight && naturalWidth
+          ? (windowWidth * naturalHeight) / naturalWidth
+          : windowHeight * 0.8);
       return {width: renderWidth, height: renderHeight};
     }
 
@@ -188,6 +196,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     isWebtoon,
     windowWidth,
     windowHeight,
+    calcHeight,
     imageRatio,
     naturalWidth,
     naturalHeight,
@@ -205,9 +214,11 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   }, [savedScale, savedTranslationX, savedTranslationY, scale, translationX, translationY]);
 
   // Single Tap Gesture (triggers tap zone / HUD toggle)
+  // CRITICAL: runOnJS(true) ensures onSingleTap executes on JS thread, preventing native Android crash
   const singleTapGesture = Gesture.Tap()
     .numberOfTaps(1)
     .maxDuration(250)
+    .runOnJS(true)
     .onEnd(e => {
       if (onSingleTap) {
         onSingleTap(e.x, e.y);
@@ -219,6 +230,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     .numberOfTaps(2)
     .maxDuration(300)
     .onEnd(e => {
+      'worklet';
       if (scale.value > 1.2) {
         resetZoom();
       } else {
@@ -236,12 +248,14 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Pinch Gesture
+  // Pinch Gesture (inherently 2-finger in RNGH, so single-finger swipes are NEVER intercepted)
   const pinchGesture = Gesture.Pinch()
     .onUpdate(e => {
+      'worklet';
       scale.value = Math.max(0.8, Math.min(savedScale.value * e.scale, 4.5));
     })
     .onEnd(() => {
+      'worklet';
       if (scale.value < 1.05) {
         resetZoom();
       } else {
@@ -249,16 +263,18 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Pan Gesture (only pans when zoomed in)
+  // Pan Gesture - Enforce minPointers(2) so 1-finger swipes are never stolen from FlatList
   const panGesture = Gesture.Pan()
-    .minPointers(1)
+    .minPointers(2)
     .onUpdate(e => {
+      'worklet';
       if (scale.value > 1.1) {
         translationX.value = savedTranslationX.value + e.translationX;
         translationY.value = savedTranslationY.value + e.translationY;
       }
     })
     .onEnd(() => {
+      'worklet';
       if (scale.value <= 1.1) {
         resetZoom();
       } else {
@@ -337,8 +353,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             onLoad={e => {
               setLoading(false);
               setLoadError(false);
-              if (e.source.width > 0 && e.source.height > 0) {
-                setImageRatio(e.source.width / e.source.height);
+              const src = e.source;
+              if (src && src.width > 0 && src.height > 0) {
+                setImageRatio(src.width / src.height);
+                if (isWebtoon) {
+                  setCalcHeight((windowWidth * src.height) / src.width);
+                }
               }
             }}
             onError={() => {

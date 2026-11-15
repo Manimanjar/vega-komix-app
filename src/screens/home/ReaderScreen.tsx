@@ -265,7 +265,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         }
 
         // 5. Fallback to online provider with failover support
-        let results: PageImage[] = [];
+        let rawResult: any = null;
         try {
           const failoverOutcome = await fetchPagesWithFailover(
             (currentChapter as ConsolidatedChapterLink) || {
@@ -276,9 +276,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             },
             providerValue,
           );
-          results = failoverOutcome.pages;
+          rawResult = failoverOutcome.pages;
         } catch {
-          results = await providerManager.getPages({
+          rawResult = await providerManager.getPages({
             link: chapterLink,
             providerValue,
             type: 'comic',
@@ -287,9 +287,23 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
 
         if (!active) return;
 
-        if (Array.isArray(results) && results.length > 0) {
+        // Unroll rawResult whether provider returns PageImage[] directly or { pages: PageImage[] }
+        let pageList: any[] = [];
+        if (Array.isArray(rawResult)) {
+          pageList = rawResult;
+        } else if (rawResult && typeof rawResult === 'object') {
+          if (Array.isArray(rawResult.pages)) {
+            pageList = rawResult.pages;
+          } else if (Array.isArray(rawResult.images)) {
+            pageList = rawResult.images;
+          } else if (Array.isArray(rawResult.stream)) {
+            pageList = rawResult.stream;
+          }
+        }
+
+        if (pageList.length > 0) {
           // Normalize to ReaderPageItem and apply autoDomainResolver
-          const normalized: ReaderPageItem[] = results.map(
+          const normalized: ReaderPageItem[] = pageList.map(
             (item: any, idx: number) => {
               const rawUrl = item.imageUrl || item.link || item.url || '';
               const imgUrl = autoDomainResolver.rewriteUrlWithResolvedDomain(rawUrl);
@@ -303,7 +317,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             },
           );
           setPages(normalized);
-          instantChapterLauncher.preloadPageImages(results);
+          instantChapterLauncher.preloadPageImages(pageList);
           instantChapterLauncher.preloadSerialSequence(
             episodeList,
             currentChapterIndex,

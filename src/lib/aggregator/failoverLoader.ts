@@ -107,14 +107,27 @@ export async function fetchPagesWithFailover(
         signal,
       });
 
-      // Stream method in comic providers returns PageImage[] or array with pages
+      // Stream method in comic providers returns PageImage[], or array with pages, or object { pages: [...] }
+      let list: any[] = [];
+      if (Array.isArray(rawPages)) {
+        list = rawPages;
+      } else if (rawPages && typeof rawPages === 'object') {
+        if (Array.isArray((rawPages as any).pages)) {
+          list = (rawPages as any).pages;
+        } else if (Array.isArray((rawPages as any).images)) {
+          list = (rawPages as any).images;
+        } else if (Array.isArray((rawPages as any).stream)) {
+          list = (rawPages as any).stream;
+        }
+      }
+
       let pages: PageImage[] = [];
-      if (Array.isArray(rawPages) && rawPages.length > 0) {
+      if (list.length > 0) {
         // If items have imageUrl, it's PageImage[]
-        if (typeof (rawPages[0] as any)?.imageUrl === 'string') {
-          pages = rawPages as unknown as PageImage[];
-        } else if (typeof (rawPages[0] as any)?.link === 'string') {
-          pages = rawPages.map((item: any, idx: number) => ({
+        if (typeof (list[0] as any)?.imageUrl === 'string') {
+          pages = list as unknown as PageImage[];
+        } else if (typeof (list[0] as any)?.link === 'string') {
+          pages = list.map((item: any, idx: number) => ({
             index: idx + 1,
             imageUrl: item.link,
             headers: item.headers,

@@ -1,6 +1,13 @@
 import React, {useCallback, useEffect, useRef} from 'react';
-import {StyleSheet, View, useWindowDimensions, type ViewToken} from 'react-native';
-import {FlashList, type FlashListRef} from '@shopify/flash-list';
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type ViewToken,
+} from 'react-native';
 import {ReaderImage} from './ReaderImage';
 import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, ReaderPageItem, ReaderTheme} from './types';
@@ -37,8 +44,9 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
   pageTranslations,
   onRetryTranslation,
 }) => {
-  const {width: windowWidth} = useWindowDimensions();
-  const listRef = useRef<FlashListRef<ReaderPageItem>>(null);
+  const {width: windowWidth, height: windowHeight} = useWindowDimensions();
+  const listRef = useRef<FlatList<ReaderPageItem>>(null);
+  const currentScrollY = useRef<number>(0);
   const isUserScrolling = useRef<boolean>(false);
   const lastReportedIndex = useRef<number>(currentPageIndex);
 
@@ -46,12 +54,20 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
   useEffect(() => {
     if (!isUserScrolling.current && Math.abs(currentPageIndex - lastReportedIndex.current) > 0) {
       lastReportedIndex.current = currentPageIndex;
-      listRef.current?.scrollToIndex({
-        index: Math.min(Math.max(currentPageIndex, 0), pages.length - 1),
-        animated: false,
-      });
+      try {
+        listRef.current?.scrollToIndex({
+          index: Math.min(Math.max(currentPageIndex, 0), pages.length - 1),
+          animated: false,
+        });
+      } catch {
+        // Handled by onScrollToIndexFailed
+      }
     }
   }, [currentPageIndex, pages.length]);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    currentScrollY.current = e.nativeEvent.contentOffset.y;
+  }, []);
 
   const onViewableItemsChanged = useCallback(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
@@ -74,23 +90,23 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
       }
 
       // 9-grid horizontal zones:
-      // Left 30% = scroll up / prev page
-      // Right 30% = scroll down / next page
+      // Left 30% = scroll up by screenHeight * 0.75
+      // Right 30% = scroll down by screenHeight * 0.75
       // Center 40% = toggle HUD
       const leftThreshold = windowWidth * 0.3;
       const rightThreshold = windowWidth * 0.7;
 
       if (tapX < leftThreshold) {
-        const prevIdx = Math.max(0, currentPageIndex - 1);
-        listRef.current?.scrollToIndex({index: prevIdx, animated: true});
+        const prevOffset = Math.max(0, currentScrollY.current - windowHeight * 0.75);
+        listRef.current?.scrollToOffset({offset: prevOffset, animated: true});
       } else if (tapX > rightThreshold) {
-        const nextIdx = Math.min(pages.length - 1, currentPageIndex + 1);
-        listRef.current?.scrollToIndex({index: nextIdx, animated: true});
+        const nextOffset = currentScrollY.current + windowHeight * 0.75;
+        listRef.current?.scrollToOffset({offset: nextOffset, animated: true});
       } else {
         onToggleHUD();
       }
     },
-    [disableTapZones, windowWidth, onToggleHUD, currentPageIndex, pages.length],
+    [disableTapZones, windowWidth, windowHeight, onToggleHUD],
   );
 
   const renderItem = useCallback(
@@ -140,12 +156,16 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
 
   return (
     <View style={[styles.container, {backgroundColor: themeColors.background}]}>
-      <FlashList
+      <FlatList
         ref={listRef}
         data={pages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         extraData={currentPageIndex}
+        horizontal={false}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
         }}
@@ -156,8 +176,16 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
         viewabilityConfig={{
           itemVisiblePercentThreshold: 30,
         }}
-        showsVerticalScrollIndicator={false}
-        drawDistance={windowWidth * 2.5}
+        onScrollToIndexFailed={(info: any) => {
+          const offset = typeof info.offset === 'number' ? info.offset : info.index * (info.averageItemLength || windowHeight * 0.8);
+          setTimeout(() => {
+            listRef.current?.scrollToOffset({ offset, animated: false });
+          }, 50);
+        }}
+        windowSize={11}
+        maxToRenderPerBatch={4}
+        initialNumToRender={3}
+        removeClippedSubviews={false}
         onEndReached={onReachEnd}
         onEndReachedThreshold={0.05}
       />

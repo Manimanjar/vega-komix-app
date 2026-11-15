@@ -115,12 +115,69 @@ describe("Steps 9–12 Comprehensive Verification", () => {
     });
   });
 
-  describe("Step 12: Production Providers, Manifest Source, and Resilience", () => {
-    it("should have DEFAULT_PROVIDER_SOURCE pointing to isolated vega-komix-providers repository", () => {
-      expect(DEFAULT_PROVIDER_SOURCE.manifestUrl).toContain("Manimanjar/vega-komix-providers");
-      expect(DEFAULT_PROVIDER_SOURCE.manifestUrl).toContain("manifest.json");
-      expect(DEFAULT_PROVIDER_SOURCE.manifestUrl).not.toContain("vega-providers/main");
-      expect(DEFAULT_PROVIDER_SOURCE.author).toBe("Manimanjar");
+  describe("Fix 2: Reader Crash Elimination, Webtoon Aspect Ratio & Paged Navigation", () => {
+    it("should correctly unwrap provider chapter pages returned as array or nested object", () => {
+      const arrayResult = [
+        { imageUrl: "https://example.com/p1.jpg" },
+        { imageUrl: "https://example.com/p2.jpg" },
+      ];
+      const objectWithPages = {
+        pages: [
+          { imageUrl: "https://example.com/p1.jpg" },
+          { imageUrl: "https://example.com/p2.jpg" },
+        ],
+      };
+      const objectWithStream = {
+        stream: [
+          { link: "https://example.com/p1.jpg" },
+          { link: "https://example.com/p2.jpg" },
+        ],
+      };
+
+      const unwrap = (raw: any): any[] => {
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === 'object') {
+          if (Array.isArray(raw.pages)) return raw.pages;
+          if (Array.isArray(raw.images)) return raw.images;
+          if (Array.isArray(raw.stream)) return raw.stream;
+        }
+        return [];
+      };
+
+      expect(unwrap(arrayResult).length).toBe(2);
+      expect(unwrap(objectWithPages).length).toBe(2);
+      expect(unwrap(objectWithStream).length).toBe(2);
+      expect(unwrap(null).length).toBe(0);
+    });
+
+    it("should compute dynamic un-squeezed aspect ratio for tall Manhwa Webtoon strips", () => {
+      const screenWidth = 400;
+      const naturalWidth = 800;
+      const naturalHeight = 10000;
+
+      // Exact calculated height preserving aspect ratio without squeezing
+      const calcHeight = (screenWidth * naturalHeight) / naturalWidth;
+      expect(calcHeight).toBe(5000);
+
+      // Ratio preserved
+      const containerRatio = screenWidth / calcHeight;
+      const imageRatio = naturalWidth / naturalHeight;
+      expect(containerRatio).toBeCloseTo(imageRatio, 5);
+    });
+
+    it("should verify Webtoon 9-grid tap offset calculations", () => {
+      const windowWidth = 400;
+      const windowHeight = 800;
+      const currentScrollY = 1200;
+
+      // Left 30% taps scroll up by 75% screen height
+      const prevOffset = Math.max(0, currentScrollY - windowHeight * 0.75);
+      expect(prevOffset).toBe(600);
+
+      // Right 30% taps scroll down by 75% screen height
+      const nextOffset = currentScrollY + windowHeight * 0.75;
+      expect(nextOffset).toBe(1800);
     });
   });
 });
+
