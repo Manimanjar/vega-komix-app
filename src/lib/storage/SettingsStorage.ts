@@ -130,6 +130,7 @@ export enum SettingsKeys {
   AUTO_CROP_MARGINS = 'autoCropMargins',
 
   // Vega Komix: AI Translator & Language
+  ENABLE_LIVE_TRANSLATOR_BUTTON = 'enableLiveTranslatorButton',
   DEFAULT_LIVE_TRANSLATION = 'defaultLiveTranslation',
   TRANSLATION_SOURCE_LANG = 'translationSourceLang',
   TRANSLATION_TARGET_LANG = 'translationTargetLang',
@@ -935,11 +936,15 @@ export class SettingsStorage {
 
   // --- Vega Komix: Reader & Page Settings ---
   getDefaultReadingMode(): 'webtoon' | 'manga' | 'comic' | 'double_spread' {
-    return (mainStorage.getString(SettingsKeys.DEFAULT_READING_MODE) as any) || 'manga';
+    return (mainStorage.getString(SettingsKeys.DEFAULT_READING_MODE) as any) || 'webtoon';
   }
 
   setDefaultReadingMode(mode: 'webtoon' | 'manga' | 'comic' | 'double_spread'): void {
     mainStorage.setString(SettingsKeys.DEFAULT_READING_MODE, mode);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {...curr, readingMode: mode});
+    } catch {}
   }
 
   getPageFit(): 'fit_width' | 'fit_screen' | 'fit_height' | 'original' {
@@ -948,6 +953,13 @@ export class SettingsStorage {
 
   setPageFit(fit: 'fit_width' | 'fit_screen' | 'fit_height' | 'original'): void {
     mainStorage.setString(SettingsKeys.PAGE_FIT, fit);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        imageScale: fit === 'fit_screen' ? 'fit_width' : fit,
+      });
+    } catch {}
   }
 
   getReaderBgColor(): 'amoled' | 'dark' | 'sepia' | 'white' {
@@ -956,6 +968,10 @@ export class SettingsStorage {
 
   setReaderBgColor(color: 'amoled' | 'dark' | 'sepia' | 'white'): void {
     mainStorage.setString(SettingsKeys.READER_BG_COLOR, color);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {...curr, theme: color});
+    } catch {}
   }
 
   isTapZonesEnabled(): boolean {
@@ -964,6 +980,13 @@ export class SettingsStorage {
 
   setTapZonesEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.TAP_ZONES_ENABLED, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        disableTapZonesInWebtoon: !enabled,
+      });
+    } catch {}
   }
 
   isVolumeKeysEnabled(): boolean {
@@ -972,6 +995,13 @@ export class SettingsStorage {
 
   setVolumeKeysEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.VOLUME_KEYS_ENABLED, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        volumeKeysEnabled: enabled,
+      });
+    } catch {}
   }
 
   isKeepAwakeEnabled(): boolean {
@@ -980,6 +1010,13 @@ export class SettingsStorage {
 
   setKeepAwakeEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.KEEP_AWAKE_ENABLED, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        keepScreenAwake: enabled,
+      });
+    } catch {}
   }
 
   isPageNumberPillEnabled(): boolean {
@@ -988,6 +1025,13 @@ export class SettingsStorage {
 
   setPageNumberPillEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.PAGE_NUMBER_PILL_ENABLED, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        showFloatingPageNumber: enabled,
+      });
+    } catch {}
   }
 
   isAutoAdvanceChapter(): boolean {
@@ -1021,15 +1065,37 @@ export class SettingsStorage {
 
   setAutoCropMargins(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.AUTO_CROP_MARGINS, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        cropWhiteBorders: enabled,
+      });
+    } catch {}
   }
 
   // --- Vega Komix: AI Translator & Language ---
+  isLiveTranslatorButtonEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.ENABLE_LIVE_TRANSLATOR_BUTTON, true);
+  }
+
+  setLiveTranslatorButtonEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.ENABLE_LIVE_TRANSLATOR_BUTTON, enabled);
+  }
+
   isDefaultLiveTranslation(): boolean {
     return mainStorage.getBool(SettingsKeys.DEFAULT_LIVE_TRANSLATION, false);
   }
 
   setDefaultLiveTranslation(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.DEFAULT_LIVE_TRANSLATION, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        liveTranslateEnabled: enabled,
+      });
+    } catch {}
   }
 
   getTranslationSourceLang(): string {

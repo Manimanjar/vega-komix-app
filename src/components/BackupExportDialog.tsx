@@ -33,11 +33,11 @@ export default function BackupExportDialog({onClose, onExport}: {
         Choose what to include in the backup file.
       </AppText>
       {([
-        ['settings', 'Settings', 'Preferences, appearance and player settings'],
+        ['settings', 'Settings', 'Preferences, appearance and reader settings'],
         ['library', 'Library', 'Saved titles, categories and assignments'],
         ['providers', 'Providers', 'Installed providers, sources and provider code'],
-        ['history', 'Watch history', 'Continue watching titles and resume positions'],
-        ['progress', 'Watch progress', 'Watched and partly watched episodes'],
+        ['history', 'Reading history', 'Continue reading titles and resume positions'],
+        ['progress', 'Reading progress', 'Read and in-progress chapters'],
       ] as const).map(([key, title, description]) => (
         <SettingsSwitchRow key={key} title={title} description={description}
           value={selection[key]} divider={key !== 'progress'}

@@ -102,6 +102,17 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     });
   }, []);
 
+  // Reload persistent settings on focus
+  useFocusEffect(
+    useCallback(() => {
+      const refreshed = getStoredReaderSettings();
+      setSettings(refreshed);
+      if (typeof refreshed.liveTranslateEnabled === 'boolean') {
+        setTranslateEnabled(refreshed.liveTranslateEnabled);
+      }
+    }, []),
+  );
+
   useEffect(() => {
     if (typeof settings.liveTranslateEnabled === 'boolean' && settings.liveTranslateEnabled !== translateEnabled) {
       setTranslateEnabled(settings.liveTranslateEnabled);
@@ -666,7 +677,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         turboBadgeText={turboStats.statusText}
         translateEnabled={translateEnabled}
         translationStatus={translationStatus}
-        onToggleTranslate={handleToggleTranslate}
+        onToggleTranslate={settingsStorage.isLiveTranslatorButtonEnabled() ? handleToggleTranslate : undefined}
         onBack={navigation.goBack}
         onSelectChapter={handleSelectChapter}
         onPrevChapter={handlePrevChapter}

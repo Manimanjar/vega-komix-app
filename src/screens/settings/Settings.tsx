@@ -6,6 +6,7 @@ import {
   Keyboard,
   TextInput,
   BackHandler,
+  ToastAndroid,
 } from 'react-native';
 
 interface ProviderItemProps {
@@ -103,6 +104,7 @@ const ProviderItem = React.memo(
 import React, {useCallback, useMemo} from 'react';
 import {
   settingsStorage,
+  providerCookieStorage,
   ProviderExtension,
 } from '../../lib/storage';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -304,10 +306,34 @@ const Settings = ({navigation}: Props) => {
               </SettingsSection>
             </AnimatedSection>
 
-            {/* Network Section */}
+            {/* Network & Bypass Section */}
             <AnimatedSection delay={150}>
-              <SettingsSection title="Network">
+              <SettingsSection title="Network & Bypass">
                 <DnsPreference />
+                <SettingsRow
+                  title="WAF & Captcha Bypass"
+                  description="Automatic Cloudflare challenge solving via secure in-app WebView"
+                  icon="shield-check-outline"
+                  onPress={() => {
+                    ToastAndroid.show(
+                      'WAF challenge solver is active in background for all providers',
+                      ToastAndroid.SHORT,
+                    );
+                  }}
+                />
+                <SettingsRow
+                  title="Cookie Manager"
+                  description="Clear Cloudflare clearance cookies and session tokens"
+                  icon="cookie-outline"
+                  divider={false}
+                  onPress={() => {
+                    providerCookieStorage.clearAll();
+                    ToastAndroid.show(
+                      'Provider and WAF clearance cookies cleared',
+                      ToastAndroid.SHORT,
+                    );
+                  }}
+                />
               </SettingsSection>
             </AnimatedSection>
 
@@ -321,8 +347,8 @@ const Settings = ({navigation}: Props) => {
                 />
                 <SettingsRow
                   title="Reader & Page Settings"
-                  description="Reading mode, page fit, AMOLED background, and AI translation"
-                  icon="book-open-page-variant"
+                  description="Reading mode, page fit, AMOLED background, and gestures"
+                  icon="book-open-outline"
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
                 {hideDownloadsTab && (
@@ -334,6 +360,7 @@ const Settings = ({navigation}: Props) => {
                 )}
                 <SettingsRow
                   title="Preferences"
+                  description="AI Live Translator, domain mirrors, chapter collector"
                   icon="tune-variant"
                   divider={false}
                   onPress={() => navigation.navigate('Preferences')}

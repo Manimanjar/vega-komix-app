@@ -3,6 +3,7 @@ export {
   StorageService,
   mainStorage,
   cacheStorage,
+  providerCookieStorage,
   clearAllMMKVStorage,
   createZustandStorage,
 } from './StorageService';
