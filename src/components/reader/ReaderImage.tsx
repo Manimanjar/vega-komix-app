@@ -43,6 +43,7 @@ interface ReaderImageProps {
   onRetryTranslation?: () => void;
   onDoubleTap?: () => void;
   onSingleTap?: (tapX: number, tapY: number) => void;
+  onRatioMeasured?: (ratio: number) => void;
 }
 
 const CircularProgress = ({
@@ -115,6 +116,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   translationBubbles,
   onRetryTranslation,
   onSingleTap,
+  onRatioMeasured,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
@@ -350,7 +352,9 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               setLoadError(false);
               const src = e.source;
               if (src && src.width > 0 && src.height > 0) {
-                setImageRatio(src.width / src.height);
+                const ratio = src.width / src.height;
+                setImageRatio(ratio);
+                onRatioMeasured?.(ratio);
                 if (isWebtoon) {
                   setCalcHeight((windowWidth * src.height) / src.width);
                 }

@@ -1023,6 +1023,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
           interactionMode={interactionMode}
+          splitDoubleSpreads={settings.splitDoubleSpreads ?? true}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}

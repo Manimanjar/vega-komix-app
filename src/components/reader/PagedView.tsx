@@ -1,10 +1,11 @@
-import React, {useCallback, useEffect, useMemo, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
   StyleSheet,
+  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -33,6 +34,7 @@ interface PagedViewProps {
   translateEnabled?: boolean;
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
+  splitDoubleSpreads?: boolean;
 }
 
 interface SpreadPageGroup {
@@ -42,6 +44,8 @@ interface SpreadPageGroup {
   pageB?: ReaderPageItem;
   indexA: number;
   indexB?: number;
+  isSplit?: boolean;
+  splitHalf?: 'left' | 'right';
 }
 
 export const PagedView: React.FC<PagedViewProps> = ({
@@ -62,11 +66,20 @@ export const PagedView: React.FC<PagedViewProps> = ({
   translateEnabled = false,
   pageTranslations,
   onRetryTranslation,
+  splitDoubleSpreads = true,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
   const isManga = readingMode === 'manga';
   const isDoubleSpread = readingMode === 'double_spread' && isLandscape;
+
+  const [measuredRatios, setMeasuredRatios] = useState<Record<number, number>>({});
+  const handleRatioMeasured = useCallback((idx: number, ratio: number) => {
+    setMeasuredRatios(prev => {
+      if (prev[idx] === ratio) return prev;
+      return {...prev, [idx]: ratio};
+    });
+  }, []);
 
   const listRef = useRef<FlatList>(null);
   const isUserScrolling = useRef<boolean>(false);
@@ -74,15 +87,53 @@ export const PagedView: React.FC<PagedViewProps> = ({
   const jumpTimerRef = useRef<any>(null);
   const lastTargetIndex = useRef<number>(currentPageIndex);
 
-  // Group pages into double spreads when in landscape double_spread mode
+  // Group pages into double spreads when in landscape double_spread mode,
+  // or split wide double-spread scans into two portrait pages in portrait mode.
   const spreadGroups: SpreadPageGroup[] = useMemo(() => {
     if (!isDoubleSpread) {
-      return pages.map((page, idx) => ({
-        id: `single-${idx}`,
-        isPair: false,
-        pageA: page,
-        indexA: idx,
-      }));
+      const groups: SpreadPageGroup[] = [];
+      pages.forEach((page, idx) => {
+        const ratio =
+          measuredRatios[idx] ||
+          (page.width && page.height && page.height > 0
+            ? page.width / page.height
+            : undefined);
+        const isWide = ratio ? ratio > 1.25 : false;
+
+        if (isWide && splitDoubleSpreads && !isLandscape) {
+          // Double-spread landscape image in portrait mode:
+          // Split into two portrait pages.
+          // In traditional Manga (RTL), right half is read first, then left half.
+          // In Western Comic (LTR), left half is read first, then right half.
+          const firstHalf = isManga ? 'right' : 'left';
+          const secondHalf = isManga ? 'left' : 'right';
+
+          groups.push({
+            id: `split-${idx}-${firstHalf}`,
+            isPair: false,
+            pageA: page,
+            indexA: idx,
+            isSplit: true,
+            splitHalf: firstHalf,
+          });
+          groups.push({
+            id: `split-${idx}-${secondHalf}`,
+            isPair: false,
+            pageA: page,
+            indexA: idx,
+            isSplit: true,
+            splitHalf: secondHalf,
+          });
+        } else {
+          groups.push({
+            id: `single-${idx}`,
+            isPair: false,
+            pageA: page,
+            indexA: idx,
+          });
+        }
+      });
+      return groups;
     }
 
     const groups: SpreadPageGroup[] = [];
@@ -129,7 +180,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       }
     }
     return groups;
-  }, [pages, isDoubleSpread]);
+  }, [pages, isDoubleSpread, splitDoubleSpreads, isLandscape, isManga, measuredRatios]);
 
   // Find the group index matching currentPageIndex
   const activeGroupIndex = useMemo(() => {
@@ -319,6 +370,59 @@ export const PagedView: React.FC<PagedViewProps> = ({
         );
       }
 
+      if (item.isSplit) {
+        const isFirstHalf = item.splitHalf === (isManga ? 'right' : 'left');
+        return (
+          <View
+            style={[
+              styles.pageContainer,
+              {
+                width: windowWidth,
+                height: windowHeight,
+                backgroundColor: '#000000',
+                overflow: 'hidden',
+              },
+            ]}>
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                width: windowWidth * 2,
+                height: windowHeight,
+                ...(item.splitHalf === 'left' ? {left: 0} : {right: 0}),
+              }}>
+              <ReaderImage
+                imageUrl={item.pageA.imageUrl}
+                index={item.indexA}
+                width={windowWidth * 2}
+                height={windowHeight}
+                headers={item.pageA.headers}
+                scaleMode="fit_height"
+                zoomScale={zoomScale}
+                reloadKey={reloadKey}
+                cropWhiteBorders={cropWhiteBorders}
+                theme={theme}
+                isWebtoon={false}
+                activeBitmap={turboPreloader.isPageBitmapActive(item.indexA, currentPageIndex)}
+                translateEnabled={translateEnabled}
+                translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
+                onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
+                onSingleTap={onToggleHUD}
+                onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
+              />
+            </View>
+
+            {/* Subtle split indicator pill in bottom corner */}
+            <View style={styles.splitBadge} pointerEvents="none">
+              <Text style={styles.splitBadgeText}>
+                {isFirstHalf ? 'Spread 1/2' : 'Spread 2/2'}
+              </Text>
+            </View>
+          </View>
+        );
+      }
+
       // Single page view
       return (
         <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: '#000000'}]}>
@@ -339,6 +443,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
             onSingleTap={onToggleHUD}
+            onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
           />
         </View>
       );
@@ -357,6 +462,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       pageTranslations,
       onRetryTranslation,
       onToggleHUD,
+      handleRatioMeasured,
     ],
   );
 
@@ -469,5 +575,22 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: '28%',
+  },
+  splitBadge: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    zIndex: 10,
+  },
+  splitBadgeText: {
+    color: '#00E5FF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

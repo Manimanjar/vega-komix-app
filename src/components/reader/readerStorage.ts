@@ -22,6 +22,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   screenDimmer: 100,
   warmFilterEnabled: false,
   liveTranslateEnabled: false,
+  splitDoubleSpreads: true,
 };
 
 export const getStoredReaderSettings = (): ReaderSettings => {
@@ -41,6 +42,7 @@ export const getStoredReaderSettings = (): ReaderSettings => {
     screenDimmer: 100,
     warmFilterEnabled: false,
     liveTranslateEnabled: settingsStorage.isDefaultLiveTranslation(),
+    splitDoubleSpreads: true,
   };
 
   const stored = mainStorage.getObject<Partial<ReaderSettings>>(READER_SETTINGS_KEY);

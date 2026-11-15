@@ -104,6 +104,7 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   const currentAutoScroll = settings.autoScrollSpeed ?? 'off';
   const currentDimmer = settings.screenDimmer ?? 100;
   const isWarmFilter = settings.warmFilterEnabled ?? false;
+  const isSplitSpreads = settings.splitDoubleSpreads ?? true;
 
   return (
     <Modal
@@ -334,6 +335,33 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     onValueChange={onToggleIncognito}
                     thumbColor={incognitoEnabled ? '#E040FB' : '#71717A'}
                     trackColor={{false: '#27272A', true: 'rgba(224, 64, 251, 0.4)'}}
+                  />
+                </View>
+
+                {/* Split Double-Page Spreads */}
+                <View style={[styles.warmFilterRow, {marginTop: 10}]}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1}}>
+                    <MaterialCommunityIcons
+                      name="book-open-page-variant-outline"
+                      size={22}
+                      color={isSplitSpreads ? '#00E5FF' : '#71717A'}
+                    />
+                    <View style={{flex: 1}}>
+                      <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                        Split Double-Page Spreads
+                      </AppText>
+                      <AppText role="bodySmall" style={{color: '#71717A'}}>
+                        Split wide 2-page landscape scans into two portrait pages
+                      </AppText>
+                    </View>
+                  </View>
+                  <Switch
+                    value={isSplitSpreads}
+                    onValueChange={splitDoubleSpreads =>
+                      onUpdateSettings({splitDoubleSpreads})
+                    }
+                    thumbColor={isSplitSpreads ? '#00E5FF' : '#71717A'}
+                    trackColor={{false: '#27272A', true: 'rgba(0, 229, 255, 0.4)'}}
                   />
                 </View>
               </View>
