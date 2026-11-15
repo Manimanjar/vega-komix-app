@@ -8,7 +8,7 @@ const READER_PROGRESS_PREFIX = 'vega-komix-reader-progress:';
 
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   theme: 'amoled',
-  readingMode: 'manga',
+  readingMode: 'webtoon',
   imageScale: 'fit_width',
   cropWhiteBorders: false,
   keepScreenAwake: true,

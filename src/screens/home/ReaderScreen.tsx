@@ -45,7 +45,7 @@ import type {
 import {THEME_COLORS} from '../../components/reader/types';
 import {turboPreloader, type TurboStats} from '../../lib/reader/turboPreloader';
 import {useVolumeKeyTurn} from '../../components/reader/useVolumeKeyTurn';
-import {WebtoonView} from '../../components/reader/WebtoonView';
+import {WebtoonContinuousReader, WebtoonView} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
 import {ReaderHUD} from '../../components/reader/ReaderHUD';
 import {ReaderSettingsSheet} from '../../components/reader/ReaderSettingsSheet';
@@ -604,7 +604,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           </TouchableOpacity>
         </View>
       ) : settings.readingMode === 'webtoon' ? (
-        <WebtoonView
+        <WebtoonContinuousReader
           pages={pages}
           currentPageIndex={currentPageIndex}
           onPageChange={handlePageChange}

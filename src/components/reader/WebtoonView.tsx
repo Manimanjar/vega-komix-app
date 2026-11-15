@@ -1,21 +1,197 @@
-import React, {useCallback, useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
+  ActivityIndicator,
   FlatList,
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
   type ViewToken,
 } from 'react-native';
-import {ReaderImage} from './ReaderImage';
-import {turboPreloader} from '../../lib/reader/turboPreloader';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import AppText from '../ui/Text';
+import {resolvePageHeaders} from './usePagePreloader';
+import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
+import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 import type {ImageScale, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
+import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
+import type {PageTranslationResult, TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
 
-import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEngine';
+export interface AutoHeightComicPageProps {
+  item: ReaderPageItem;
+  index: number;
+  screenWidth: number;
+  theme: ReaderTheme;
+  cropWhiteBorders?: boolean;
+  translateEnabled?: boolean;
+  translationBubbles?: TranslatedBubble[];
+  onRetryTranslation?: () => void;
+  onPageMeasured?: (index: number, height: number) => void;
+}
 
-interface WebtoonViewProps {
+export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
+  item,
+  index,
+  screenWidth,
+  theme,
+  cropWhiteBorders = false,
+  translateEnabled = false,
+  translationBubbles,
+  onRetryTranslation,
+  onPageMeasured,
+}) => {
+  const [currentUrl, setCurrentUrl] = useState<string>(() =>
+    autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl),
+  );
+  useEffect(() => {
+    setCurrentUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl));
+  }, [item.imageUrl]);
+
+  const [resolvedHeaders, setResolvedHeaders] = useState<Record<string, string> | undefined>(
+    item.headers,
+  );
+  const [retryKey, setRetryKey] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
+
+  // Default aspect ratio: width = screenWidth, height = screenWidth * 1.45
+  const initialHeight = useMemo(() => {
+    if (item.width && item.height && item.width > 0 && item.height > 0) {
+      return Math.round(screenWidth * (item.height / item.width));
+    }
+    return Math.round(screenWidth * 1.45);
+  }, [screenWidth, item.width, item.height]);
+
+  const [pageHeight, setPageHeight] = useState<number>(initialHeight);
+
+  // Resolve headers (e.g. referer, cookies) asynchronously
+  useEffect(() => {
+    let active = true;
+    resolvePageHeaders(currentUrl, item.headers).then(res => {
+      if (active) {
+        setResolvedHeaders(res);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [currentUrl, item.headers, retryKey]);
+
+  const handleImageLoad = useCallback(
+    (e: any) => {
+      setLoading(false);
+      setLoadError(false);
+      const src = (e.nativeEvent as any)?.source || (e as any)?.source;
+      const naturalWidth = src?.width || item.width;
+      const naturalHeight = src?.height || item.height;
+      if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
+        const dynamicHeight = Math.round(screenWidth * (naturalHeight / naturalWidth));
+        setPageHeight(dynamicHeight);
+        onPageMeasured?.(index, dynamicHeight);
+      }
+    },
+    [screenWidth, item.width, item.height, index, onPageMeasured],
+  );
+
+  const handleImageError = useCallback(() => {
+    retryPageImageWithUpdatedHeaders({
+      index,
+      imageUrl: currentUrl,
+      headers: resolvedHeaders,
+    })
+      .then(updated => {
+        if (updated.imageUrl !== currentUrl) {
+          setCurrentUrl(updated.imageUrl);
+          if (updated.headers) setResolvedHeaders(updated.headers);
+          setLoading(true);
+          setLoadError(false);
+          setRetryKey(k => k + 1);
+        } else {
+          setLoading(false);
+          setLoadError(true);
+        }
+      })
+      .catch(() => {
+        setLoading(false);
+        setLoadError(true);
+      });
+  }, [index, currentUrl, resolvedHeaders]);
+
+  const themeColors = THEME_COLORS[theme];
+
+  return (
+    <View
+      style={{
+        width: screenWidth,
+        height: pageHeight,
+        backgroundColor: themeColors.background,
+        overflow: cropWhiteBorders ? 'hidden' : 'visible',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+      <Image
+        key={`${currentUrl}-${retryKey}`}
+        source={{
+          uri: currentUrl,
+          ...(resolvedHeaders ? {headers: resolvedHeaders} : {}),
+        }}
+        style={{
+          width: screenWidth,
+          height: pageHeight,
+        }}
+        resizeMode="contain"
+        resizeMethod="resize"
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+      />
+
+      {/* Loading state indicator */}
+      {loading && !loadError && (
+        <View style={styles.centerOverlay}>
+          <ActivityIndicator size="small" color="#7C4DFF" />
+        </View>
+      )}
+
+      {/* Error state with retry */}
+      {loadError && (
+        <View style={styles.centerOverlay}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#FF5252" />
+          <AppText role="labelSmall" style={{color: '#FF5252', marginTop: 4}}>
+            Failed to load page {index + 1}
+          </AppText>
+          <Pressable
+            onPress={() => {
+              setLoading(true);
+              setLoadError(false);
+              setRetryKey(k => k + 1);
+            }}
+            style={styles.retryButton}>
+            <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
+            <AppText role="labelSmall" style={{color: '#FFFFFF', fontWeight: '700'}}>
+              Retry
+            </AppText>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Translation Bubbles Overlay */}
+      {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
+        <TranslatedBubbleOverlay
+          bubbles={translationBubbles}
+          renderedWidth={screenWidth}
+          renderedHeight={pageHeight}
+          visible={true}
+        />
+      )}
+    </View>
+  );
+});
+
+export interface WebtoonViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
   onPageChange: (index: number) => void;
@@ -30,13 +206,12 @@ interface WebtoonViewProps {
   onRetryTranslation?: (pageIndex: number) => void;
 }
 
-export const WebtoonView: React.FC<WebtoonViewProps> = ({
+export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   pages,
   currentPageIndex,
   onPageChange,
   onToggleHUD,
   onReachEnd,
-  scaleMode = 'fit_width',
   cropWhiteBorders = false,
   theme = 'amoled',
   disableTapZones = false,
@@ -55,15 +230,21 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
     if (!isUserScrolling.current && Math.abs(currentPageIndex - lastReportedIndex.current) > 0) {
       lastReportedIndex.current = currentPageIndex;
       try {
+        const clampedIndex = Math.min(Math.max(currentPageIndex, 0), pages.length - 1);
         listRef.current?.scrollToIndex({
-          index: Math.min(Math.max(currentPageIndex, 0), pages.length - 1),
+          index: clampedIndex,
           animated: false,
         });
       } catch {
-        // Handled by onScrollToIndexFailed
+        try {
+          listRef.current?.scrollToOffset({
+            offset: currentPageIndex * (windowHeight * 0.8),
+            animated: false,
+          });
+        } catch {}
       }
     }
-  }, [currentPageIndex, pages.length]);
+  }, [currentPageIndex, pages.length, windowHeight]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     currentScrollY.current = e.nativeEvent.contentOffset.y;
@@ -82,65 +263,41 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
     [onPageChange],
   );
 
-  const handleTap = useCallback(
-    (tapX: number, _tapY: number) => {
-      if (disableTapZones) {
-        onToggleHUD();
-        return;
-      }
+  // 3-Zone Edge Tap Handlers (executed safely on JS thread via Pressable)
+  const handleLeftTap = useCallback(() => {
+    try {
+      const prevOffset = Math.max(0, currentScrollY.current - windowHeight * 0.8);
+      listRef.current?.scrollToOffset({offset: prevOffset, animated: true});
+    } catch {}
+  }, [windowHeight]);
 
-      // 9-grid horizontal zones:
-      // Left 30% = scroll up by screenHeight * 0.75
-      // Right 30% = scroll down by screenHeight * 0.75
-      // Center 40% = toggle HUD
-      const leftThreshold = windowWidth * 0.3;
-      const rightThreshold = windowWidth * 0.7;
-
-      if (tapX < leftThreshold) {
-        const prevOffset = Math.max(0, currentScrollY.current - windowHeight * 0.75);
-        listRef.current?.scrollToOffset({offset: prevOffset, animated: true});
-      } else if (tapX > rightThreshold) {
-        const nextOffset = currentScrollY.current + windowHeight * 0.75;
-        listRef.current?.scrollToOffset({offset: nextOffset, animated: true});
-      } else {
-        onToggleHUD();
-      }
-    },
-    [disableTapZones, windowWidth, windowHeight, onToggleHUD],
-  );
+  const handleRightTap = useCallback(() => {
+    try {
+      const nextOffset = currentScrollY.current + windowHeight * 0.8;
+      listRef.current?.scrollToOffset({offset: nextOffset, animated: true});
+    } catch {}
+  }, [windowHeight]);
 
   const renderItem = useCallback(
     ({item, index}: {item: ReaderPageItem; index: number}) => {
-      const activeBitmap = turboPreloader.isPageBitmapActive(
-        index,
-        currentPageIndex,
-      );
       const bubbles = pageTranslations?.[index]?.bubbles;
       return (
-        <ReaderImage
-          imageUrl={item.imageUrl}
+        <AutoHeightComicPage
+          item={item}
           index={index}
-          width={item.width}
-          height={item.height}
-          headers={item.headers}
-          scaleMode={scaleMode}
-          cropWhiteBorders={cropWhiteBorders}
+          screenWidth={windowWidth}
           theme={theme}
-          isWebtoon={true}
-          activeBitmap={activeBitmap}
+          cropWhiteBorders={cropWhiteBorders}
           translateEnabled={translateEnabled}
           translationBubbles={bubbles}
           onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(index) : undefined}
-          onSingleTap={handleTap}
         />
       );
     },
     [
-      scaleMode,
-      cropWhiteBorders,
+      windowWidth,
       theme,
-      handleTap,
-      currentPageIndex,
+      cropWhiteBorders,
       translateEnabled,
       pageTranslations,
       onRetryTranslation,
@@ -163,6 +320,10 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
         keyExtractor={keyExtractor}
         extraData={currentPageIndex}
         horizontal={false}
+        pagingEnabled={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={handleScroll}
@@ -177,24 +338,86 @@ export const WebtoonView: React.FC<WebtoonViewProps> = ({
           itemVisiblePercentThreshold: 30,
         }}
         onScrollToIndexFailed={(info: any) => {
-          const offset = typeof info.offset === 'number' ? info.offset : info.index * (info.averageItemLength || windowHeight * 0.8);
+          const offset =
+            typeof info.offset === 'number'
+              ? info.offset
+              : info.index * (windowHeight * 0.8);
           setTimeout(() => {
-            listRef.current?.scrollToOffset({ offset, animated: false });
+            try {
+              listRef.current?.scrollToOffset({offset, animated: false});
+            } catch {}
           }, 50);
         }}
         windowSize={11}
         maxToRenderPerBatch={4}
         initialNumToRender={3}
-        removeClippedSubviews={false}
         onEndReached={onReachEnd}
         onEndReachedThreshold={0.05}
       />
+
+      {/* 3-Zone Edge Tap & HUD Toggle Overlay */}
+      {!disableTapZones && (
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {/* Left Edge: 22% width -> Smoothly scroll UP */}
+          <Pressable style={styles.leftTapZone} onPress={handleLeftTap} />
+
+          {/* Center Zone: 56% width -> Toggle HUD */}
+          <Pressable style={styles.centerTapZone} onPress={onToggleHUD} />
+
+          {/* Right Edge: 22% width -> Smoothly scroll DOWN */}
+          <Pressable style={styles.rightTapZone} onPress={handleRightTap} />
+        </View>
+      )}
     </View>
   );
 };
 
+export const WebtoonView = WebtoonContinuousReader;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  leftTapZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '22%',
+  },
+  centerTapZone: {
+    position: 'absolute',
+    left: '22%',
+    top: 0,
+    bottom: 0,
+    width: '56%',
+  },
+  rightTapZone: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '22%',
+  },
+  centerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    zIndex: 5,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: '#7C4DFF',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
 });

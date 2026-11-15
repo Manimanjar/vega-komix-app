@@ -3,6 +3,7 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -128,11 +129,14 @@ export const PagedView: React.FC<PagedViewProps> = ({
 
   const goToGroupIndex = useCallback(
     (targetIndex: number, animated = true) => {
-      if (targetIndex < 0 || targetIndex >= spreadGroups.length) return;
+      if (spreadGroups.length === 0) return;
+      const clampedIndex = Math.min(Math.max(0, targetIndex), spreadGroups.length - 1);
       try {
-        listRef.current?.scrollToIndex({ index: targetIndex, animated });
+        listRef.current?.scrollToIndex({ index: clampedIndex, animated });
       } catch {
-        listRef.current?.scrollToOffset({ offset: targetIndex * windowWidth, animated });
+        try {
+          listRef.current?.scrollToOffset({ offset: clampedIndex * windowWidth, animated });
+        } catch {}
       }
     },
     [spreadGroups.length, windowWidth],
@@ -166,52 +170,36 @@ export const PagedView: React.FC<PagedViewProps> = ({
     [windowWidth, spreadGroups, onPageChange, onReachEnd],
   );
 
-  // 9-Grid Tap Handler:
+  // Safe 3-Zone Edge Tap Handlers (executed on JS thread via Pressable)
   // In Manga (RTL): Left = Next page, Right = Prev page
   // In Comic / Double spread (LTR): Left = Prev page, Right = Next page
-  // Center = Toggle HUD
-  const handleTap = useCallback(
-    (tapX: number, _tapY: number) => {
-      const leftThreshold = windowWidth * 0.3;
-      const rightThreshold = windowWidth * 0.7;
-
-      if (tapX < leftThreshold) {
-        // Left tap
-        if (isManga) {
-          // Next page in Manga (RTL)
-          if (activeGroupIndex < spreadGroups.length - 1) {
-            goToGroupIndex(activeGroupIndex + 1, true);
-          } else if (onReachEnd) {
-            onReachEnd();
-          }
-        } else {
-          // Prev page in Comic (LTR)
-          if (activeGroupIndex > 0) {
-            goToGroupIndex(activeGroupIndex - 1, true);
-          }
-        }
-      } else if (tapX > rightThreshold) {
-        // Right tap
-        if (isManga) {
-          // Prev page in Manga (RTL)
-          if (activeGroupIndex > 0) {
-            goToGroupIndex(activeGroupIndex - 1, true);
-          }
-        } else {
-          // Next page in Comic (LTR)
-          if (activeGroupIndex < spreadGroups.length - 1) {
-            goToGroupIndex(activeGroupIndex + 1, true);
-          } else if (onReachEnd) {
-            onReachEnd();
-          }
-        }
-      } else {
-        // Center tap toggles HUD
-        onToggleHUD();
+  const handleLeftTap = useCallback(() => {
+    if (isManga) {
+      if (activeGroupIndex < spreadGroups.length - 1) {
+        goToGroupIndex(activeGroupIndex + 1, true);
+      } else if (onReachEnd) {
+        onReachEnd();
       }
-    },
-    [windowWidth, isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onToggleHUD, goToGroupIndex],
-  );
+    } else {
+      if (activeGroupIndex > 0) {
+        goToGroupIndex(activeGroupIndex - 1, true);
+      }
+    }
+  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, goToGroupIndex]);
+
+  const handleRightTap = useCallback(() => {
+    if (isManga) {
+      if (activeGroupIndex > 0) {
+        goToGroupIndex(activeGroupIndex - 1, true);
+      }
+    } else {
+      if (activeGroupIndex < spreadGroups.length - 1) {
+        goToGroupIndex(activeGroupIndex + 1, true);
+      } else if (onReachEnd) {
+        onReachEnd();
+      }
+    }
+  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, goToGroupIndex]);
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {
@@ -244,7 +232,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
-                onSingleTap={handleTap}
               />
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
@@ -262,7 +249,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
-                onSingleTap={handleTap}
               />
             </View>
           </View>
@@ -286,7 +272,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
             translateEnabled={translateEnabled}
             translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
-            onSingleTap={handleTap}
           />
         </View>
       );
@@ -297,7 +282,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
       isManga,
       cropWhiteBorders,
       theme,
-      handleTap,
       scaleMode,
       currentPageIndex,
       translateEnabled,
@@ -332,9 +316,14 @@ export const PagedView: React.FC<PagedViewProps> = ({
         getItemLayout={getItemLayout}
         initialScrollIndex={activeGroupIndex}
         onScrollToIndexFailed={(info: any) => {
-          const offset = typeof info.offset === 'number' ? info.offset : info.index * windowWidth;
+          const offset =
+            typeof info.offset === 'number'
+              ? info.offset
+              : Math.min(Math.max(0, info.index), spreadGroups.length - 1) * windowWidth;
           setTimeout(() => {
-            listRef.current?.scrollToOffset({ offset, animated: false });
+            try {
+              listRef.current?.scrollToOffset({ offset, animated: false });
+            } catch {}
           }, 50);
         }}
         onScrollBeginDrag={() => {
@@ -346,6 +335,27 @@ export const PagedView: React.FC<PagedViewProps> = ({
         initialNumToRender={2}
         removeClippedSubviews={true}
       />
+
+      {/* 3-Zone Edge Tap & HUD Toggle Overlay */}
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        {/* Left Edge: 22% width */}
+        <Pressable
+          style={styles.leftTapZone}
+          onPress={handleLeftTap}
+        />
+
+        {/* Center Zone: 56% width -> Toggle HUD */}
+        <Pressable
+          style={styles.centerTapZone}
+          onPress={onToggleHUD}
+        />
+
+        {/* Right Edge: 22% width */}
+        <Pressable
+          style={styles.rightTapZone}
+          onPress={handleRightTap}
+        />
+      </View>
     </View>
   );
 };
@@ -357,5 +367,26 @@ const styles = StyleSheet.create({
   pageContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  leftTapZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '22%',
+  },
+  centerTapZone: {
+    position: 'absolute',
+    left: '22%',
+    top: 0,
+    bottom: 0,
+    width: '56%',
+  },
+  rightTapZone: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '22%',
   },
 });

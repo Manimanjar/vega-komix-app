@@ -204,7 +204,6 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   ]);
 
   const resetZoom = useCallback(() => {
-    'worklet';
     scale.value = withTiming(1, {duration: 200});
     translationX.value = withTiming(0, {duration: 200});
     translationY.value = withTiming(0, {duration: 200});
@@ -226,18 +225,19 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     });
 
   // Double Tap Gesture (1x <-> 2.5x anchored)
+  // CRITICAL: runOnJS(true) ensures zoom animation executes safely without worklet crash
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .maxDuration(300)
+    .runOnJS(true)
     .onEnd(e => {
-      'worklet';
       if (scale.value > 1.2) {
         resetZoom();
       } else {
         const targetScale = 2.5;
         scale.value = withTiming(targetScale, {duration: 250});
-        const centerX = containerDimensions.width / 2;
-        const centerY = containerDimensions.height / 2;
+        const centerX = windowWidth / 2;
+        const centerY = windowHeight / 2;
         const targetX = (centerX - e.x) * (targetScale - 1);
         const targetY = (centerY - e.y) * (targetScale - 1);
         translationX.value = withTiming(targetX, {duration: 250});
