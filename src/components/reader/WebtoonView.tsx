@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Image,
   NativeScrollEvent,
@@ -16,7 +17,7 @@ import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
 import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
-import type {ImageScale, ReaderPageItem, ReaderTheme} from './types';
+import type {ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
 import type {PageTranslationResult, TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
@@ -31,6 +32,7 @@ export interface AutoHeightComicPageProps {
   translationBubbles?: TranslatedBubble[];
   onRetryTranslation?: () => void;
   onPageMeasured?: (index: number, height: number) => void;
+  onToggleHUD?: () => void;
 }
 
 export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
@@ -43,6 +45,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   translationBubbles,
   onRetryTranslation,
   onPageMeasured,
+  onToggleHUD,
 }) => {
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
     autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl),
@@ -57,6 +60,48 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const [retryKey, setRetryKey] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<boolean>(false);
+
+  // Crash-free zoom controller (1x <-> 2x toggle without Reanimated worklets)
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const isZoomed = useRef<boolean>(false);
+  const lastTapTime = useRef<number>(0);
+  const singleTapTimer = useRef<any>(null);
+
+  const toggleZoom = useCallback(() => {
+    if (isZoomed.current) {
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      isZoomed.current = false;
+    } else {
+      Animated.timing(scaleAnim, {
+        toValue: 2,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      isZoomed.current = true;
+    }
+  }, [scaleAnim]);
+
+  const handlePagePress = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapTime.current < 280) {
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      toggleZoom();
+    } else {
+      lastTapTime.current = now;
+      if (onToggleHUD) {
+        singleTapTimer.current = setTimeout(() => {
+          onToggleHUD();
+        }, 280);
+      }
+    }
+  }, [toggleZoom, onToggleHUD]);
 
   // Default aspect ratio: width = screenWidth, height = screenWidth * 1.45
   const initialHeight = useMemo(() => {
@@ -124,7 +169,8 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const themeColors = THEME_COLORS[theme];
 
   return (
-    <View
+    <Pressable
+      onPress={handlePagePress}
       style={{
         width: screenWidth,
         height: pageHeight,
@@ -133,7 +179,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <Image
+      <Animated.Image
         key={`${currentUrl}-${retryKey}`}
         source={{
           uri: currentUrl,
@@ -142,6 +188,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         style={{
           width: screenWidth,
           height: pageHeight,
+          transform: [{scale: scaleAnim}],
         }}
         resizeMode="contain"
         resizeMethod="resize"
@@ -187,7 +234,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           visible={true}
         />
       )}
-    </View>
+    </Pressable>
   );
 });
 
@@ -201,6 +248,7 @@ export interface WebtoonViewProps {
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   disableTapZones?: boolean;
+  interactionMode?: InteractionMode;
   translateEnabled?: boolean;
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
@@ -215,6 +263,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   cropWhiteBorders = false,
   theme = 'amoled',
   disableTapZones = false,
+  interactionMode = 'scroll',
   translateEnabled = false,
   pageTranslations,
   onRetryTranslation,
@@ -224,6 +273,11 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const currentScrollY = useRef<number>(0);
   const isUserScrolling = useRef<boolean>(false);
   const lastReportedIndex = useRef<number>(currentPageIndex);
+
+  const onPageChangeRef = useRef(onPageChange);
+  useEffect(() => {
+    onPageChangeRef.current = onPageChange;
+  }, [onPageChange]);
 
   // Sync scroll to index when currentPageIndex is changed externally (e.g. from HUD slider)
   useEffect(() => {
@@ -250,18 +304,22 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     currentScrollY.current = e.nativeEvent.contentOffset.y;
   }, []);
 
-  const onViewableItemsChanged = useCallback(
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 30,
+    waitForInteraction: false,
+  }).current;
+
+  const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
       if (viewableItems && viewableItems.length > 0) {
         const topItem = viewableItems[0];
         if (typeof topItem.index === 'number') {
           lastReportedIndex.current = topItem.index;
-          onPageChange(topItem.index);
+          onPageChangeRef.current(topItem.index);
         }
       }
     },
-    [onPageChange],
-  );
+  ).current;
 
   // 3-Zone Edge Tap Handlers (executed safely on JS thread via Pressable)
   const handleLeftTap = useCallback(() => {
@@ -291,6 +349,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           translateEnabled={translateEnabled}
           translationBubbles={bubbles}
           onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(index) : undefined}
+          onToggleHUD={onToggleHUD}
         />
       );
     },
@@ -301,6 +360,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       translateEnabled,
       pageTranslations,
       onRetryTranslation,
+      onToggleHUD,
     ],
   );
 
@@ -334,9 +394,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           isUserScrolling.current = false;
         }}
         onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{
-          itemVisiblePercentThreshold: 30,
-        }}
+        viewabilityConfig={viewabilityConfig}
         onScrollToIndexFailed={(info: any) => {
           const offset =
             typeof info.offset === 'number'
@@ -355,16 +413,17 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         onEndReachedThreshold={0.05}
       />
 
-      {/* 3-Zone Edge Tap & HUD Toggle Overlay */}
-      {!disableTapZones && (
+      {/* In ONE_TAP mode: 3-Zone Edge Tap & HUD Toggle Overlay (Left 28%, Center 44%, Right 28%) */}
+      {/* In SCROLL mode: NO overlay is rendered so FlatList has 100% unrestricted native touch scroll */}
+      {interactionMode === 'one_tap' && !disableTapZones && (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          {/* Left Edge: 22% width -> Smoothly scroll UP */}
+          {/* Left Edge: 28% width -> Smoothly scroll UP */}
           <Pressable style={styles.leftTapZone} onPress={handleLeftTap} />
 
-          {/* Center Zone: 56% width -> Toggle HUD */}
+          {/* Center Zone: 44% width -> Toggle HUD */}
           <Pressable style={styles.centerTapZone} onPress={onToggleHUD} />
 
-          {/* Right Edge: 22% width -> Smoothly scroll DOWN */}
+          {/* Right Edge: 28% width -> Smoothly scroll DOWN */}
           <Pressable style={styles.rightTapZone} onPress={handleRightTap} />
         </View>
       )}
@@ -383,21 +442,21 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: '22%',
+    width: '28%',
   },
   centerTapZone: {
     position: 'absolute',
-    left: '22%',
+    left: '28%',
     top: 0,
     bottom: 0,
-    width: '56%',
+    width: '44%',
   },
   rightTapZone: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: '22%',
+    width: '28%',
   },
   centerOverlay: {
     position: 'absolute',

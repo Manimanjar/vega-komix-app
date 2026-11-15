@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import {ReaderImage} from './ReaderImage';
 import {turboPreloader} from '../../lib/reader/turboPreloader';
-import type {ImageScale, ReaderPageItem, ReaderTheme, ReadingMode} from './types';
+import type {ImageScale, InteractionMode, ReaderPageItem, ReaderTheme, ReadingMode} from './types';
 import {THEME_COLORS} from './types';
 
 import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEngine';
@@ -25,6 +25,7 @@ interface PagedViewProps {
   scaleMode?: ImageScale;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
+  interactionMode?: InteractionMode;
   translateEnabled?: boolean;
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
@@ -49,6 +50,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   scaleMode = 'fit_width',
   cropWhiteBorders = false,
   theme = 'amoled',
+  interactionMode = 'swipe',
   translateEnabled = false,
   pageTranslations,
   onRetryTranslation,
@@ -236,6 +238,24 @@ export const PagedView: React.FC<PagedViewProps> = ({
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
               <ReaderImage
+                imageUrl={leftPage.imageUrl}
+                index={leftIndex}
+                width={leftPage.width}
+                height={leftPage.height}
+                headers={leftPage.headers}
+                scaleMode="fit_height"
+                cropWhiteBorders={cropWhiteBorders}
+                theme={theme}
+                isWebtoon={false}
+                activeBitmap={turboPreloader.isPageBitmapActive(leftIndex, currentPageIndex)}
+                translateEnabled={translateEnabled}
+                translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
+                onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
+                onSingleTap={onToggleHUD}
+              />
+            </View>
+            <View style={{width: windowWidth / 2, height: windowHeight}}>
+              <ReaderImage
                 imageUrl={rightPage.imageUrl}
                 index={rightIndex}
                 width={rightPage.width}
@@ -249,6 +269,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
+                onSingleTap={onToggleHUD}
               />
             </View>
           </View>
@@ -272,6 +293,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             translateEnabled={translateEnabled}
             translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
+            onSingleTap={onToggleHUD}
           />
         </View>
       );
@@ -287,6 +309,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       translateEnabled,
       pageTranslations,
       onRetryTranslation,
+      onToggleHUD,
     ],
   );
 
@@ -336,26 +359,36 @@ export const PagedView: React.FC<PagedViewProps> = ({
         removeClippedSubviews={true}
       />
 
-      {/* 3-Zone Edge Tap & HUD Toggle Overlay */}
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        {/* Left Edge: 22% width */}
-        <Pressable
-          style={styles.leftTapZone}
-          onPress={handleLeftTap}
-        />
+      {/* Tap & HUD Toggle Overlay */}
+      {interactionMode === 'one_tap' ? (
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {/* Left Edge: 28% width */}
+          <Pressable
+            style={styles.leftTapZone}
+            onPress={handleLeftTap}
+          />
 
-        {/* Center Zone: 56% width -> Toggle HUD */}
-        <Pressable
-          style={styles.centerTapZone}
-          onPress={onToggleHUD}
-        />
+          {/* Center Zone: 44% width -> Toggle HUD */}
+          <Pressable
+            style={styles.centerTapZone}
+            onPress={onToggleHUD}
+          />
 
-        {/* Right Edge: 22% width */}
-        <Pressable
-          style={styles.rightTapZone}
-          onPress={handleRightTap}
-        />
-      </View>
+          {/* Right Edge: 28% width */}
+          <Pressable
+            style={styles.rightTapZone}
+            onPress={handleRightTap}
+          />
+        </View>
+      ) : (
+        /* In SWIPE mode: Center 44% tap toggles HUD; edges are 100% free for natural swiping */
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <Pressable
+            style={styles.centerTapZone}
+            onPress={onToggleHUD}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -373,20 +406,20 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: '22%',
+    width: '28%',
   },
   centerTapZone: {
     position: 'absolute',
-    left: '22%',
+    left: '28%',
     top: 0,
     bottom: 0,
-    width: '56%',
+    width: '44%',
   },
   rightTapZone: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: '22%',
+    width: '28%',
   },
 });

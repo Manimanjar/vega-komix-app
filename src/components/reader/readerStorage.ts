@@ -15,7 +15,8 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   volumeKeysEnabled: true,
   showFloatingPageNumber: true,
   disableTapZonesInWebtoon: false,
-  orientationMode: 'auto',
+  orientationMode: 'portrait',
+  interactionMode: 'scroll',
   liveTranslateEnabled: false,
 };
 
@@ -29,7 +30,8 @@ export const getStoredReaderSettings = (): ReaderSettings => {
     volumeKeysEnabled: settingsStorage.isVolumeKeysEnabled(),
     showFloatingPageNumber: settingsStorage.isPageNumberPillEnabled(),
     disableTapZonesInWebtoon: !settingsStorage.isTapZonesEnabled(),
-    orientationMode: 'auto',
+    orientationMode: 'portrait',
+    interactionMode: 'scroll',
     liveTranslateEnabled: settingsStorage.isDefaultLiveTranslation(),
   };
 

@@ -37,6 +37,7 @@ import {
   saveStoredReaderSettings,
 } from '../../components/reader/readerStorage';
 import type {
+  InteractionMode,
   ReaderPageItem,
   ReaderSettings,
   ReadingMode,
@@ -69,6 +70,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     infoUrl = '',
   } = route.params;
 
+  const {width: viewportWidth, height: viewportHeight} = useWindowDimensions();
+
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(linkIndex);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [pages, setPages] = useState<ReaderPageItem[]>([]);
@@ -89,6 +92,15 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const [settings, setSettings] = useState<ReaderSettings>(() =>
     getStoredReaderSettings(),
   );
+
+  // Interaction Mode: Continuous default 'scroll', Paged default 'swipe'
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(() => {
+    if (settings.readingMode === 'webtoon') {
+      return settings.interactionMode === 'one_tap' ? 'one_tap' : 'scroll';
+    } else {
+      return settings.interactionMode === 'one_tap' ? 'one_tap' : 'swipe';
+    }
+  });
 
   const [translateEnabled, setTranslateEnabled] = useState<boolean>(
     () => settings.liveTranslateEnabled ?? false,
@@ -135,14 +147,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     };
   }, [settings.keepScreenAwake]);
 
-  // Orientation locker
+  // Orientation locker: strictly PORTRAIT or LANDSCAPE (no auto-rotating back)
   useEffect(() => {
-    if (settings.orientationMode === 'portrait') {
-      Orientation.lockToPortrait();
-    } else if (settings.orientationMode === 'landscape') {
+    if (settings.orientationMode === 'landscape') {
       Orientation.lockToLandscape();
     } else {
-      Orientation.unlockAllOrientations();
+      Orientation.lockToPortrait();
     }
     return () => {
       Orientation.unlockAllOrientations();
@@ -523,6 +533,11 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     const modes: ReadingMode[] = ['webtoon', 'manga', 'comic', 'double_spread'];
     const currentIdx = modes.indexOf(settings.readingMode);
     const nextMode = modes[(currentIdx + 1) % modes.length];
+    if (nextMode === 'webtoon') {
+      setInteractionMode(prev => (prev === 'one_tap' ? 'one_tap' : 'scroll'));
+    } else {
+      setInteractionMode(prev => (prev === 'one_tap' ? 'one_tap' : 'swipe'));
+    }
     setSettings(prev => {
       const updated = {...prev, readingMode: nextMode};
       saveStoredReaderSettings(updated);
@@ -530,17 +545,54 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     });
   }, [settings.readingMode]);
 
-  // Toggle Screen Orientation
+  // Toggle Screen Orientation: strictly between PORTRAIT and LANDSCAPE
   const handleToggleOrientation = useCallback(() => {
-    const orientations: ScreenOrientationMode[] = ['auto', 'portrait', 'landscape'];
-    const currentIdx = orientations.indexOf(settings.orientationMode);
-    const nextOrientation = orientations[(currentIdx + 1) % orientations.length];
+    const nextOrientation: ScreenOrientationMode =
+      settings.orientationMode === 'portrait' ? 'landscape' : 'portrait';
+    if (nextOrientation === 'landscape') {
+      Orientation.lockToLandscape();
+      ToastAndroid.show('Orientation: Landscape', ToastAndroid.SHORT);
+    } else {
+      Orientation.lockToPortrait();
+      ToastAndroid.show('Orientation: Portrait', ToastAndroid.SHORT);
+    }
     setSettings(prev => {
       const updated = {...prev, orientationMode: nextOrientation};
       saveStoredReaderSettings(updated);
       return updated;
     });
   }, [settings.orientationMode]);
+
+  // Toggle Interaction Mode:
+  // Continuous (webtoon): cycles 'scroll' <-> 'one_tap'
+  // Paged: cycles 'swipe' <-> 'one_tap'
+  const handleToggleInteractionMode = useCallback(() => {
+    if (settings.readingMode === 'webtoon') {
+      const next: InteractionMode = interactionMode === 'scroll' ? 'one_tap' : 'scroll';
+      setInteractionMode(next);
+      setSettings(s => {
+        const u = {...s, interactionMode: next};
+        saveStoredReaderSettings(u);
+        return u;
+      });
+      ToastAndroid.show(
+        next === 'scroll' ? 'Scroll Mode (Free flick & drag)' : 'One-Tap Mode (Tap edges to scroll)',
+        ToastAndroid.SHORT,
+      );
+    } else {
+      const next: InteractionMode = interactionMode === 'swipe' ? 'one_tap' : 'swipe';
+      setInteractionMode(next);
+      setSettings(s => {
+        const u = {...s, interactionMode: next};
+        saveStoredReaderSettings(u);
+        return u;
+      });
+      ToastAndroid.show(
+        next === 'swipe' ? 'Swipe Mode (Natural swipe turn)' : 'One-Tap Mode (Tap edges to turn)',
+        ToastAndroid.SHORT,
+      );
+    }
+  }, [settings.readingMode, interactionMode]);
 
   // Toggle Quality (Original vs Compressed / Data Saver)
   const handleToggleQuality = useCallback(() => {
@@ -625,6 +677,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
           disableTapZones={settings.disableTapZonesInWebtoon}
+          interactionMode={interactionMode}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
@@ -640,6 +693,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           scaleMode={settings.imageScale}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
+          interactionMode={interactionMode}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
@@ -672,6 +726,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         currentChapterIndex={currentChapterIndex}
         readingMode={settings.readingMode}
         orientationMode={settings.orientationMode}
+        interactionMode={interactionMode}
         quality={quality}
         theme={settings.theme}
         turboBadgeText={turboStats.statusText}
@@ -685,6 +740,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         onPageSliderChange={handlePageChange}
         onToggleReadingMode={handleToggleReadingMode}
         onToggleOrientation={handleToggleOrientation}
+        onToggleInteractionMode={handleToggleInteractionMode}
         onToggleQuality={handleToggleQuality}
         onOpenWafBypass={handleOpenWafBypass}
         onOpenSettings={() => setSettingsSheetVisible(true)}

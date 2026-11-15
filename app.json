@@ -5,6 +5,7 @@
     "slug": "vega-komix",
     "version": "6.0.0",
     "scheme": "vegakomix",
+    "orientation": "default",
     "android": {
       "package": "com.vegakomix.app",
       "versionCode": 300

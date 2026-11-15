@@ -13,6 +13,7 @@ import Slider from '@react-native-community/slider';
 import AppText from '../ui/Text';
 import type {EpisodeLink} from '../../lib/providers/types';
 import type {
+  InteractionMode,
   ReaderTheme,
   ReadingMode,
   ScreenOrientationMode,
@@ -30,6 +31,7 @@ interface ReaderHUDProps {
   currentChapterIndex: number;
   readingMode: ReadingMode;
   orientationMode: ScreenOrientationMode;
+  interactionMode?: InteractionMode;
   quality: 'original' | 'compressed';
   theme: ReaderTheme;
   turboBadgeText?: string;
@@ -43,6 +45,7 @@ interface ReaderHUDProps {
   onPageSliderChange: (pageIndex: number) => void;
   onToggleReadingMode: () => void;
   onToggleOrientation: () => void;
+  onToggleInteractionMode?: () => void;
   onToggleQuality: () => void;
   onOpenWafBypass: () => void;
   onOpenSettings: () => void;
@@ -56,12 +59,21 @@ const READING_MODE_LABELS: Record<ReadingMode, {label: string; icon: string}> = 
 };
 
 const ORIENTATION_LABELS: Record<
-  ScreenOrientationMode,
+  string,
   {label: string; icon: string}
 > = {
-  auto: {label: 'Auto', icon: 'screen-rotation'},
   portrait: {label: 'Portrait', icon: 'phone-rotate-landscape'},
   landscape: {label: 'Landscape', icon: 'phone-rotate-portrait'},
+  auto: {label: 'Portrait', icon: 'phone-rotate-landscape'},
+};
+
+const INTERACTION_MODE_LABELS: Record<
+  InteractionMode,
+  {label: string; icon: string}
+> = {
+  scroll: {label: 'Scroll', icon: 'gesture-swipe-vertical'},
+  one_tap: {label: 'One-Tap', icon: 'gesture-tap'},
+  swipe: {label: 'Swipe', icon: 'gesture-swipe-horizontal'},
 };
 
 export const ReaderHUD: React.FC<ReaderHUDProps> = ({
@@ -74,6 +86,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   currentChapterIndex,
   readingMode,
   orientationMode,
+  interactionMode = 'scroll',
   quality,
   theme,
   turboBadgeText = 'Turbo: +8 Ready',
@@ -87,6 +100,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onPageSliderChange,
   onToggleReadingMode,
   onToggleOrientation,
+  onToggleInteractionMode,
   onToggleQuality,
   onOpenWafBypass,
   onOpenSettings,
@@ -98,7 +112,9 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   if (!visible) return null;
 
   const modeInfo = READING_MODE_LABELS[readingMode];
-  const orientationInfo = ORIENTATION_LABELS[orientationMode];
+  const orientationInfo = ORIENTATION_LABELS[orientationMode] || ORIENTATION_LABELS.portrait;
+  const interactionInfo =
+    INTERACTION_MODE_LABELS[interactionMode] || INTERACTION_MODE_LABELS.scroll;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -324,6 +340,24 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
               {modeInfo.label}
             </AppText>
           </TouchableOpacity>
+
+          {/* Interaction Mode Button (Scroll / One-Tap / Swipe) */}
+          {onToggleInteractionMode && (
+            <TouchableOpacity
+              onPress={onToggleInteractionMode}
+              style={styles.controlButton}>
+              <MaterialCommunityIcons
+                name={interactionInfo.icon as any}
+                size={20}
+                color="#00E5FF"
+              />
+              <AppText
+                role="labelSmall"
+                style={{color: '#00E5FF', fontWeight: '700'}}>
+                {interactionInfo.label}
+              </AppText>
+            </TouchableOpacity>
+          )}
 
           {/* Orientation Toggle */}
           <TouchableOpacity

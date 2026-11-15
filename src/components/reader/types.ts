@@ -8,6 +8,8 @@ export type ImageScale = 'fit_width' | 'fit_height' | 'original';
 
 export type ScreenOrientationMode = 'portrait' | 'landscape' | 'auto';
 
+export type InteractionMode = 'scroll' | 'one_tap' | 'swipe';
+
 export interface ReaderSettings {
   theme: ReaderTheme;
   readingMode: ReadingMode;
@@ -18,6 +20,7 @@ export interface ReaderSettings {
   showFloatingPageNumber: boolean;
   disableTapZonesInWebtoon: boolean;
   orientationMode: ScreenOrientationMode;
+  interactionMode?: InteractionMode;
   liveTranslateEnabled?: boolean;
 }
 

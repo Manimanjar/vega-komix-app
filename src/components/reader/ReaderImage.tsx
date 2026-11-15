@@ -224,7 +224,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Double Tap Gesture (1x <-> 2.5x anchored)
+  // Double Tap Gesture (1x <-> 2x anchored)
   // CRITICAL: runOnJS(true) ensures zoom animation executes safely without worklet crash
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
@@ -234,12 +234,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       if (scale.value > 1.2) {
         resetZoom();
       } else {
-        const targetScale = 2.5;
+        const targetScale = 2.0;
         scale.value = withTiming(targetScale, {duration: 250});
         const centerX = windowWidth / 2;
         const centerY = windowHeight / 2;
-        const targetX = (centerX - e.x) * (targetScale - 1);
-        const targetY = (centerY - e.y) * (targetScale - 1);
+        const targetX = Math.max(-windowWidth * 0.5, Math.min(windowWidth * 0.5, (centerX - e.x)));
+        const targetY = Math.max(-windowHeight * 0.5, Math.min(windowHeight * 0.5, (centerY - e.y)));
         translationX.value = withTiming(targetX, {duration: 250});
         translationY.value = withTiming(targetY, {duration: 250});
         savedScale.value = targetScale;
@@ -248,47 +248,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Pinch Gesture (inherently 2-finger in RNGH, so single-finger swipes are NEVER intercepted)
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate(e => {
-      'worklet';
-      scale.value = Math.max(0.8, Math.min(savedScale.value * e.scale, 4.5));
-    })
-    .onEnd(() => {
-      'worklet';
-      if (scale.value < 1.05) {
-        resetZoom();
-      } else {
-        savedScale.value = scale.value;
-      }
-    });
-
-  // Pan Gesture - Enforce minPointers(2) so 1-finger swipes are never stolen from FlatList
-  const panGesture = Gesture.Pan()
-    .minPointers(2)
-    .onUpdate(e => {
-      'worklet';
-      if (scale.value > 1.1) {
-        translationX.value = savedTranslationX.value + e.translationX;
-        translationY.value = savedTranslationY.value + e.translationY;
-      }
-    })
-    .onEnd(() => {
-      'worklet';
-      if (scale.value <= 1.1) {
-        resetZoom();
-      } else {
-        savedTranslationX.value = translationX.value;
-        savedTranslationY.value = translationY.value;
-      }
-    });
-
-  const gesture = isWebtoon
-    ? Gesture.Exclusive(doubleTapGesture, singleTapGesture)
-    : Gesture.Race(
-        Gesture.Exclusive(doubleTapGesture, singleTapGesture),
-        Gesture.Simultaneous(pinchGesture, panGesture),
-      );
+  const gesture = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

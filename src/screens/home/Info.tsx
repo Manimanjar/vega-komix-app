@@ -516,36 +516,13 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
   return (
     <QueryErrorBoundary>
       <M3PaletteContext.Provider value={detailColors}>
-        <View style={{backgroundColor: detailColors.background, flex: 1}}>
-          <View
-            pointerEvents="none"
-            style={{
-              height: 340,
-              left: 0,
-              position: 'absolute',
-              right: 0,
-              top: 0,
-            }}>
-            {backdropReady ? (
-              <Image
-                source={{uri: backgroundImage}}
-                resizeMode="cover"
-                resizeMethod="resize"
-                blurRadius={backdropPosterLike ? 18 : 0}
-                style={{
-                  height: 340,
-                  opacity: backdropPosterLike ? 0.75 : 1,
-                  width: '100%',
-                }}
-              />
-            ) : null}
-          </View>
+        <View style={{backgroundColor: '#000000', flex: 1}}>
           <StatusBarScrim visible={statusBarScrimVisible} />
           <StatusBar style="light" />
           <TVFocusGuide autoFocus={true} trapFocusDown={true} trapFocusRight={true} style={{flex: 1}}>
           <ScreenOverlayHost>
           <FlatList
-            style={{backgroundColor: 'transparent'}}
+            style={{backgroundColor: '#000000'}}
             data={[]}
             keyExtractor={(_, index) => String(index)}
             renderItem={() => null}
@@ -597,7 +574,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                 />
                 <View
                   style={{
-                    backgroundColor: detailColors.background,
+                    backgroundColor: '#000000',
                     paddingHorizontal: 18,
                     paddingTop: 24,
                   }}>
@@ -634,7 +611,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
             ListFooterComponent={
               <View
                 style={{
-                  backgroundColor: detailColors.background,
+                  backgroundColor: '#000000',
                   height: 110,
                 }}
               />

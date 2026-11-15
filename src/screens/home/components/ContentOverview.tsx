@@ -237,32 +237,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   }, [characters]);
 
   return (
-    <View style={{position: 'relative'}}>
-      {/* Background ambient backdrop */}
-      <View
-        pointerEvents="none"
-        style={{
-          height: 380,
-          left: 0,
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          overflow: 'hidden',
-        }}>
-        {backgroundImage ? (
-          <ExpoImage
-            source={{uri: backgroundImage}}
-            contentFit="cover"
-            blurRadius={25}
-            style={{height: '100%', width: '100%', opacity: 0.38}}
-          />
-        ) : null}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)', colors.background]}
-          locations={[0, 0.5, 1]}
-          style={{position: 'absolute', inset: 0}}
-        />
-      </View>
+    <View style={{position: 'relative', backgroundColor: '#000000'}}>
 
       {/* Top Header Navigation Bar */}
       <View
