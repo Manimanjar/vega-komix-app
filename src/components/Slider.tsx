@@ -78,6 +78,8 @@ const SliderPosterItem = memo(
         cornerTag={item.cornerTag || item.tag}
         contentType={(item as any).type || (item as any).contentType || item.tag}
         providerBadge={item.provider || providerValue}
+        comicLink={item.link}
+        isNew={item.tag === 'NEW' || item.cornerTag === 'NEW' || (item as any).isNew}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onLongPress={handleLongPress}

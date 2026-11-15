@@ -31,6 +31,7 @@ export {
   DEFAULT_COLLECTION,
   DEFAULT_COLLECTION_ID,
   getItemCollectionIds,
+  getUnreadChapterCount,
 } from './WatchListStorage';
 export type {
   WatchListKeys,

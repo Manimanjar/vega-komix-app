@@ -11,6 +11,7 @@ import {
 import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {autoDomainResolver} from '../lib/network/autoDomainResolver';
+import {watchListStorage} from '../lib/storage/WatchListStorage';
 import AppText from './ui/Text';
 
 export interface ComicThumbnailProps {
@@ -40,7 +41,9 @@ export interface ComicThumbnailProps {
   recyclingKey?: string;
   altTitle?: string;
   blurhash?: string;
-  placeholder?: ImageSourcePropType;
+  newChaptersCount?: number;
+  isNew?: boolean;
+  comicLink?: string;
   onLoad?: () => void;
   onError?: (error: any) => void;
 }
@@ -112,9 +115,24 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
     imageStyle,
     contentFit = 'cover',
     altTitle,
+    newChaptersCount,
+    isNew,
+    comicLink,
     onLoad,
     onError,
   } = props;
+
+  const unreadCount = useMemo(() => {
+    if (typeof newChaptersCount === 'number') return newChaptersCount;
+    if (comicLink) return watchListStorage.getUnreadChapterCount(comicLink);
+    return 0;
+  }, [newChaptersCount, comicLink]);
+
+  const showNewBadge = useMemo(() => {
+    if (typeof isNew === 'boolean') return isNew;
+    if (comicLink) return watchListStorage.getNewComicStatus(comicLink);
+    return false;
+  }, [isNew, comicLink]);
 
   const rawUri = extractThumbnailUrl(props);
   const upgradedUrl = useMemo(() => upgradeThumbnailUrl(rawUri), [rawUri]);
@@ -223,6 +241,21 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
             {altTitle}
           </AppText>
         ) : null}
+
+        {/* Green +X New Chapters Badge or NEW Comic Badge */}
+        {unreadCount > 0 ? (
+          <View style={styles.neonBadgeContainer}>
+            <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
+              +{unreadCount}
+            </AppText>
+          </View>
+        ) : showNewBadge ? (
+          <View style={styles.neonBadgeContainer}>
+            <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
+              NEW
+            </AppText>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -244,6 +277,21 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
           imageStyle,
         ]}
       />
+
+      {/* Green +X New Chapters Badge or NEW Comic Badge */}
+      {unreadCount > 0 ? (
+        <View style={styles.neonBadgeContainer}>
+          <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
+            +{unreadCount}
+          </AppText>
+        </View>
+      ) : showNewBadge ? (
+        <View style={styles.neonBadgeContainer}>
+          <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
+            NEW
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -265,6 +313,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     fontSize: 11,
+  },
+  neonBadgeContainer: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    zIndex: 10,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.5,
+    shadowOffset: {width: 0, height: 2},
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  neonBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 11,
+    letterSpacing: 0.2,
   },
 });
 

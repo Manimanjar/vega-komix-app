@@ -28,6 +28,10 @@ export interface WatchListItem {
   updatedAt?: number;
   /** Category ids. Missing or empty means the default category. */
   collections?: string[];
+  lastKnownChapterCount?: number;
+  lastReadChapterNumber?: number;
+  newChaptersCount?: number;
+  isNew?: boolean;
 }
 
 /**
@@ -263,7 +267,158 @@ export class WatchListStorage {
     }
     return {collections, watchList};
   }
+
+  /**
+   * Retrieves the number of unread / new chapters for a bookmarked comic.
+   */
+  getUnreadChapterCount(comicLink: string): number {
+    if (!comicLink) return 0;
+    const watchList = this.getWatchList();
+    const item = watchList.find(i => i.link === comicLink);
+    if (!item) return 0;
+    if (typeof item.newChaptersCount === 'number' && item.newChaptersCount > 0) {
+      return item.newChaptersCount;
+    }
+    if (
+      typeof item.lastKnownChapterCount === 'number' &&
+      typeof item.lastReadChapterNumber === 'number' &&
+      item.lastKnownChapterCount > item.lastReadChapterNumber
+    ) {
+      return Math.max(0, item.lastKnownChapterCount - item.lastReadChapterNumber);
+    }
+    return 0;
+  }
+
+  /**
+   * Returns whether a comic is marked as new.
+   */
+  getNewComicStatus(comicLink: string): boolean {
+    if (!comicLink) return false;
+    const watchList = this.getWatchList();
+    const item = watchList.find(i => i.link === comicLink);
+    return Boolean(item?.isNew);
+  }
+
+  /**
+   * Records provider chapter count and computes newly added chapters.
+   */
+  recordChapterCount(
+    comicLink: string,
+    currentTotalChapters: number,
+  ): {newChaptersCount: number} {
+    if (!comicLink || currentTotalChapters <= 0) return {newChaptersCount: 0};
+    const watchList = this.getWatchList();
+    const index = watchList.findIndex(i => i.link === comicLink);
+    if (index === -1) return {newChaptersCount: 0};
+
+    const item = watchList[index];
+    let newCount = 0;
+
+    if (item.lastKnownChapterCount === undefined || item.lastKnownChapterCount === null) {
+      // First discovery: initialize baseline
+      watchList[index] = {
+        ...item,
+        lastKnownChapterCount: currentTotalChapters,
+        newChaptersCount: 0,
+        updatedAt: Date.now(),
+      };
+    } else if (currentTotalChapters > item.lastKnownChapterCount) {
+      newCount = currentTotalChapters - item.lastKnownChapterCount;
+      watchList[index] = {
+        ...item,
+        newChaptersCount: newCount,
+        updatedAt: Date.now(),
+      };
+    } else if (currentTotalChapters < item.lastKnownChapterCount) {
+      // Provider pruned dead links: recalibrate baseline
+      watchList[index] = {
+        ...item,
+        lastKnownChapterCount: currentTotalChapters,
+        newChaptersCount: 0,
+        updatedAt: Date.now(),
+      };
+    }
+
+    mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+    return {newChaptersCount: newCount};
+  }
+
+  /**
+   * Acknowledges new chapters (e.g. when opening comic/Info screen) and clears the badge.
+   */
+  acknowledgeChapters(comicLink: string, totalChapters?: number): void {
+    if (!comicLink) return;
+    const watchList = this.getWatchList();
+    const index = watchList.findIndex(i => i.link === comicLink);
+    if (index === -1) return;
+
+    const item = watchList[index];
+    const newBaseline =
+      typeof totalChapters === 'number' && totalChapters > 0
+        ? totalChapters
+        : (item.lastKnownChapterCount || 0) + (item.newChaptersCount || 0);
+
+    watchList[index] = {
+      ...item,
+      lastKnownChapterCount: Math.max(item.lastKnownChapterCount || 0, newBaseline),
+      newChaptersCount: 0,
+      isNew: false,
+      updatedAt: Date.now(),
+    };
+    mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+  }
+
+  /**
+   * Records last read chapter number.
+   */
+  recordLastReadChapter(comicLink: string, chapterNumber: number): void {
+    if (!comicLink) return;
+    const watchList = this.getWatchList();
+    const index = watchList.findIndex(i => i.link === comicLink);
+    if (index === -1) return;
+
+    const item = watchList[index];
+    const updated: WatchListItem = {
+      ...item,
+      lastReadChapterNumber: Math.max(item.lastReadChapterNumber || 0, chapterNumber),
+      updatedAt: Date.now(),
+    };
+
+    if (
+      typeof updated.lastKnownChapterCount === 'number' &&
+      typeof updated.lastReadChapterNumber === 'number' &&
+      updated.lastReadChapterNumber >= updated.lastKnownChapterCount
+    ) {
+      updated.newChaptersCount = 0;
+    }
+
+    watchList[index] = updated;
+    mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+  }
+
+  /**
+   * Sets whether comic has NEW badge.
+   */
+  markComicAsNew(comicLink: string, isNew: boolean): void {
+    if (!comicLink) return;
+    const watchList = this.getWatchList();
+    const index = watchList.findIndex(i => i.link === comicLink);
+    if (index === -1) return;
+
+    watchList[index] = {
+      ...watchList[index],
+      isNew,
+      updatedAt: Date.now(),
+    };
+    mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+  }
 }
 
 // Export a singleton instance
 export const watchListStorage = new WatchListStorage();
+
+/**
+ * Convenience utility to get unread chapter count for any comic link
+ */
+export const getUnreadChapterCount = (comicLink: string): number =>
+  watchListStorage.getUnreadChapterCount(comicLink);

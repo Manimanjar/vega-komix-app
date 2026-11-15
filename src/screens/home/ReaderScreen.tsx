@@ -30,7 +30,7 @@ import {
 import useDownloadsStore from '../../lib/zustand/downloadsStore';
 import {downloadManager} from '../../lib/downloader';
 import AppText from '../../components/ui/Text';
-import {settingsStorage} from '../../lib/storage';
+import {settingsStorage, watchListStorage} from '../../lib/storage';
 import {
   DEFAULT_READER_SETTINGS,
   getStoredReaderProgress,
@@ -478,6 +478,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         poster: poster?.poster || poster?.background,
         providerValue,
       });
+      watchListStorage.recordLastReadChapter(infoUrl || chapterLink, currentChapterIndex + 1);
+      watchListStorage.acknowledgeChapters(infoUrl || chapterLink);
     },
     [
       infoUrl,

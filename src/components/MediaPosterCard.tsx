@@ -65,6 +65,9 @@ interface MediaPosterCardProps {
   cornerTag?: string;
   contentType?: string;
   providerBadge?: string;
+  newChaptersCount?: number;
+  isNew?: boolean;
+  comicLink?: string;
   selected?: boolean;
   selectionMode?: boolean;
   hasTVPreferredFocus?: boolean;
@@ -114,6 +117,9 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       cornerTag,
       contentType,
       providerBadge,
+      newChaptersCount,
+      isNew,
+      comicLink,
       selected = false,
       selectionMode = false,
       hasTVPreferredFocus = false,
@@ -377,6 +383,9 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       borderRadius={activeBorderRadius}
                       altTitle={title}
                       width="100%"
+                      newChaptersCount={newChaptersCount}
+                      isNew={isNew || tag === 'NEW' || cornerTag === 'NEW'}
+                      comicLink={comicLink}
                     />
                   ) : (
                     <View

@@ -26,12 +26,20 @@ interface WatchListStore {
   createCollection: (draft: CollectionDraft) => LibraryCollection;
   updateCollection: (id: string, draft: CollectionDraft) => void;
   deleteCollection: (id: string) => void;
+  syncFromStorage: () => void;
 }
 
 const useWatchListStore = create<WatchListStore>()((set, get) => ({
   // Initialize from storage
   watchList: watchListStorage.getWatchList(),
   collections: watchListStorage.getCollections(),
+
+  syncFromStorage: () => {
+    set({
+      watchList: watchListStorage.getWatchList(),
+      collections: watchListStorage.getCollections(),
+    });
+  },
 
   // Remove item using storage service
   removeItem: link => {

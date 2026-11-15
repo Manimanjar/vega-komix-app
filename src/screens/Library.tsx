@@ -10,6 +10,7 @@ import {
   BackHandler,
   FlatList,
   Platform,
+  RefreshControl,
   ScrollView,
   useWindowDimensions,
   View,
@@ -27,9 +28,11 @@ import {
   getItemCollectionIds,
   mainStorage,
   settingsStorage,
+  watchListStorage,
   type LibraryCollection,
   type WatchListItem,
 } from '../lib/storage';
+import {libraryUpdateChecker} from '../services/libraryUpdateChecker';
 import {syncFromSharedFolder} from '../lib/sync/syncService';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
 import useWatchListStore from '../lib/zustand/watchListStore';
@@ -82,6 +85,25 @@ const Library = () => {
   const [editor, setEditor] = useState<EditorState>({visible: false});
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Background update check on library screen focus
+  useFocusEffect(
+    useCallback(() => {
+      libraryUpdateChecker.checkLibraryUpdates(false).catch(() => {});
+    }, []),
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await libraryUpdateChecker.checkLibraryUpdates(true);
+      useWatchListStore.getState().syncFromStorage();
+    } catch {
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
 
   const selectButtonRef = React.useRef<View>(null);
   const firstCardRef = React.useRef<View>(null);
@@ -253,10 +275,15 @@ const Library = () => {
       triggerHaptic(HapticFeedbackTypes.effectTick);
       toggleSelected(item.link);
     } else {
+      // Mark chapters acknowledged when opening
+      watchListStorage.acknowledgeChapters(item.link);
+      useWatchListStore.getState().syncFromStorage();
+
       navigation.navigate('Info', {
         link: item.link,
         provider: item.provider,
         poster: item.poster,
+        title: item.title,
       });
     }
   };
@@ -526,6 +553,9 @@ const Library = () => {
         title={item.title}
         poster={item.poster}
         width={itemWidth}
+        newChaptersCount={item.newChaptersCount}
+        isNew={item.isNew}
+        comicLink={item.link}
         selected={selectedLinks.has(item.link)}
         selectionMode={isSelectionMode}
         hasTVPreferredFocus={
@@ -777,6 +807,14 @@ const Library = () => {
             }}
             removeClippedSubviews={false}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                colors={['#10B981', colors.primary]}
+                tintColor="#10B981"
+              />
+            }
           />
         )) : (
           <View className="flex-1">

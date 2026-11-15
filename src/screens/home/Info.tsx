@@ -4,7 +4,7 @@ import {
   NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import {StatusBar} from 'expo-status-bar';
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   BackHandler,
   FlatList,
@@ -31,7 +31,7 @@ import {useContentDetails} from '../../lib/hooks/useContentInfo';
 import {useArtworkShape} from '../../lib/hooks/useHomePageData';
 import {useInfoAccent} from '../../lib/hooks/useInfoAccent';
 import type {ChapterLink, EpisodeLink, Link} from '../../lib/providers/types';
-import {settingsStorage} from '../../lib/storage';
+import {settingsStorage, watchListStorage} from '../../lib/storage';
 import useContentStore from '../../lib/zustand/contentStore';
 import useWatchListStore from '../../lib/zustand/watchListStore';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
@@ -397,6 +397,15 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     route.params.title,
     route.params.link,
   ]);
+
+  // Acknowledge new chapters when opening Info screen so the badge clears
+  useEffect(() => {
+    if (route.params.link) {
+      const totalCount = derivedChapters.length > 0 ? derivedChapters.length : undefined;
+      watchListStorage.acknowledgeChapters(route.params.link, totalCount);
+      useWatchListStore.getState().syncFromStorage();
+    }
+  }, [route.params.link, derivedChapters.length]);
 
   const handleStartReading = useCallback(() => {
     const chapters = derivedChapters;
