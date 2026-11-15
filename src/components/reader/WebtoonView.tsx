@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -17,7 +16,7 @@ import AppText from '../ui/Text';
 import {resolvePageHeaders} from './usePagePreloader';
 import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
-import type {ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
+import type {AutoScrollSpeed, ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
 import type {PageTranslationResult, TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
@@ -27,6 +26,9 @@ export interface AutoHeightComicPageProps {
   index: number;
   screenWidth: number;
   theme: ReaderTheme;
+  scaleMode?: ImageScale;
+  zoomScale?: number;
+  reloadKey?: number;
   cropWhiteBorders?: boolean;
   translateEnabled?: boolean;
   translationBubbles?: TranslatedBubble[];
@@ -40,6 +42,9 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   index,
   screenWidth,
   theme,
+  scaleMode = 'fit_width',
+  zoomScale = 1.0,
+  reloadKey = 0,
   cropWhiteBorders = false,
   translateEnabled = false,
   translationBubbles,
@@ -103,15 +108,33 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     }
   }, [toggleZoom, onToggleHUD]);
 
-  // Default aspect ratio: width = screenWidth, height = screenWidth * 1.45
+  const effectiveWidth = useMemo(() => {
+    return Math.round(screenWidth * (zoomScale || 1.0));
+  }, [screenWidth, zoomScale]);
+
+  // Default aspect ratio: width = effectiveWidth, height = effectiveWidth * (naturalHeight / naturalWidth)
   const initialHeight = useMemo(() => {
     if (item.width && item.height && item.width > 0 && item.height > 0) {
-      return Math.round(screenWidth * (item.height / item.width));
+      return Math.round(effectiveWidth * (item.height / item.width));
     }
-    return Math.round(screenWidth * 1.45);
-  }, [screenWidth, item.width, item.height]);
+    return Math.round(effectiveWidth * 1.45);
+  }, [effectiveWidth, item.width, item.height]);
 
   const [pageHeight, setPageHeight] = useState<number>(initialHeight);
+
+  // Update height when effectiveWidth changes
+  useEffect(() => {
+    setPageHeight(initialHeight);
+  }, [initialHeight]);
+
+  // Trigger reload if reloadKey changes
+  useEffect(() => {
+    if (reloadKey > 0) {
+      setLoading(true);
+      setLoadError(false);
+      setRetryKey(k => k + 1);
+    }
+  }, [reloadKey]);
 
   // Resolve headers (e.g. referer, cookies) asynchronously
   useEffect(() => {
@@ -134,36 +157,33 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       const naturalWidth = src?.width || item.width;
       const naturalHeight = src?.height || item.height;
       if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
-        const dynamicHeight = Math.round(screenWidth * (naturalHeight / naturalWidth));
+        const dynamicHeight = Math.round(screenWidth * (naturalHeight / naturalWidth)) * (zoomScale || 1.0);
         setPageHeight(dynamicHeight);
         onPageMeasured?.(index, dynamicHeight);
       }
     },
-    [screenWidth, item.width, item.height, index, onPageMeasured],
+    [screenWidth, zoomScale, item.width, item.height, index, onPageMeasured],
   );
 
   const handleImageError = useCallback(() => {
+    setLoading(false);
+    setLoadError(true);
+    // Automatic retry with relaxed referrer
     retryPageImageWithUpdatedHeaders({
       index,
       imageUrl: currentUrl,
       headers: resolvedHeaders,
     })
-      .then(updated => {
-        if (updated.imageUrl !== currentUrl) {
-          setCurrentUrl(updated.imageUrl);
-          if (updated.headers) setResolvedHeaders(updated.headers);
-          setLoading(true);
+      .then(result => {
+        if (result && result.imageUrl && result.imageUrl !== currentUrl) {
+          setCurrentUrl(result.imageUrl);
+          if (result.headers) setResolvedHeaders(result.headers);
           setLoadError(false);
+          setLoading(true);
           setRetryKey(k => k + 1);
-        } else {
-          setLoading(false);
-          setLoadError(true);
         }
       })
-      .catch(() => {
-        setLoading(false);
-        setLoadError(true);
-      });
+      .catch(() => {});
   }, [index, currentUrl, resolvedHeaders]);
 
   const themeColors = THEME_COLORS[theme];
@@ -172,10 +192,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     <Pressable
       onPress={handlePagePress}
       style={{
-        width: screenWidth,
-        height: pageHeight,
-        backgroundColor: themeColors.background,
-        overflow: cropWhiteBorders ? 'hidden' : 'visible',
+        width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
       }}>
@@ -186,7 +203,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           ...(resolvedHeaders ? {headers: resolvedHeaders} : {}),
         }}
         style={{
-          width: screenWidth,
+          width: effectiveWidth, // width: screenWidth
           height: pageHeight,
           transform: [{scale: scaleAnim}],
         }}
@@ -229,7 +246,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
         <TranslatedBubbleOverlay
           bubbles={translationBubbles}
-          renderedWidth={screenWidth}
+          renderedWidth={effectiveWidth}
           renderedHeight={pageHeight}
           visible={true}
         />
@@ -245,6 +262,9 @@ export interface WebtoonViewProps {
   onToggleHUD: () => void;
   onReachEnd?: () => void;
   scaleMode?: ImageScale;
+  zoomScale?: number;
+  autoScrollSpeed?: AutoScrollSpeed;
+  reloadKey?: number;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   disableTapZones?: boolean;
@@ -260,6 +280,10 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   onPageChange,
   onToggleHUD,
   onReachEnd,
+  scaleMode = 'fit_width',
+  zoomScale = 1.0,
+  autoScrollSpeed = 'off',
+  reloadKey = 0,
   cropWhiteBorders = false,
   theme = 'amoled',
   disableTapZones = false,
@@ -300,6 +324,26 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     }
   }, [currentPageIndex, pages.length, windowHeight]);
 
+  // Hands-Free Auto-Scroll: Smooth continuous scroll, pauses automatically on touch
+  useEffect(() => {
+    if (!autoScrollSpeed || autoScrollSpeed === 'off') return;
+
+    const speedPx =
+      autoScrollSpeed === 'slow' ? 1.0 : autoScrollSpeed === 'medium' ? 2.4 : 4.5;
+
+    const timer = setInterval(() => {
+      if (!isUserScrolling.current && listRef.current) {
+        currentScrollY.current += speedPx;
+        listRef.current.scrollToOffset({
+          offset: currentScrollY.current,
+          animated: false,
+        });
+      }
+    }, 32);
+
+    return () => clearInterval(timer);
+  }, [autoScrollSpeed]);
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     currentScrollY.current = e.nativeEvent.contentOffset.y;
   }, []);
@@ -325,6 +369,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const handleLeftTap = useCallback(() => {
     try {
       const prevOffset = Math.max(0, currentScrollY.current - windowHeight * 0.8);
+      currentScrollY.current = prevOffset;
       listRef.current?.scrollToOffset({offset: prevOffset, animated: true});
     } catch {}
   }, [windowHeight]);
@@ -332,6 +377,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const handleRightTap = useCallback(() => {
     try {
       const nextOffset = currentScrollY.current + windowHeight * 0.8;
+      currentScrollY.current = nextOffset;
       listRef.current?.scrollToOffset({offset: nextOffset, animated: true});
     } catch {}
   }, [windowHeight]);
@@ -345,6 +391,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           index={index}
           screenWidth={windowWidth}
           theme={theme}
+          scaleMode={scaleMode}
+          zoomScale={zoomScale}
+          reloadKey={reloadKey}
           cropWhiteBorders={cropWhiteBorders}
           translateEnabled={translateEnabled}
           translationBubbles={bubbles}
@@ -356,6 +405,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     [
       windowWidth,
       theme,
+      scaleMode,
+      zoomScale,
+      reloadKey,
       cropWhiteBorders,
       translateEnabled,
       pageTranslations,
@@ -378,7 +430,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         data={pages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        extraData={currentPageIndex}
+        extraData={`${currentPageIndex}-${zoomScale}-${reloadKey}`}
         horizontal={false}
         pagingEnabled={false}
         scrollEnabled={true}
@@ -389,6 +441,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         onScroll={handleScroll}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;
+        }}
+        onScrollEndDrag={() => {
+          isUserScrolling.current = false;
         }}
         onMomentumScrollEnd={() => {
           isUserScrolling.current = false;

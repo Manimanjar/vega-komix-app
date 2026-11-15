@@ -14,49 +14,29 @@ import BottomSheet, {
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AppText from '../ui/Text';
 import type {
+  AutoScrollSpeed,
   ImageScale,
   ReaderSettings,
-  ReaderTheme,
 } from './types';
-import {THEME_COLORS} from './types';
 
 interface ReaderSettingsSheetProps {
   visible: boolean;
   settings: ReaderSettings;
+  quality?: 'original' | 'compressed';
   onUpdateSettings: (newSettings: Partial<ReaderSettings>) => void;
   onClose: () => void;
+  onJumpToFirstPage?: () => void;
+  onReloadCurrentPage?: () => void;
+  onToggleQuality?: () => void;
+  onDownloadChapter?: () => void;
 }
 
-const THEME_OPTIONS: Array<{
-  theme: ReaderTheme;
-  label: string;
-  bgColor: string;
-  textColor: string;
-}> = [
-  {
-    theme: 'amoled',
-    label: 'AMOLED',
-    bgColor: '#000000',
-    textColor: '#FFFFFF',
-  },
-  {
-    theme: 'dark',
-    label: 'Dark Gray',
-    bgColor: '#18181B',
-    textColor: '#F4F4F5',
-  },
-  {
-    theme: 'sepia',
-    label: 'Sepia',
-    bgColor: '#F4ECD8',
-    textColor: '#433422',
-  },
-  {
-    theme: 'white',
-    label: 'White',
-    bgColor: '#FFFFFF',
-    textColor: '#111827',
-  },
+const ZOOM_LEVELS: Array<{value: number; label: string}> = [
+  {value: 1.0, label: '1.0x (Reset)'},
+  {value: 1.25, label: '1.25x'},
+  {value: 1.5, label: '1.5x'},
+  {value: 2.0, label: '2.0x'},
+  {value: 2.5, label: '2.5x'},
 ];
 
 const SCALE_OPTIONS: Array<{
@@ -64,20 +44,43 @@ const SCALE_OPTIONS: Array<{
   label: string;
   icon: string;
 }> = [
-  {scale: 'fit_width', label: 'Fit Width', icon: 'arrow-expand-horizontal'},
+  {scale: 'fit_width', label: 'Fit Width (Full Bleed)', icon: 'arrow-expand-horizontal'},
   {scale: 'fit_height', label: 'Fit Height', icon: 'arrow-expand-vertical'},
+  {scale: 'fit_screen', label: 'Fit Screen', icon: 'fit-to-screen-outline'},
   {scale: 'original', label: 'Original', icon: 'aspect-ratio'},
+];
+
+const AUTO_SCROLL_OPTIONS: Array<{
+  speed: AutoScrollSpeed;
+  label: string;
+  icon: string;
+}> = [
+  {speed: 'off', label: 'Off', icon: 'pause-circle-outline'},
+  {speed: 'slow', label: 'Slow (1x)', icon: 'play-speed'},
+  {speed: 'medium', label: 'Medium (2x)', icon: 'fast-forward'},
+  {speed: 'fast', label: 'Fast (3x)', icon: 'rocket-launch-outline'},
+];
+
+const BRIGHTNESS_LEVELS: Array<{value: number; label: string}> = [
+  {value: 100, label: '100%'},
+  {value: 75, label: '75%'},
+  {value: 50, label: '50%'},
+  {value: 25, label: '25%'},
 ];
 
 export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   visible,
   settings,
+  quality = 'original',
   onUpdateSettings,
   onClose,
+  onJumpToFirstPage,
+  onReloadCurrentPage,
+  onToggleQuality,
+  onDownloadChapter,
 }) => {
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['65%', '85%'], []);
-  const themeColors = THEME_COLORS[settings.theme];
+  const snapPoints = useMemo(() => ['75%', '92%'], []);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -92,6 +95,11 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   );
 
   if (!visible) return null;
+
+  const currentZoom = settings.zoomScale ?? 1.0;
+  const currentAutoScroll = settings.autoScrollSpeed ?? 'off';
+  const currentDimmer = settings.screenDimmer ?? 100;
+  const isWarmFilter = settings.warmFilterEnabled ?? false;
 
   return (
     <Modal
@@ -109,69 +117,62 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
             enablePanDownToClose
             backdropComponent={renderBackdrop}
             onClose={onClose}
-            backgroundStyle={{backgroundColor: '#1E1E24'}}
-            handleIndicatorStyle={{backgroundColor: '#71717A'}}>
+            backgroundStyle={{backgroundColor: '#000000'}}
+            handleIndicatorStyle={{backgroundColor: '#52525B'}}>
             <BottomSheetScrollView
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}>
               {/* Header */}
               <View style={styles.headerRow}>
-                <AppText role="titleLargeEmphasized" style={{color: '#FFFFFF'}}>
-                  Reader Settings
-                </AppText>
+                <View>
+                  <AppText role="titleLargeEmphasized" style={{color: '#FFFFFF'}}>
+                    Quick Reader Settings
+                  </AppText>
+                  <AppText role="bodySmall" style={{color: '#71717A', marginTop: 2}}>
+                    Live reader adjustments & display tools
+                  </AppText>
+                </View>
                 <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                   <MaterialCommunityIcons name="close" size={20} color="#A1A1AA" />
                 </TouchableOpacity>
               </View>
 
-              {/* 1. Theme Palette Selector */}
+              {/* 1. LIVE ZOOM LEVEL */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
-                  Background Theme
+                  Live Zoom Level
                 </AppText>
-                <View style={styles.themeOptionsGrid}>
-                  {THEME_OPTIONS.map(opt => {
-                    const isSelected = settings.theme === opt.theme;
+                <View style={styles.chipRow}>
+                  {ZOOM_LEVELS.map(opt => {
+                    const isSelected = Math.abs(currentZoom - opt.value) < 0.05;
                     return (
                       <TouchableOpacity
-                        key={opt.theme}
-                        onPress={() => onUpdateSettings({theme: opt.theme})}
+                        key={opt.value}
+                        onPress={() => onUpdateSettings({zoomScale: opt.value})}
                         style={[
-                          styles.themeCard,
-                          {
-                            backgroundColor: opt.bgColor,
-                            borderColor: isSelected ? '#7C4DFF' : '#3F3F46',
-                            borderWidth: isSelected ? 2.5 : 1,
-                          },
+                          styles.chip,
+                          isSelected && styles.chipActive,
                         ]}>
                         <AppText
-                          role="labelSmallEmphasized"
+                          role="labelMediumEmphasized"
                           style={{
-                            color: opt.textColor,
+                            color: isSelected ? '#FFFFFF' : '#A1A1AA',
                             fontSize: 12,
                           }}>
                           {opt.label}
                         </AppText>
-                        {isSelected && (
-                          <MaterialCommunityIcons
-                            name="check-circle"
-                            size={16}
-                            color="#7C4DFF"
-                            style={styles.selectedIcon}
-                          />
-                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               </View>
 
-              {/* 2. Image Scale Mode */}
+              {/* 2. IMAGE FIT & SCALING */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
-                  Image Scaling
+                  Image Fit & Scaling
                 </AppText>
-                <View style={styles.scaleOptionsRow}>
+                <View style={styles.scaleGrid}>
                   {SCALE_OPTIONS.map(opt => {
                     const isSelected = settings.imageScale === opt.scale;
                     return (
@@ -184,14 +185,16 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                         ]}>
                         <MaterialCommunityIcons
                           name={opt.icon as any}
-                          size={20}
-                          color={isSelected ? '#FFFFFF' : '#A1A1AA'}
+                          size={22}
+                          color={isSelected ? '#7C4DFF' : '#A1A1AA'}
                         />
                         <AppText
-                          role="labelMediumEmphasized"
+                          role="labelSmallEmphasized"
                           style={{
                             color: isSelected ? '#FFFFFF' : '#A1A1AA',
-                            marginTop: 4,
+                            marginTop: 6,
+                            textAlign: 'center',
+                            fontSize: 11,
                           }}>
                           {opt.label}
                         </AppText>
@@ -201,134 +204,189 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                 </View>
               </View>
 
-              {/* 3. Toggles Section */}
+              {/* 3. HANDS-FREE AUTO-SCROLL */}
+              <View style={styles.section}>
+                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
+                    Hands-Free Auto-Scroll
+                  </AppText>
+                  <AppText role="bodySmall" style={{color: '#71717A', fontSize: 11}}>
+                    Pauses on touch
+                  </AppText>
+                </View>
+                <View style={styles.chipRow}>
+                  {AUTO_SCROLL_OPTIONS.map(opt => {
+                    const isSelected = currentAutoScroll === opt.speed;
+                    return (
+                      <TouchableOpacity
+                        key={opt.speed}
+                        onPress={() => onUpdateSettings({autoScrollSpeed: opt.speed})}
+                        style={[
+                          styles.chip,
+                          isSelected && styles.chipActiveAutoScroll,
+                        ]}>
+                        <MaterialCommunityIcons
+                          name={opt.icon as any}
+                          size={15}
+                          color={isSelected ? '#00E676' : '#A1A1AA'}
+                          style={{marginRight: 4}}
+                        />
+                        <AppText
+                          role="labelMediumEmphasized"
+                          style={{
+                            color: isSelected ? '#FFFFFF' : '#A1A1AA',
+                            fontSize: 12,
+                          }}>
+                          {opt.label}
+                        </AppText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 4. SCREEN BRIGHTNESS & EYE CARE */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
-                  Preferences & Controls
+                  Screen Brightness & Eye Care
                 </AppText>
-
-                {/* Auto-Crop White Borders */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Auto-Crop White Borders
-                    </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Crops empty white margins around scanned pages
-                    </AppText>
-                  </View>
-                  <Switch
-                    value={settings.cropWhiteBorders}
-                    onValueChange={cropWhiteBorders =>
-                      onUpdateSettings({cropWhiteBorders})
-                    }
-                    thumbColor={settings.cropWhiteBorders ? '#7C4DFF' : '#71717A'}
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
-                  />
+                {/* Brightness chips */}
+                <View style={styles.chipRow}>
+                  {BRIGHTNESS_LEVELS.map(opt => {
+                    const isSelected = currentDimmer === opt.value;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        onPress={() => onUpdateSettings({screenDimmer: opt.value})}
+                        style={[
+                          styles.chip,
+                          isSelected && styles.chipActive,
+                        ]}>
+                        <MaterialCommunityIcons
+                          name="brightness-6"
+                          size={14}
+                          color={isSelected ? '#FFFFFF' : '#A1A1AA'}
+                          style={{marginRight: 4}}
+                        />
+                        <AppText
+                          role="labelMediumEmphasized"
+                          style={{
+                            color: isSelected ? '#FFFFFF' : '#A1A1AA',
+                            fontSize: 12,
+                          }}>
+                          {opt.label}
+                        </AppText>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
-                {/* Keep Screen Awake */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Keep Screen Awake
-                    </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Prevents display timeout while reading
-                    </AppText>
+                {/* Warm Night Filter Pill Toggle */}
+                <View style={styles.warmFilterRow}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1}}>
+                    <MaterialCommunityIcons
+                      name="weather-night"
+                      size={22}
+                      color={isWarmFilter ? '#FFAA00' : '#71717A'}
+                    />
+                    <View style={{flex: 1}}>
+                      <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                        Warm Night Filter
+                      </AppText>
+                      <AppText role="bodySmall" style={{color: '#71717A'}}>
+                        Soft amber tint reduces blue light fatigue
+                      </AppText>
+                    </View>
                   </View>
                   <Switch
-                    value={settings.keepScreenAwake}
-                    onValueChange={keepScreenAwake =>
-                      onUpdateSettings({keepScreenAwake})
+                    value={isWarmFilter}
+                    onValueChange={warmFilterEnabled =>
+                      onUpdateSettings({warmFilterEnabled})
                     }
-                    thumbColor={settings.keepScreenAwake ? '#7C4DFF' : '#71717A'}
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
+                    thumbColor={isWarmFilter ? '#FFAA00' : '#71717A'}
+                    trackColor={{false: '#27272A', true: 'rgba(255, 170, 0, 0.4)'}}
                   />
                 </View>
+              </View>
 
-                {/* Volume Key Page Turn */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Volume Key Page Turn
+              {/* 5. QUICK PAGE & CHAPTER TOOLS */}
+              <View style={styles.section}>
+                <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
+                  Quick Page & Chapter Tools
+                </AppText>
+                <View style={styles.toolsGrid}>
+                  {/* Tool 1: Jump to First Page */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      onJumpToFirstPage?.();
+                      onClose();
+                    }}
+                    style={styles.toolCard}>
+                    <MaterialCommunityIcons
+                      name="skip-backward-outline"
+                      size={22}
+                      color="#7C4DFF"
+                    />
+                    <AppText
+                      role="labelMediumEmphasized"
+                      style={styles.toolCardLabel}>
+                      Jump to First Page
                     </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Volume Up = Prev page, Volume Down = Next page
-                    </AppText>
-                  </View>
-                  <Switch
-                    value={settings.volumeKeysEnabled}
-                    onValueChange={volumeKeysEnabled =>
-                      onUpdateSettings({volumeKeysEnabled})
-                    }
-                    thumbColor={settings.volumeKeysEnabled ? '#7C4DFF' : '#71717A'}
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
-                  />
-                </View>
+                  </TouchableOpacity>
 
-                {/* Show Floating Page Number */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Floating Page Indicator
+                  {/* Tool 2: Reload Current Page */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      onReloadCurrentPage?.();
+                    }}
+                    style={styles.toolCard}>
+                    <MaterialCommunityIcons
+                      name="refresh"
+                      size={22}
+                      color="#00E5FF"
+                    />
+                    <AppText
+                      role="labelMediumEmphasized"
+                      style={styles.toolCardLabel}>
+                      Reload Page
                     </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Displays a subtle page counter pill in the bottom corner
-                    </AppText>
-                  </View>
-                  <Switch
-                    value={settings.showFloatingPageNumber}
-                    onValueChange={showFloatingPageNumber =>
-                      onUpdateSettings({showFloatingPageNumber})
-                    }
-                    thumbColor={settings.showFloatingPageNumber ? '#7C4DFF' : '#71717A'}
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
-                  />
-                </View>
+                  </TouchableOpacity>
 
-                {/* Disable Tap Zones in Webtoon */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Disable Tap Zones in Webtoon
+                  {/* Tool 3: Quality Toggle */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      onToggleQuality?.();
+                    }}
+                    style={styles.toolCard}>
+                    <MaterialCommunityIcons
+                      name={quality === 'original' ? 'high-definition' : 'tune'}
+                      size={22}
+                      color="#00E676"
+                    />
+                    <AppText
+                      role="labelMediumEmphasized"
+                      style={styles.toolCardLabel}>
+                      {quality === 'original' ? 'Quality: HD' : 'Quality: Saver'}
                     </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Only scroll gestures turn pages; taps toggle HUD
-                    </AppText>
-                  </View>
-                  <Switch
-                    value={settings.disableTapZonesInWebtoon}
-                    onValueChange={disableTapZonesInWebtoon =>
-                      onUpdateSettings({disableTapZonesInWebtoon})
-                    }
-                    thumbColor={
-                      settings.disableTapZonesInWebtoon ? '#7C4DFF' : '#71717A'
-                    }
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
-                  />
-                </View>
+                  </TouchableOpacity>
 
-                {/* Live Manga Translation (A/文) */}
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                      Live Manga Translation (A/文)
+                  {/* Tool 4: Download Chapter */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      onDownloadChapter?.();
+                    }}
+                    style={styles.toolCard}>
+                    <MaterialCommunityIcons
+                      name="download-outline"
+                      size={22}
+                      color="#FFB300"
+                    />
+                    <AppText
+                      role="labelMediumEmphasized"
+                      style={styles.toolCardLabel}>
+                      Download Chapter
                     </AppText>
-                    <AppText role="bodySmall" style={{color: '#A1A1AA'}}>
-                      Zero-Key Uncensored AI Translator with Spatial Bubble Clustering
-                    </AppText>
-                  </View>
-                  <Switch
-                    value={settings.liveTranslateEnabled ?? false}
-                    onValueChange={liveTranslateEnabled =>
-                      onUpdateSettings({liveTranslateEnabled})
-                    }
-                    thumbColor={
-                      settings.liveTranslateEnabled ? '#7C4DFF' : '#71717A'
-                    }
-                    trackColor={{false: '#3F3F46', true: 'rgba(124, 77, 255, 0.4)'}}
-                  />
+                  </TouchableOpacity>
                 </View>
               </View>
             </BottomSheetScrollView>
@@ -342,11 +400,12 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    backgroundColor: '#000000',
   },
   headerRow: {
     flexDirection: 'row',
@@ -354,67 +413,102 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
     paddingTop: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: 14,
   },
   closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#27272A',
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: '#18181B',
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 22,
   },
   sectionLabel: {
     color: '#D4D4D8',
-    marginBottom: 12,
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontSize: 12,
+    letterSpacing: 0.6,
+    fontSize: 11,
+    fontWeight: '700',
   },
-  themeOptionsGrid: {
+  chipRow: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  themeCard: {
-    flex: 1,
-    height: 52,
-    borderRadius: 12,
+  chip: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  selectedIcon: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-  },
-  scaleOptionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  scaleCard: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#27272A',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: '#3F3F46',
+    borderColor: '#27272A',
   },
-  scaleCardActive: {
+  chipActive: {
     backgroundColor: '#7C4DFF',
     borderColor: '#7C4DFF',
   },
-  toggleRow: {
+  chipActiveAutoScroll: {
+    backgroundColor: 'rgba(0, 230, 118, 0.2)',
+    borderColor: '#00E676',
+  },
+  scaleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  scaleCard: {
+    width: '48%',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: '#18181B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  scaleCardActive: {
+    backgroundColor: 'rgba(124, 77, 255, 0.15)',
+    borderColor: '#7C4DFF',
+  },
+  warmFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#27272A',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
   },
-  toggleTextContainer: {
+  toolsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  toolCard: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  toolCardLabel: {
+    color: '#FFFFFF',
+    fontSize: 12,
     flex: 1,
-    paddingRight: 16,
   },
 });

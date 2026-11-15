@@ -23,6 +23,8 @@ interface PagedViewProps {
   onReachEnd?: () => void;
   readingMode: ReadingMode;
   scaleMode?: ImageScale;
+  zoomScale?: number;
+  reloadKey?: number;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   interactionMode?: InteractionMode;
@@ -48,6 +50,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
   onReachEnd,
   readingMode,
   scaleMode = 'fit_width',
+  zoomScale = 1.0,
+  reloadKey = 0,
   cropWhiteBorders = false,
   theme = 'amoled',
   interactionMode = 'swipe',
@@ -227,23 +231,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 height={leftPage.height}
                 headers={leftPage.headers}
                 scaleMode="fit_height"
-                cropWhiteBorders={cropWhiteBorders}
-                theme={theme}
-                isWebtoon={false}
-                activeBitmap={turboPreloader.isPageBitmapActive(leftIndex, currentPageIndex)}
-                translateEnabled={translateEnabled}
-                translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
-                onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
-              />
-            </View>
-            <View style={{width: windowWidth / 2, height: windowHeight}}>
-              <ReaderImage
-                imageUrl={leftPage.imageUrl}
-                index={leftIndex}
-                width={leftPage.width}
-                height={leftPage.height}
-                headers={leftPage.headers}
-                scaleMode="fit_height"
+                zoomScale={zoomScale}
+                reloadKey={reloadKey}
                 cropWhiteBorders={cropWhiteBorders}
                 theme={theme}
                 isWebtoon={false}
@@ -262,6 +251,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 height={rightPage.height}
                 headers={rightPage.headers}
                 scaleMode="fit_height"
+                zoomScale={zoomScale}
+                reloadKey={reloadKey}
                 cropWhiteBorders={cropWhiteBorders}
                 theme={theme}
                 isWebtoon={false}
@@ -286,6 +277,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
             height={item.pageA.height}
             headers={item.pageA.headers}
             scaleMode={scaleMode}
+            zoomScale={zoomScale}
+            reloadKey={reloadKey}
             cropWhiteBorders={cropWhiteBorders}
             theme={theme}
             isWebtoon={false}
@@ -305,6 +298,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
       cropWhiteBorders,
       theme,
       scaleMode,
+      zoomScale,
+      reloadKey,
       currentPageIndex,
       translateEnabled,
       pageTranslations,
@@ -331,7 +326,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         data={spreadGroups}
         renderItem={renderSpreadGroup}
         keyExtractor={item => item.id}
-        extraData={currentPageIndex}
+        extraData={`${currentPageIndex}-${zoomScale}-${reloadKey}`}
         horizontal
         pagingEnabled
         inverted={isManga}

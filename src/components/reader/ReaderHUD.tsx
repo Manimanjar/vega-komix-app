@@ -32,7 +32,7 @@ interface ReaderHUDProps {
   readingMode: ReadingMode;
   orientationMode: ScreenOrientationMode;
   interactionMode?: InteractionMode;
-  quality: 'original' | 'compressed';
+  quality?: 'original' | 'compressed';
   theme: ReaderTheme;
   turboBadgeText?: string;
   translateEnabled?: boolean;
@@ -46,35 +46,10 @@ interface ReaderHUDProps {
   onToggleReadingMode: () => void;
   onToggleOrientation: () => void;
   onToggleInteractionMode?: () => void;
-  onToggleQuality: () => void;
-  onOpenWafBypass: () => void;
+  onToggleQuality?: () => void;
+  onOpenWafBypass?: () => void;
   onOpenSettings: () => void;
 }
-
-const READING_MODE_LABELS: Record<ReadingMode, {label: string; icon: string}> = {
-  webtoon: {label: 'Webtoon', icon: 'view-headline'},
-  manga: {label: 'Manga (RTL)', icon: 'book-open-page-variant'},
-  comic: {label: 'Comic (LTR)', icon: 'book-open-variant'},
-  double_spread: {label: 'Double Spread', icon: 'book-open-outline'},
-};
-
-const ORIENTATION_LABELS: Record<
-  string,
-  {label: string; icon: string}
-> = {
-  portrait: {label: 'Portrait', icon: 'phone-rotate-landscape'},
-  landscape: {label: 'Landscape', icon: 'phone-rotate-portrait'},
-  auto: {label: 'Portrait', icon: 'phone-rotate-landscape'},
-};
-
-const INTERACTION_MODE_LABELS: Record<
-  InteractionMode,
-  {label: string; icon: string}
-> = {
-  scroll: {label: 'Scroll', icon: 'gesture-swipe-vertical'},
-  one_tap: {label: 'One-Tap', icon: 'gesture-tap'},
-  swipe: {label: 'Swipe', icon: 'gesture-swipe-horizontal'},
-};
 
 export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   visible,
@@ -87,9 +62,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   readingMode,
   orientationMode,
   interactionMode = 'scroll',
-  quality,
   theme,
-  turboBadgeText = 'Turbo: +8 Ready',
   translateEnabled = false,
   translationStatus = 'idle',
   onToggleTranslate,
@@ -101,8 +74,6 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onToggleReadingMode,
   onToggleOrientation,
   onToggleInteractionMode,
-  onToggleQuality,
-  onOpenWafBypass,
   onOpenSettings,
 }) => {
   const insets = useSafeAreaInsets();
@@ -111,25 +82,43 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
 
   if (!visible) return null;
 
-  const modeInfo = READING_MODE_LABELS[readingMode];
-  const orientationInfo = ORIENTATION_LABELS[orientationMode] || ORIENTATION_LABELS.portrait;
-  const interactionInfo =
-    INTERACTION_MODE_LABELS[interactionMode] || INTERACTION_MODE_LABELS.scroll;
+  const isWebtoon = readingMode === 'webtoon';
+  const isLandscape = orientationMode === 'landscape';
+
+  // Navigation mode labels & icons
+  let navModeLabel = 'Scroll';
+  let navModeIcon = 'gesture-swipe-vertical';
+
+  if (isWebtoon) {
+    if (interactionMode === 'one_tap') {
+      navModeLabel = 'One Tap';
+      navModeIcon = 'gesture-tap';
+    } else {
+      navModeLabel = 'Scroll';
+      navModeIcon = 'gesture-swipe-vertical';
+    }
+  } else {
+    if (interactionMode === 'one_tap') {
+      navModeLabel = 'One Tap';
+      navModeIcon = 'gesture-tap';
+    } else {
+      navModeLabel = 'Swipe';
+      navModeIcon = 'gesture-swipe-horizontal';
+    }
+  }
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Top HUD */}
+      {/* Top HUD: Sleek dark glassmorphic bar */}
       <View
         style={[
           styles.topHud,
           {
             paddingTop: Math.max(insets.top, 14),
-            backgroundColor: themeColors.hudBackground,
-            borderBottomColor: themeColors.hudBorder,
           },
         ]}>
         <View style={styles.topHudRow}>
-          {/* Back button */}
+          {/* Left: Back button + Comic Title & Chapter X ▾ */}
           <TouchableOpacity
             onPress={onBack}
             style={styles.iconButton}
@@ -137,77 +126,54 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             <MaterialCommunityIcons
               name="arrow-left"
               size={24}
-              color={themeColors.text}
+              color="#FFFFFF"
             />
           </TouchableOpacity>
 
-          {/* Title & Chapter selector */}
           <TouchableOpacity
             onPress={() => setChapterModalVisible(true)}
             style={styles.titleContainer}>
             <AppText
               numberOfLines={1}
               role="titleMediumEmphasized"
-              style={{color: themeColors.text}}>
+              style={{color: '#FFFFFF'}}>
               {title}
             </AppText>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
               <AppText
                 numberOfLines={1}
                 role="bodySmall"
-                style={{color: themeColors.subText, maxWidth: 220}}>
+                style={{color: 'rgba(255, 255, 255, 0.7)', maxWidth: 200}}>
                 {chapterTitle || `Chapter ${currentChapterIndex + 1}`}
               </AppText>
               <MaterialCommunityIcons
                 name="chevron-down"
                 size={16}
-                color={themeColors.subText}
+                color="rgba(255, 255, 255, 0.7)"
               />
             </View>
           </TouchableOpacity>
 
-          {/* Action icons: Turbo Live Badge, Quality, WAF WebView Bypass */}
-          <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-            <View
-              style={[
-                styles.turboBadge,
-                {
-                  borderColor: 'rgba(0, 230, 118, 0.4)',
-                  backgroundColor: 'rgba(0, 230, 118, 0.12)',
-                },
-              ]}>
+          {/* Right: 1-Tap Reading Mode Pill + [A/文] Translate Pill */}
+          <View style={styles.topRightActions}>
+            {/* 1-Tap Reading Mode Button: Continuous <-> Page by Page */}
+            <TouchableOpacity
+              onPress={onToggleReadingMode}
+              style={styles.readingModePill}
+              accessibilityLabel={`Reading mode: ${isWebtoon ? 'Continuous' : 'Page by Page'}`}>
               <MaterialCommunityIcons
-                name="lightning-bolt"
-                size={12}
-                color="#00E676"
-                style={{marginRight: 2}}
+                name={isWebtoon ? 'view-headline' : 'book-open-page-variant'}
+                size={16}
+                color={isWebtoon ? '#7C4DFF' : '#00E5FF'}
               />
               <AppText
                 role="labelSmall"
                 style={{
-                  color: '#00E676',
-                  fontWeight: '800',
-                  fontSize: 10,
-                }}>
-                {turboBadgeText}
-              </AppText>
-            </View>
-
-            <TouchableOpacity
-              onPress={onToggleQuality}
-              style={[
-                styles.qualityBadge,
-                {borderColor: themeColors.hudBorder},
-              ]}
-              accessibilityLabel={`Quality: ${quality}`}>
-              <AppText
-                role="labelSmall"
-                style={{
-                  color: quality === 'original' ? '#7C4DFF' : themeColors.subText,
+                  color: '#FFFFFF',
                   fontWeight: '700',
-                  fontSize: 10,
+                  fontSize: 11,
                 }}>
-                {quality === 'original' ? 'ORIG' : 'DATA'}
+                {isWebtoon ? 'Continuous' : 'Page by Page'}
               </AppText>
             </TouchableOpacity>
 
@@ -218,13 +184,13 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 style={[
                   styles.translatePill,
                   {
-                    borderColor: translateEnabled ? '#7C4DFF' : themeColors.hudBorder,
+                    borderColor: translateEnabled ? '#7C4DFF' : 'rgba(255, 255, 255, 0.15)',
                     backgroundColor: translateEnabled
-                      ? 'rgba(124, 77, 255, 0.16)'
-                      : 'rgba(0, 0, 0, 0.35)',
+                      ? 'rgba(124, 77, 255, 0.22)'
+                      : 'rgba(255, 255, 255, 0.08)',
                   },
                 ]}
-                accessibilityLabel={`Live Translate: ${translateEnabled ? 'ON' : 'OFF'} (${translationStatus})`}>
+                accessibilityLabel={`Live Translate: ${translateEnabled ? 'ON' : 'OFF'}`}>
                 <View
                   style={[
                     styles.statusDot,
@@ -243,45 +209,32 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 <AppText
                   role="labelSmall"
                   style={{
-                    color: translateEnabled ? '#B388FF' : themeColors.text,
+                    color: translateEnabled ? '#B388FF' : '#FFFFFF',
                     fontWeight: '800',
-                    fontSize: 10,
+                    fontSize: 11,
                   }}>
                   {translationStatus === 'translating' ? 'A/文...' : 'A/文'}
                 </AppText>
               </TouchableOpacity>
             )}
-
-            <TouchableOpacity
-              onPress={onOpenWafBypass}
-              style={styles.iconButton}
-              accessibilityLabel="WAF WebView Bypass">
-              <MaterialCommunityIcons
-                name="shield-check"
-                size={22}
-                color="#00B0FF"
-              />
-            </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* Bottom HUD */}
+      {/* Bottom HUD: Sleek dark glassmorphic bar */}
       <View
         style={[
           styles.bottomHud,
           {
             paddingBottom: Math.max(insets.bottom, 14),
-            backgroundColor: themeColors.hudBackground,
-            borderTopColor: themeColors.hudBorder,
           },
         ]}>
-        {/* Page Slider row */}
+        {/* Upper row: Clean page scrubber slider */}
         <View style={styles.sliderRow}>
           <AppText
             role="labelMedium"
-            style={{color: themeColors.subText, minWidth: 44, textAlign: 'center'}}>
-            {currentPage + 1} / {Math.max(1, totalPages)}
+            style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 46, textAlign: 'center'}}>
+            Page {currentPage + 1} / {Math.max(1, totalPages)}
           </AppText>
 
           <Slider
@@ -291,23 +244,23 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             step={1}
             value={currentPage + 1}
             minimumTrackTintColor="#7C4DFF"
-            maximumTrackTintColor="rgba(255, 255, 255, 0.25)"
+            maximumTrackTintColor="rgba(255, 255, 255, 0.22)"
             thumbTintColor="#7C4DFF"
             onValueChange={val => onPageSliderChange(val - 1)}
           />
 
           <AppText
             role="labelSmall"
-            style={{color: themeColors.subText, minWidth: 40, textAlign: 'center'}}>
+            style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 40, textAlign: 'center'}}>
             {totalPages > 0
               ? `${Math.round(((currentPage + 1) / totalPages) * 100)}%`
               : '0%'}
           </AppText>
         </View>
 
-        {/* Control Buttons row */}
+        {/* Lower row: 5 evenly spaced modern icon+label buttons */}
         <View style={styles.controlsRow}>
-          {/* Prev Chapter */}
+          {/* 1. Prev Ch */}
           <TouchableOpacity
             onPress={onPrevChapter}
             disabled={currentChapterIndex <= 0}
@@ -318,62 +271,51 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             <MaterialCommunityIcons
               name="skip-previous"
               size={22}
-              color={themeColors.text}
+              color="#FFFFFF"
             />
-            <AppText role="labelSmall" style={{color: themeColors.text}}>
+            <AppText role="labelSmall" style={styles.controlButtonLabel}>
               Prev Ch
             </AppText>
           </TouchableOpacity>
 
-          {/* Reading Mode Button */}
-          <TouchableOpacity
-            onPress={onToggleReadingMode}
-            style={styles.controlButton}>
-            <MaterialCommunityIcons
-              name={modeInfo.icon as any}
-              size={20}
-              color="#7C4DFF"
-            />
-            <AppText
-              role="labelSmall"
-              style={{color: '#7C4DFF', fontWeight: '700'}}>
-              {modeInfo.label}
-            </AppText>
-          </TouchableOpacity>
-
-          {/* Interaction Mode Button (Scroll / One-Tap / Swipe) */}
+          {/* 2. 1-Tap Scrolling / Navigation Mode Button */}
           {onToggleInteractionMode && (
             <TouchableOpacity
               onPress={onToggleInteractionMode}
-              style={styles.controlButton}>
+              style={[styles.controlButton, styles.navModeBadge]}>
               <MaterialCommunityIcons
-                name={interactionInfo.icon as any}
+                name={navModeIcon as any}
                 size={20}
                 color="#00E5FF"
               />
               <AppText
                 role="labelSmall"
-                style={{color: '#00E5FF', fontWeight: '700'}}>
-                {interactionInfo.label}
+                style={[styles.controlButtonLabel, {color: '#00E5FF', fontWeight: '800'}]}>
+                {navModeLabel}
               </AppText>
             </TouchableOpacity>
           )}
 
-          {/* Orientation Toggle */}
+          {/* 3. 1-Tap Orientation Button (Portrait / Landscape) */}
           <TouchableOpacity
             onPress={onToggleOrientation}
             style={styles.controlButton}>
             <MaterialCommunityIcons
-              name={orientationInfo.icon as any}
-              size={20}
-              color={themeColors.text}
+              name={isLandscape ? 'phone-rotate-portrait' : 'phone-rotate-landscape'}
+              size={22}
+              color={isLandscape ? '#A78BFA' : '#FFFFFF'}
             />
-            <AppText role="labelSmall" style={{color: themeColors.text}}>
-              {orientationInfo.label}
+            <AppText
+              role="labelSmall"
+              style={[
+                styles.controlButtonLabel,
+                isLandscape && {color: '#A78BFA', fontWeight: '700'},
+              ]}>
+              {isLandscape ? 'Landscape' : 'Portrait'}
             </AppText>
           </TouchableOpacity>
 
-          {/* Next Chapter */}
+          {/* 4. Next Ch */}
           <TouchableOpacity
             onPress={onNextChapter}
             disabled={currentChapterIndex >= allChapters.length - 1}
@@ -384,23 +326,23 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             <MaterialCommunityIcons
               name="skip-next"
               size={22}
-              color={themeColors.text}
+              color="#FFFFFF"
             />
-            <AppText role="labelSmall" style={{color: themeColors.text}}>
+            <AppText role="labelSmall" style={styles.controlButtonLabel}>
               Next Ch
             </AppText>
           </TouchableOpacity>
 
-          {/* Settings Button */}
+          {/* 5. Settings */}
           <TouchableOpacity
             onPress={onOpenSettings}
             style={styles.controlButton}>
             <MaterialCommunityIcons
               name="cog-outline"
               size={22}
-              color={themeColors.text}
+              color="#FFFFFF"
             />
-            <AppText role="labelSmall" style={{color: themeColors.text}}>
+            <AppText role="labelSmall" style={styles.controlButtonLabel}>
               Settings
             </AppText>
           </TouchableOpacity>
@@ -420,19 +362,19 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             style={[
               styles.chapterModalContent,
               {
-                backgroundColor: themeColors.hudBackground,
-                borderColor: themeColors.hudBorder,
+                backgroundColor: '#121218',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
               },
             ]}>
             <View style={styles.chapterModalHeader}>
-              <AppText role="titleMediumEmphasized" style={{color: themeColors.text}}>
+              <AppText role="titleMediumEmphasized" style={{color: '#FFFFFF'}}>
                 Chapters ({allChapters.length})
               </AppText>
               <TouchableOpacity onPress={() => setChapterModalVisible(false)}>
                 <MaterialCommunityIcons
                   name="close"
                   size={20}
-                  color={themeColors.subText}
+                  color="rgba(255, 255, 255, 0.7)"
                 />
               </TouchableOpacity>
             </View>
@@ -450,19 +392,19 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                     style={[
                       styles.chapterRow,
                       isSelected && {
-                        backgroundColor: 'rgba(124, 77, 255, 0.15)',
+                        backgroundColor: 'rgba(124, 77, 255, 0.18)',
                       },
                     ]}>
                     <MaterialCommunityIcons
                       name={isSelected ? 'bookmark-check' : 'bookmark-outline'}
                       size={18}
-                      color={isSelected ? '#7C4DFF' : themeColors.subText}
+                      color={isSelected ? '#7C4DFF' : 'rgba(255, 255, 255, 0.5)'}
                     />
                     <AppText
                       numberOfLines={1}
                       role={isSelected ? 'bodyMediumEmphasized' : 'bodyMedium'}
                       style={{
-                        color: isSelected ? '#7C4DFF' : themeColors.text,
+                        color: isSelected ? '#7C4DFF' : '#FFFFFF',
                         flex: 1,
                       }}>
                       {ch.title || `Chapter ${idx + 1}`}
@@ -484,7 +426,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(10, 10, 14, 0.92)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     paddingBottom: 10,
     zIndex: 20,
@@ -503,31 +447,31 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginHorizontal: 12,
+    marginHorizontal: 10,
   },
-  qualityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  turboBadge: {
+  topRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: 8,
+  },
+  readingModePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   translatePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
   },
   statusDot: {
@@ -540,7 +484,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(10, 10, 14, 0.92)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
     paddingTop: 10,
     zIndex: 20,
@@ -548,7 +494,7 @@ const styles = StyleSheet.create({
   sliderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     marginBottom: 6,
   },
   controlsRow: {
@@ -563,10 +509,23 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 4,
+    minWidth: 54,
+  },
+  controlButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 11,
+  },
+  navModeBadge: {
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.6)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

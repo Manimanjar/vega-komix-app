@@ -4,11 +4,13 @@ export type ReadingMode = 'webtoon' | 'manga' | 'comic' | 'double_spread';
 
 export type ReaderTheme = 'amoled' | 'dark' | 'sepia' | 'white';
 
-export type ImageScale = 'fit_width' | 'fit_height' | 'original';
+export type ImageScale = 'fit_width' | 'fit_height' | 'fit_screen' | 'original';
 
 export type ScreenOrientationMode = 'portrait' | 'landscape' | 'auto';
 
 export type InteractionMode = 'scroll' | 'one_tap' | 'swipe';
+
+export type AutoScrollSpeed = 'off' | 'slow' | 'medium' | 'fast';
 
 export interface ReaderSettings {
   theme: ReaderTheme;
@@ -21,6 +23,10 @@ export interface ReaderSettings {
   disableTapZonesInWebtoon: boolean;
   orientationMode: ScreenOrientationMode;
   interactionMode?: InteractionMode;
+  zoomScale?: number;
+  autoScrollSpeed?: AutoScrollSpeed;
+  screenDimmer?: number;
+  warmFilterEnabled?: boolean;
   liveTranslateEnabled?: boolean;
 }
 

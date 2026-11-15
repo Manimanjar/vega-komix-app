@@ -31,6 +31,8 @@ interface ReaderImageProps {
   height?: number;
   headers?: Record<string, string>;
   scaleMode?: ImageScale;
+  zoomScale?: number;
+  reloadKey?: number;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
   isWebtoon?: boolean;
@@ -102,6 +104,8 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   height: naturalHeight,
   headers,
   scaleMode = 'fit_width',
+  zoomScale = 1.0,
+  reloadKey = 0,
   cropWhiteBorders = false,
   theme = 'amoled',
   isWebtoon = false,
@@ -137,6 +141,15 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   const [loadError, setLoadError] = useState<boolean>(false);
   const [retryKey, setRetryKey] = useState<number>(0);
 
+  // Trigger reload if reloadKey changes
+  useEffect(() => {
+    if (reloadKey > 0) {
+      setLoading(true);
+      setLoadError(false);
+      setRetryKey(k => k + 1);
+    }
+  }, [reloadKey]);
+
   // Reanimated values for double tap zoom and pinch/pan
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -158,39 +171,54 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     };
   }, [currentUrl, headers, retryKey]);
 
-  // Compute layout dimensions
+  // Compute layout dimensions with zoomScale and scaleMode
   const containerDimensions = useMemo(() => {
+    const zoom = zoomScale || 1.0;
+
     if (isWebtoon) {
-      const renderWidth = windowWidth;
+      const renderWidth = Math.round(windowWidth * zoom);
       const renderHeight =
         calcHeight ||
         (imageRatio
-          ? windowWidth / imageRatio
+          ? renderWidth / imageRatio
           : naturalHeight && naturalWidth
-          ? (windowWidth * naturalHeight) / naturalWidth
-          : windowHeight * 0.8);
+          ? (renderWidth * naturalHeight) / naturalWidth
+          : windowHeight * 0.8 * zoom);
       return {width: renderWidth, height: renderHeight};
     }
 
     // Paged mode
     if (scaleMode === 'fit_height') {
-      const renderHeight = windowHeight;
-      const renderWidth = imageRatio ? windowHeight * imageRatio : windowWidth;
+      const renderHeight = Math.round(windowHeight * zoom);
+      const renderWidth = imageRatio ? Math.round(renderHeight * imageRatio) : Math.round(windowWidth * zoom);
       return {width: renderWidth, height: renderHeight};
+    }
+
+    if (scaleMode === 'fit_screen') {
+      const maxWidth = Math.round(windowWidth * zoom);
+      const maxHeight = Math.round(windowHeight * zoom);
+      if (imageRatio) {
+        if (maxWidth / imageRatio <= maxHeight) {
+          return {width: maxWidth, height: Math.round(maxWidth / imageRatio)};
+        } else {
+          return {width: Math.round(maxHeight * imageRatio), height: maxHeight};
+        }
+      }
+      return {width: maxWidth, height: maxHeight};
     }
 
     if (scaleMode === 'original' && naturalWidth && naturalHeight) {
       return {
-        width: Math.min(naturalWidth, windowWidth),
-        height: Math.min(naturalHeight, windowHeight),
+        width: Math.min(Math.round(naturalWidth * zoom), Math.round(windowWidth * zoom)),
+        height: Math.min(Math.round(naturalHeight * zoom), Math.round(windowHeight * zoom)),
       };
     }
 
     // Default: fit_width
-    const renderWidth = windowWidth;
+    const renderWidth = Math.round(windowWidth * zoom);
     const renderHeight = imageRatio
-      ? Math.min(windowWidth / imageRatio, windowHeight)
-      : windowHeight;
+      ? Math.min(Math.round(renderWidth / imageRatio), Math.round(windowHeight * zoom))
+      : Math.round(windowHeight * zoom);
     return {width: renderWidth, height: renderHeight};
   }, [
     isWebtoon,
@@ -201,6 +229,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     naturalWidth,
     naturalHeight,
     scaleMode,
+    zoomScale,
   ]);
 
   const resetZoom = useCallback(() => {

@@ -27,6 +27,7 @@ import {
   getComicChapterDirectory,
 } from '../../lib/comicDownloader';
 import useDownloadsStore from '../../lib/zustand/downloadsStore';
+import {downloadManager} from '../../lib/downloader';
 import AppText from '../../components/ui/Text';
 import {settingsStorage} from '../../lib/storage';
 import {
@@ -107,6 +108,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   );
   const [translationStatus, setTranslationStatus] = useState<TranslationStatus>('idle');
   const [pageTranslations, setPageTranslations] = useState<Record<number, PageTranslationResult>>({});
+  const [reloadKey, setReloadKey] = useState<number>(0);
 
   useEffect(() => {
     return mangaTranslatorEngine.subscribeStatus((status) => {
@@ -528,11 +530,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [episodeList.length]);
 
-  // Toggle Reading Modes
+  // 1-Tap Toggle Reading Mode: Continuous <-> Page by Page
   const handleToggleReadingMode = useCallback(() => {
-    const modes: ReadingMode[] = ['webtoon', 'manga', 'comic', 'double_spread'];
-    const currentIdx = modes.indexOf(settings.readingMode);
-    const nextMode = modes[(currentIdx + 1) % modes.length];
+    const nextMode: ReadingMode = settings.readingMode === 'webtoon' ? 'manga' : 'webtoon';
     if (nextMode === 'webtoon') {
       setInteractionMode(prev => (prev === 'one_tap' ? 'one_tap' : 'scroll'));
     } else {
@@ -543,7 +543,54 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       saveStoredReaderSettings(updated);
       return updated;
     });
+    ToastAndroid.show(
+      nextMode === 'webtoon' ? 'Reading Mode: Continuous Webtoon' : 'Reading Mode: Page by Page',
+      ToastAndroid.SHORT,
+    );
   }, [settings.readingMode]);
+
+  // Quick Tools: Jump to First Page
+  const handleJumpToFirstPage = useCallback(() => {
+    setCurrentPageIndex(0);
+    ToastAndroid.show('Jumped to Page 1', ToastAndroid.SHORT);
+  }, []);
+
+  // Quick Tools: Reload Current Page
+  const handleReloadCurrentPage = useCallback(() => {
+    setReloadKey(k => k + 1);
+    ToastAndroid.show('Reloading Page...', ToastAndroid.SHORT);
+  }, []);
+
+  // Quick Tools: Download Current Chapter
+  const handleDownloadChapter = useCallback(() => {
+    if (!chapterLink) return;
+    downloadManager({
+      downloadId: `comic-${primaryTitle}-${currentChapter?.id || currentChapterIndex}`,
+      title: primaryTitle,
+      showName: primaryTitle,
+      episodeName: chapterTitle || `Chapter ${currentChapterIndex + 1}`,
+      mediaType: 'series',
+      fileType: 'comic',
+      fileName: `${primaryTitle}_${chapterTitle || `Chapter_${currentChapterIndex + 1}`}.cbz`,
+      url: chapterLink,
+      sourceLink: chapterLink,
+      infoUrl,
+      provider: providerValue,
+      poster: poster?.poster || poster?.background,
+      background: poster?.background,
+      deleteDownload: () => {},
+    }).catch(() => {});
+    ToastAndroid.show('Downloading Chapter for offline reading...', ToastAndroid.SHORT);
+  }, [
+    chapterLink,
+    primaryTitle,
+    currentChapter?.id,
+    currentChapterIndex,
+    chapterTitle,
+    infoUrl,
+    providerValue,
+    poster,
+  ]);
 
   // Toggle Screen Orientation: strictly between PORTRAIT and LANDSCAPE
   const handleToggleOrientation = useCallback(() => {
@@ -674,6 +721,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onToggleHUD={() => setHudVisible(v => !v)}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           scaleMode={settings.imageScale}
+          zoomScale={settings.zoomScale}
+          autoScrollSpeed={settings.autoScrollSpeed}
+          reloadKey={reloadKey}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
           disableTapZones={settings.disableTapZonesInWebtoon}
@@ -691,12 +741,42 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onReachEnd={settingsStorage.isAutoAdvanceChapter() ? handleNextChapter : undefined}
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
+          zoomScale={settings.zoomScale}
+          reloadKey={reloadKey}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
           interactionMode={interactionMode}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
+        />
+      )}
+
+      {/* Screen Brightness Dimmer Overlay */}
+      {typeof settings.screenDimmer === 'number' && settings.screenDimmer < 100 && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: `rgba(0, 0, 0, ${((100 - settings.screenDimmer) / 100) * 0.75})`,
+              zIndex: 15,
+            },
+          ]}
+        />
+      )}
+
+      {/* Warm Night Filter Overlay */}
+      {settings.warmFilterEnabled && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: 'rgba(255, 170, 0, 0.12)',
+              zIndex: 16,
+            },
+          ]}
         />
       )}
 
@@ -750,8 +830,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       <ReaderSettingsSheet
         visible={settingsSheetVisible}
         settings={settings}
+        quality={quality}
         onUpdateSettings={handleUpdateSettings}
         onClose={() => setSettingsSheetVisible(false)}
+        onJumpToFirstPage={handleJumpToFirstPage}
+        onReloadCurrentPage={handleReloadCurrentPage}
+        onToggleQuality={handleToggleQuality}
+        onDownloadChapter={handleDownloadChapter}
       />
     </View>
   );

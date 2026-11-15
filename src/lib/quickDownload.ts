@@ -38,7 +38,7 @@ export const queueQuickDownload = async (
     title: `${request.title} ${sub.title} Subtitle `,
     isSubtitle: true,
     url: sub.uri,
-    fileName: createSubtitleFileName(request.fileName, sub.title),
+    fileName: createSubtitleFileName(request.fileName || request.title, sub.title),
     fileType: sub.type === 'text/vtt' ? 'vtt' : 'srt',
   });
 };

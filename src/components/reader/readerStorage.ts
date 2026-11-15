@@ -17,14 +17,18 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   disableTapZonesInWebtoon: false,
   orientationMode: 'portrait',
   interactionMode: 'scroll',
+  zoomScale: 1.0,
+  autoScrollSpeed: 'off',
+  screenDimmer: 100,
+  warmFilterEnabled: false,
   liveTranslateEnabled: false,
 };
 
 export const getStoredReaderSettings = (): ReaderSettings => {
   const dynamicDefaults: ReaderSettings = {
     theme: (settingsStorage.getReaderBgColor() as any) || 'amoled',
-    readingMode: (settingsStorage.getDefaultReadingMode() as any) || 'manga',
-    imageScale: ((settingsStorage.getPageFit() === 'fit_screen' ? 'fit_width' : settingsStorage.getPageFit()) as any) || 'fit_width',
+    readingMode: (settingsStorage.getDefaultReadingMode() as any) || 'webtoon',
+    imageScale: ((settingsStorage.getPageFit() === 'fit_screen' ? 'fit_screen' : settingsStorage.getPageFit()) as any) || 'fit_width',
     cropWhiteBorders: settingsStorage.isAutoCropMargins(),
     keepScreenAwake: settingsStorage.isKeepAwakeEnabled(),
     volumeKeysEnabled: settingsStorage.isVolumeKeysEnabled(),
@@ -32,6 +36,10 @@ export const getStoredReaderSettings = (): ReaderSettings => {
     disableTapZonesInWebtoon: !settingsStorage.isTapZonesEnabled(),
     orientationMode: 'portrait',
     interactionMode: 'scroll',
+    zoomScale: 1.0,
+    autoScrollSpeed: 'off',
+    screenDimmer: 100,
+    warmFilterEnabled: false,
     liveTranslateEnabled: settingsStorage.isDefaultLiveTranslation(),
   };
 

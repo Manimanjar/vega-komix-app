@@ -69,12 +69,12 @@ export const downloadManager = async ({
   infoUrl?: string;
   sourceLink?: string;
   url: string;
-  fileName: string;
+  fileName?: string;
   fileType: string;
   headers?: Record<string, string>;
   subtitles?: DownloadSubtitle[];
   skip?: SkipInterval[];
-  deleteDownload: () => void;
+  deleteDownload?: () => void;
 }): Promise<void> => {
   const store = useDownloadsStore.getState();
   if (store.downloads[downloadId]?.status === 'completed') {
@@ -90,6 +90,7 @@ export const downloadManager = async ({
   settingsStorage.setDownloadLocation(downloadLocation);
 
   const outputFileType = fileType === 'm3u8' ? 'mp4' : fileType;
+  const actualFileName = fileName || `${showName || title}_${episodeName || 'Chapter'}`;
   const media: DownloadMediaInput = {
     id: downloadId,
     title,
@@ -110,9 +111,9 @@ export const downloadManager = async ({
     sourceLink,
     subtitles,
     skip,
-    displayFileName: getDownloadFileName(fileName, outputFileType),
+    displayFileName: getDownloadFileName(actualFileName, outputFileType),
   };
-  const existingFile = await ifExists(fileName);
+  const existingFile = await ifExists(actualFileName);
   if (existingFile) {
     store.enqueueDownload({
       ...media,
