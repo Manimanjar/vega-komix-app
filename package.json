@@ -18,6 +18,7 @@
     "prebuild": "npm run build:sandbox && expo prebuild",
     "prebuild:clean": "npm run build:sandbox && expo prebuild --clean",
     "prebuild:tv": "npm run build:sandbox && cross-env EXPO_TV=1 expo prebuild",
+    "verify:frontend": "node scripts/verify-frontend.mjs",
     "postinstall": "patch-package"
   },
   "dependencies": {

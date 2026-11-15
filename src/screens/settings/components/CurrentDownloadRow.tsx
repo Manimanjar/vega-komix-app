@@ -31,13 +31,13 @@ const statusLabels: Record<DownloadStatus, string> = {
   canceling: 'Canceling',
 };
 
-const getSubtitle = (item: DownloadItem): string => {
+const getChapterDescription = (item: DownloadItem): string => {
   if (item.type === 'movie') {
-    return 'Movie';
+    return 'One-shot';
   }
   return (
     [item.seasonTitle, item.episodeName].filter(Boolean).join(' • ') ||
-    'Episode'
+    'Chapter'
   );
 };
 
@@ -129,7 +129,7 @@ const CurrentDownloadRow = ({
                 className="mt-1 text-xs"
                 style={{color: colors.onSurfaceVariant}}
                 numberOfLines={1}>
-                {getSubtitle(item)}
+                {getChapterDescription(item)}
               </Text>
             </View>
             <View className="flex-row items-center">

@@ -35,7 +35,6 @@ import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
 import PlayerSettings from './screens/settings/PlayerSettings';
-import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
 import DataManagement from './screens/settings/DataManagement';
 import {M3ThemeProvider} from './theme/M3ThemeProvider';
@@ -48,7 +47,6 @@ import {
 } from 'react-native-safe-area-context';
 import Downloads from './screens/downloads/Downloads';
 import DownloadedDetails from './screens/downloads/DownloadedDetails';
-import SubtitlePreference from './screens/settings/SubtitleSettings';
 import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
@@ -454,7 +452,7 @@ function SettingsStackScreen() {
         options={subpageOptions}
       />
       <SettingsStack.Screen name="PlayerSettings" component={PlayerSettings} options={subpageOptions} />
-      <SettingsStack.Screen name="PlayerControlSettings" component={PlayerControlSettings} options={subpageOptions} />
+      <SettingsStack.Screen name="PlayerControlSettings" component={PlayerSettings as any} options={subpageOptions} />
       <SettingsStack.Screen name="DataManagement" component={DataManagement} options={subpageOptions} />
       <SettingsStack.Screen
         name="Preferences"
@@ -472,7 +470,7 @@ function SettingsStackScreen() {
       />
       <SettingsStack.Screen
         name="SubTitlesPreferences"
-        component={SubtitlePreference}
+        component={PlayerSettings as any}
         options={subpageOptions}
       />
     </SettingsStack.Navigator>
