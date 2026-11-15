@@ -1,5 +1,12 @@
 import {useSavedSubtitles} from './useSavedSubtitles';
-import {savedSubtitleTrack, subtitleVideoKey} from '../subtitles/savedSubtitles';
+
+const subtitleVideoKey = (_episode: any, _params: any, _provider: string): string => '';
+const savedSubtitleTrack = (item: any) => ({
+  title: item.title || '',
+  language: item.language || 'und',
+  type: item.type || 'vtt',
+  uri: item.uri || '',
+});
 import {deduplicateVideoTracks} from '../player/playbackQuality';
 import {externalVideoStream} from '../services/videoIntent';
 import { useQuery } from '@tanstack/react-query';

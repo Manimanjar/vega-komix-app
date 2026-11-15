@@ -131,6 +131,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
+import Constants from 'expo-constants';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const AnimatedSection = ({
@@ -386,7 +387,7 @@ const Settings = ({navigation}: Props) => {
               <SettingsSection title="About">
                 <SettingsRow
                   title="About Vega Komix"
-                  description="v6.0.0 (Updated Nov 15, 2026) • Release details & changelog"
+                  description={`v${Constants.expoConfig?.version || '6.1.1'} • Release details & changelog`}
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />

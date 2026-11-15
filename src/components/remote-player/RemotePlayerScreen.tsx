@@ -1,4 +1,21 @@
-import type {SavedSubtitle, SubtitleInput} from '../../lib/subtitles/savedSubtitles';
+export type SubtitleOrigin = 'embedded' | 'remote' | 'local' | 'search' | 'file';
+
+export interface SavedSubtitle {
+  id: string;
+  title: string;
+  language?: string;
+  uri: string;
+  type?: string;
+  origin: SubtitleOrigin | string;
+}
+
+export interface SubtitleInput {
+  title?: string;
+  language?: string;
+  uri: string;
+  type?: string;
+}
+
 import React, {useCallback, useState} from 'react';
 import {Image, View} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';

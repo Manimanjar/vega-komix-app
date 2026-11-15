@@ -50,7 +50,6 @@ import DownloadedDetails from './screens/downloads/DownloadedDetails';
 import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
-import {syncParallelStreaming} from './lib/parallelStreaming';
 import {updateProvidersService} from './lib/services/UpdateProviders';
 import {QueryClientProvider} from '@tanstack/react-query';
 import {queryClient} from './lib/client';
@@ -545,10 +544,6 @@ const App = () => {
       Boolean(Constants?.expoConfig?.extra?.hasFirebase) &&
       isFirebaseNativeReady(),
   );
-
-  useEffect(() => {
-    syncParallelStreaming();
-  }, []);
 
   // Safety fallback to ensure splash is hidden
   useEffect(() => {

@@ -94,9 +94,16 @@ const downloadUpdate = async (url: string, name: string) => {
   }
 };
 
-export const CURRENT_VERSION = '6.0.0';
+export const CURRENT_VERSION =
+  Constants.expoConfig?.version ||
+  Application.nativeApplicationVersion ||
+  '6.1.1';
 export const RELEASE_DATE = 'November 15, 2026';
-export const BUILD_NUMBER = '300';
+export const BUILD_NUMBER = String(
+  Constants.expoConfig?.android?.versionCode ||
+    Application.nativeBuildVersion ||
+    '311',
+);
 
 export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.0.0 Release Notes (Nov 15, 2026)
 
@@ -373,7 +380,7 @@ const About = ({navigation}: any) => {
             icon="android"
           />
           <SettingsRow
-            title="What's New in v6.0.0 (Changelog)"
+            title={`What's New in v${CURRENT_VERSION} (Changelog)`}
             description="Tap to view complete release notes & changelog"
             icon="clipboard-text-outline"
             divider={Constants.expoConfig?.extra?.isPlayStore}

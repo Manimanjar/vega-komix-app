@@ -1,4 +1,4 @@
-import type {SavedSubtitle, SubtitleInput} from '../../lib/subtitles/savedSubtitles';
+import type {SavedSubtitle, SubtitleInput} from './RemotePlayerScreen';
 import RemovableSubtitleRow from '../RemovableSubtitleRow';
 import {languageLabel} from '../../lib/player/languageLabel';
 import {isRemotePlaybackCanceled} from '../../lib/remote/remotePlaybackErrors';

@@ -1,8 +1,8 @@
 import React, {useMemo, useState} from 'react';
+import {NativeModules, Platform} from 'react-native';
 import SettingsSection from '../../../components/ui/SettingsSection';
 import SettingsSliderRow from '../../../components/ui/SettingsSliderRow';
 import SettingsSwitchRow from '../../../components/ui/SettingsSwitchRow';
-import {syncParallelStreaming} from '../../../lib/parallelStreaming';
 import {getSafeBufferTotalMB} from '../../../lib/deviceMemory';
 import {BUFFER_LIMITS, settingsStorage} from '../../../lib/storage';
 
@@ -77,7 +77,9 @@ const BufferPreference = () => {
         onValueChange={enabled => {
           setParallelStreaming(enabled);
           settingsStorage.setParallelStreaming(enabled);
-          syncParallelStreaming(enabled);
+          if (Platform.OS === 'android') {
+            NativeModules.HttpDownloadModule?.setParallelStreaming?.(enabled);
+          }
         }}
       />
     </SettingsSection>

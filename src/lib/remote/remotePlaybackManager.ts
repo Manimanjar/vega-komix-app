@@ -27,7 +27,6 @@ import {
 import {isTV} from '../tv';
 import {getCookieHeader} from '../services/cookieManager';
 import {mainStorage} from '../storage/StorageService';
-import {torrentManager} from '../torrentManager';
 import type {Stream} from '../providers/types';
 
 const CAST_HLS_KEY = 'remote.castHlsOutput';
@@ -2925,7 +2924,6 @@ class RemotePlaybackManager {
     const hash = this.ownedTorrentHash;
     if (!hash || nextSourceUrl?.includes(`/stream/${hash}/`)) return;
     this.ownedTorrentHash = null;
-    torrentManager.deleteTorrent(hash, true).catch(() => {});
   }
 
   stop(): Promise<void> {
