@@ -51,6 +51,7 @@ jest.mock('react-native-mmkv-storage', () => ({
 
 import {providerFetch} from '../src/lib/sandbox/providerFetch';
 import {storeSetCookies} from '../src/lib/sandbox/providerCookieJar';
+import {autoDomainResolver} from '../src/lib/network/autoDomainResolver';
 
 const redirectTo = (url: string, location: string, status = 302) => ({
   status,
@@ -84,6 +85,7 @@ describe('providerFetch redirects (android)', () => {
     mockStorageMap.clear();
     mockNativeFetch.mockReset();
     mockNativeCancel.mockReset();
+    autoDomainResolver.clearCache();
   });
 
   it('cancels the native call and ignores its late redirect and cookies', async () => {

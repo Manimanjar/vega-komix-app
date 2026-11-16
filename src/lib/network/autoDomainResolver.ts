@@ -119,6 +119,14 @@ export class AutoDomainResolver {
   }
 
   /**
+   * Clear in-memory mappings and reset initialization (useful for tests and manual cache invalidation)
+   */
+  public clearCache(): void {
+    this.inMemoryMap.clear();
+    this.initialized = false;
+  }
+
+  /**
    * Check if a given hostname has an active rewrite mapping
    */
   public hasRewrite(hostname: string): boolean {

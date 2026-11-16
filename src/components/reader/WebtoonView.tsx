@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -11,6 +10,12 @@ import {
   useWindowDimensions,
   type ViewToken,
 } from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AppText from '../ui/Text';
@@ -70,47 +75,24 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<boolean>(false);
 
-  // Crash-free zoom controller (1x <-> 2x toggle without Reanimated worklets)
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const isZoomed = useRef<boolean>(false);
-  const lastTapTime = useRef<number>(0);
-  const singleTapTimer = useRef<any>(null);
+  // Reanimated values for double tap zoom and pinch/pan
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translationX = useSharedValue(0);
+  const savedTranslationX = useSharedValue(0);
+  const translationY = useSharedValue(0);
+  const savedTranslationY = useSharedValue(0);
+  const [isZoomed, setIsZoomed] = useState<boolean>(false);
 
-  const toggleZoom = useCallback(() => {
-    if (isZoomed.current) {
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-      isZoomed.current = false;
-    } else {
-      Animated.timing(scaleAnim, {
-        toValue: 2,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-      isZoomed.current = true;
-    }
-  }, [scaleAnim]);
-
-  const handlePagePress = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapTime.current < 280) {
-      if (singleTapTimer.current) {
-        clearTimeout(singleTapTimer.current);
-        singleTapTimer.current = null;
-      }
-      toggleZoom();
-    } else {
-      lastTapTime.current = now;
-      if (onToggleHUD) {
-        singleTapTimer.current = setTimeout(() => {
-          onToggleHUD();
-        }, 280);
-      }
-    }
-  }, [toggleZoom, onToggleHUD]);
+  const resetZoom = useCallback(() => {
+    scale.value = withTiming(1, {duration: 200});
+    translationX.value = withTiming(0, {duration: 200});
+    translationY.value = withTiming(0, {duration: 200});
+    savedScale.value = 1;
+    savedTranslationX.value = 0;
+    savedTranslationY.value = 0;
+    setIsZoomed(false);
+  }, [savedScale, savedTranslationX, savedTranslationY, scale, translationX, translationY]);
 
   const effectiveWidth = useMemo(() => {
     return Math.round(screenWidth * (zoomScale || 1.0));
@@ -190,84 +172,191 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       .catch(() => {});
   }, [index, currentUrl, resolvedHeaders]);
 
+  // Two-Finger Pinch-to-Zoom Gesture (website-grade smooth zoom)
+  const pinchGesture = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
+    .onUpdate(e => {
+      const target = Math.max(0.75, Math.min(4.5, savedScale.value * e.scale));
+      scale.value = target;
+      if (target > 1.05 && !isZoomed) {
+        setIsZoomed(true);
+      }
+    })
+    .onEnd(() => {
+      if (scale.value < 1.05) {
+        resetZoom();
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  // Pan Gesture (panning across magnified image; enabled ONLY when zoomed in)
+  const panGesture = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(1)
+    .maxPointers(2)
+    .enabled(isZoomed)
+    .onStart(() => {
+      savedTranslationX.value = translationX.value;
+      savedTranslationY.value = translationY.value;
+    })
+    .onUpdate(e => {
+      if (scale.value > 1.05) {
+        const maxTransX = (effectiveWidth * (scale.value - 1)) / 2;
+        const maxTransY = (pageHeight * (scale.value - 1)) / 2;
+        const nextX = savedTranslationX.value + e.translationX;
+        const nextY = savedTranslationY.value + e.translationY;
+        translationX.value = Math.max(-maxTransX - 30, Math.min(maxTransX + 30, nextX));
+        translationY.value = Math.max(-maxTransY - 30, Math.min(maxTransY + 30, nextY));
+      }
+    })
+    .onEnd(() => {
+      if (scale.value > 1.05) {
+        const maxTransX = (effectiveWidth * (scale.value - 1)) / 2;
+        const maxTransY = (pageHeight * (scale.value - 1)) / 2;
+        const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
+        const boundedY = Math.max(-maxTransY, Math.min(maxTransY, translationY.value));
+        translationX.value = withTiming(boundedX, {duration: 150});
+        translationY.value = withTiming(boundedY, {duration: 150});
+        savedTranslationX.value = boundedX;
+        savedTranslationY.value = boundedY;
+      }
+    });
+
+  // Single Tap Gesture (triggers HUD toggle)
+  const singleTapGesture = Gesture.Tap()
+    .numberOfTaps(1)
+    .maxDuration(250)
+    .runOnJS(true)
+    .onEnd(() => {
+      if (onToggleHUD) {
+        onToggleHUD();
+      }
+    });
+
+  // Double Tap Gesture (1x <-> 2.5x anchored)
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDuration(300)
+    .runOnJS(true)
+    .onEnd(e => {
+      if (scale.value > 1.2) {
+        resetZoom();
+      } else {
+        const targetScale = 2.5;
+        scale.value = withTiming(targetScale, {duration: 250});
+        const centerX = screenWidth / 2;
+        const centerY = pageHeight / 2;
+        const maxTransX = (effectiveWidth * (targetScale - 1)) / 2;
+        const maxTransY = (pageHeight * (targetScale - 1)) / 2;
+        const targetX = Math.max(-maxTransX, Math.min(maxTransX, (centerX - e.x) * 1.5));
+        const targetY = Math.max(-maxTransY, Math.min(maxTransY, (centerY - e.y) * 1.5));
+        translationX.value = withTiming(targetX, {duration: 250});
+        translationY.value = withTiming(targetY, {duration: 250});
+        savedScale.value = targetScale;
+        savedTranslationX.value = targetX;
+        savedTranslationY.value = targetY;
+        setIsZoomed(true);
+      }
+    });
+
+  const zoomGestures = Gesture.Simultaneous(pinchGesture, panGesture);
+  const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  const gesture = Gesture.Simultaneous(zoomGestures, tapGestures);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {translateX: translationX.value},
+      {translateY: translationY.value},
+      {scale: scale.value},
+    ],
+  }));
+
   const themeColors = THEME_COLORS[theme];
 
   return (
-    <Pressable
-      onPress={handlePagePress}
-      style={{
-        width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#000000',
-        marginTop: index > 0 ? -0.5 : 0,
-      }}>
-      <Animated.View
+    <GestureDetector gesture={gesture}>
+      <View
         style={{
-          width: effectiveWidth, // width: screenWidth
-          height: Math.ceil(pageHeight),
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
           backgroundColor: '#000000',
-          transform: [{scale: scaleAnim}],
+          marginTop: index > 0 ? -0.5 : 0,
+          zIndex: isZoomed ? 999 : 1,
         }}>
-        <ExpoImage
-          key={`${currentUrl}-${retryKey}`}
-          source={{
-            uri: currentUrl,
-            headers: resolvedHeaders,
-          }}
-          style={{width: '100%', height: '100%'}}
-          contentFit="contain"
-          priority="high"
-          recyclingKey={item.imageUrl}
-          enableLiveTextInteraction={false}
-          allowDownscaling={highQualityRendering ? false : true}
-          decodeFormat="argb"
-          cachePolicy="memory-disk"
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        />
-      </Animated.View>
-
-      {/* Loading state indicator */}
-      {loading && !loadError && (
-        <View style={styles.centerOverlay}>
-          <ActivityIndicator size="small" color="#7C4DFF" />
-        </View>
-      )}
-
-      {/* Error state with retry */}
-      {loadError && (
-        <View style={styles.centerOverlay}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#FF5252" />
-          <AppText role="labelSmall" style={{color: '#FF5252', marginTop: 4}}>
-            Failed to load page {index + 1}
-          </AppText>
-          <Pressable
-            onPress={() => {
-              setLoading(true);
-              setLoadError(false);
-              setRetryKey(k => k + 1);
-              onRetryTranslation?.(index);
+        <Animated.View
+          style={[
+            {
+              width: effectiveWidth, // width: screenWidth
+              height: Math.ceil(pageHeight),
+              backgroundColor: '#000000',
+            },
+            animatedStyle,
+          ]}>
+          <ExpoImage
+            key={`${currentUrl}-${retryKey}`}
+            source={{
+              uri: currentUrl,
+              headers: resolvedHeaders,
             }}
-            style={styles.retryButton}>
-            <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
-            <AppText role="labelSmall" style={{color: '#FFFFFF', fontWeight: '700'}}>
-              Retry
-            </AppText>
-          </Pressable>
-        </View>
-      )}
+            style={{width: '100%', height: '100%'}}
+            contentFit="contain"
+            priority="high"
+            recyclingKey={item.imageUrl}
+            enableLiveTextInteraction={false}
+            allowDownscaling={highQualityRendering ? false : true}
+            decodeFormat="argb"
+            cachePolicy="memory-disk"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        </Animated.View>
 
-      {/* Translation Bubbles Overlay */}
-      {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
-        <TranslatedBubbleOverlay
-          bubbles={translationBubbles}
-          renderedWidth={effectiveWidth}
-          renderedHeight={pageHeight}
-          visible={true}
-        />
-      )}
-    </Pressable>
+        {/* Loading state indicator */}
+        {loading && !loadError && (
+          <View style={styles.centerOverlay}>
+            <ActivityIndicator size="small" color="#7C4DFF" />
+          </View>
+        )}
+
+        {/* Error state with retry */}
+        {loadError && (
+          <View style={styles.centerOverlay}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#FF5252" />
+            <AppText role="labelSmall" style={{color: '#FF5252', marginTop: 4}}>
+              Failed to load page {index + 1}
+            </AppText>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                setLoadError(false);
+                setRetryKey(k => k + 1);
+                onRetryTranslation?.(index);
+              }}
+              style={styles.retryButton}>
+              <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
+              <AppText role="labelSmall" style={{color: '#FFFFFF', fontWeight: '700'}}>
+                Retry
+              </AppText>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Translation Bubbles Overlay */}
+        {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
+          <TranslatedBubbleOverlay
+            bubbles={translationBubbles}
+            renderedWidth={effectiveWidth}
+            renderedHeight={pageHeight}
+            visible={true}
+          />
+        )}
+      </View>
+    </GestureDetector>
   );
 });
 

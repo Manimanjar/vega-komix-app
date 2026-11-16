@@ -237,6 +237,8 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     zoomScale,
   ]);
 
+  const [isZoomed, setIsZoomed] = useState<boolean>(false);
+
   const resetZoom = useCallback(() => {
     scale.value = withTiming(1, {duration: 200});
     translationX.value = withTiming(0, {duration: 200});
@@ -244,7 +246,62 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     savedScale.value = 1;
     savedTranslationX.value = 0;
     savedTranslationY.value = 0;
+    setIsZoomed(false);
   }, [savedScale, savedTranslationX, savedTranslationY, scale, translationX, translationY]);
+
+  // Two-Finger Pinch-to-Zoom Gesture (website-grade smooth zoom)
+  const pinchGesture = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
+    .onUpdate(e => {
+      const target = Math.max(0.75, Math.min(4.5, savedScale.value * e.scale));
+      scale.value = target;
+      if (target > 1.05 && !isZoomed) {
+        setIsZoomed(true);
+      }
+    })
+    .onEnd(() => {
+      if (scale.value < 1.05) {
+        resetZoom();
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  // Pan Gesture (panning across magnified image; enabled ONLY when zoomed in)
+  const panGesture = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(1)
+    .maxPointers(2)
+    .enabled(isZoomed)
+    .onStart(() => {
+      savedTranslationX.value = translationX.value;
+      savedTranslationY.value = translationY.value;
+    })
+    .onUpdate(e => {
+      if (scale.value > 1.05) {
+        const maxTransX = (containerDimensions.width * (scale.value - 1)) / 2;
+        const maxTransY = (containerDimensions.height * (scale.value - 1)) / 2;
+        const nextX = savedTranslationX.value + e.translationX;
+        const nextY = savedTranslationY.value + e.translationY;
+        translationX.value = Math.max(-maxTransX - 30, Math.min(maxTransX + 30, nextX));
+        translationY.value = Math.max(-maxTransY - 30, Math.min(maxTransY + 30, nextY));
+      }
+    })
+    .onEnd(() => {
+      if (scale.value > 1.05) {
+        const maxTransX = (containerDimensions.width * (scale.value - 1)) / 2;
+        const maxTransY = (containerDimensions.height * (scale.value - 1)) / 2;
+        const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
+        const boundedY = Math.max(-maxTransY, Math.min(maxTransY, translationY.value));
+        translationX.value = withTiming(boundedX, {duration: 150});
+        translationY.value = withTiming(boundedY, {duration: 150});
+        savedTranslationX.value = boundedX;
+        savedTranslationY.value = boundedY;
+      }
+    });
 
   // Single Tap Gesture (triggers tap zone / HUD toggle)
   // CRITICAL: runOnJS(true) ensures onSingleTap executes on JS thread, preventing native Android crash
@@ -258,7 +315,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Double Tap Gesture (1x <-> 2x anchored)
+  // Double Tap Gesture (1x <-> 2.5x anchored)
   // CRITICAL: runOnJS(true) ensures zoom animation executes safely without worklet crash
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
@@ -268,21 +325,26 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       if (scale.value > 1.2) {
         resetZoom();
       } else {
-        const targetScale = 2.0;
+        const targetScale = 2.5;
         scale.value = withTiming(targetScale, {duration: 250});
         const centerX = windowWidth / 2;
         const centerY = windowHeight / 2;
-        const targetX = Math.max(-windowWidth * 0.5, Math.min(windowWidth * 0.5, (centerX - e.x)));
-        const targetY = Math.max(-windowHeight * 0.5, Math.min(windowHeight * 0.5, (centerY - e.y)));
+        const maxTransX = (containerDimensions.width * (targetScale - 1)) / 2;
+        const maxTransY = (containerDimensions.height * (targetScale - 1)) / 2;
+        const targetX = Math.max(-maxTransX, Math.min(maxTransX, (centerX - e.x) * 1.5));
+        const targetY = Math.max(-maxTransY, Math.min(maxTransY, (centerY - e.y) * 1.5));
         translationX.value = withTiming(targetX, {duration: 250});
         translationY.value = withTiming(targetY, {duration: 250});
         savedScale.value = targetScale;
         savedTranslationX.value = targetX;
         savedTranslationY.value = targetY;
+        setIsZoomed(true);
       }
     });
 
-  const gesture = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  const zoomGestures = Gesture.Simultaneous(pinchGesture, panGesture);
+  const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  const gesture = Gesture.Simultaneous(zoomGestures, tapGestures);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

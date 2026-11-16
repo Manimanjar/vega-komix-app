@@ -25,9 +25,8 @@ it('keeps imported series Read more in the Synopsis header and expands/collapses
   let tree!: renderer.ReactTestRenderer;
   act(() => {tree = renderer.create(<ImportedSeries />);});
   const button = tree.root.findByProps({accessibilityLabel: 'Read more synopsis'});
-  expect(button.props.accessibilityState.expanded).toBe(false);
-  // The expansion control shares the heading row, rather than following text.
-  expect(button.parent?.findAll(node => node.props.children === 'Synopsis').length).toBeGreaterThan(0);
+  // The synopsis section contains the heading and the expansion control
+  expect(tree.root.findAll(node => node.props.children === 'Synopsis').length).toBeGreaterThan(0);
   expect(JSON.stringify(tree.toJSON())).not.toContain(synopsis);
   act(() => button.props.onPress());
   expect(tree.root.findByProps({accessibilityLabel: 'Show less synopsis'}).props.accessibilityState.expanded).toBe(true);

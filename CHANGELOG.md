@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### 🔍 Website-Grade Pinch-to-Zoom & Pan Engine
+- **Fluid Two-Finger Pinch Zoom:** Seamless 0.75x to 4.5x continuous scaling across both Paged (`PagedView`) and Continuous Webtoon (`WebtoonView`) reader modes.
+- **Dynamic Touch Routing:** When unzoomed (1.0x), 1-finger vertical FlatList scrolling and horizontal page swiping remain 100% free with zero touch interception, matching the fluid behavior of modern web browsers.
+- **Zoom-Locked Pan Navigation:** When scaled past 1.05x, 1-finger pan gesture activates, allowing smooth fluid movement across magnified panels bounded by page margins.
+- **Smooth Spring-Back:** Releasing below 1.05x smoothly springs back to 1.0x and centers the frame.
+- **Double-Tap Quick Zoom:** 1-tap/2-tap gesture differentiation cleanly switches between 1.0x and 2.5x anchored at the tap coordinates.
+
 #### 📖 Subpixel 0-Gap Webtoon Stitching & Manga Double-Spread Splitter
 - **Webtoon 0-Gap Continuous Stitching:**
   - Applied subpixel rounding compensation (`marginTop: -0.5px`) between consecutive vertical tiles, completely eliminating hairline white/black separator lines.
