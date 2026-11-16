@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.5] - 2026-11-16
+
+### 🚀 Manga Double-Spread Auto-Splitter & Orientation Lock: Vega Komix v6.1.5
+- **Version:** `6.1.5`
+- **Version Code:** `315`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 📖 Landscape Double-Spread Auto-Splitter
+- **Dynamic Landscape Scan Detection:** Scans with aspect ratio `width > height * 1.2` viewed in portrait mode automatically split into two portrait sub-pages with individual focus, eliminating tiny unreadable text.
+- **Direction-Aware Split Reading:**
+  - **Manga Mode (RTL):** Right half displays first (`Spread 1/2`), followed by left half (`Spread 2/2`) matching traditional Japanese publication reading order.
+  - **Western Comic Mode (LTR):** Left half displays first (`Spread 1/2`), followed by right half (`Spread 2/2`).
+- **Consecutive Page Pairing in Landscape:** When the device is held horizontally in `double_spread` mode, consecutive single portrait scans are paired side-by-side with cover page isolation.
+
+#### 🔄 Rigid Screen Orientation Engine
+- **Strict 2-State Locking:** Bottom HUD button alternates strictly between PORTRAIT and LANDSCAPE locking via `react-native-orientation-locker`.
+- **Rogue Sensor Re-locking:** Orientation listener actively corrects unwanted sensor drift, keeping the user's manual choice locked while reading.
+
+---
+
 ## [6.1.4] - 2026-11-16
 
 ### 🚀 Large Webtoon Zero-Lag Virtualization & Momentum Physics: Vega Komix v6.1.4

@@ -109,7 +109,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
           (page.width && page.height && page.height > 0
             ? page.width / page.height
             : undefined);
-        const isWide = ratio ? ratio > 1.25 : false;
+        const isWide = ratio ? ratio > 1.2 : false;
 
         if (isWide && splitDoubleSpreads && !isLandscape) {
           // Double-spread landscape image in portrait mode:
