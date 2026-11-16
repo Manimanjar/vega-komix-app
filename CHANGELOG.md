@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.7] - 2026-11-16
+
+### 🚀 Privacy & Security Suite: Vega Komix v6.1.7
+- **Version:** `6.1.7`
+- **Version Code:** `317`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 🛡️ Hardware Biometric & Device PIN App Lock
+- **Biometric Security Engine:** Enforces hardware-backed biometric verification (Fingerprint, Face Unlock, or system PIN/password fallback) on app launch and resume via `expo-local-authentication`.
+- **Customizable Inactivity Timeouts:** Supports lock timing preferences (`Immediately`, `1 minute`, `5 minutes`) managed in `SecuritySettings.tsx` and `securityService.ts`.
+- **BiometricLockOverlay:** Non-intrusive full-screen privacy shield at root application level blocks content access until authenticated.
+
+#### 🔒 Android FLAG_SECURE Task Switcher App Masking
+- **Task Switcher Content Protection:** Utilizes `expo-screen-capture` (`FLAG_SECURE`) to mask comic preview thumbnails in the Android Recent Apps / task switcher.
+- **In-Reader Automatic Shielding:** Automatically activates window protection while reading sensitive content and when Incognito mode is engaged, protecting user privacy in public environments.
+
+#### 👻 1-Tap Ghost / Incognito Reading Mode
+- **Zero-Footprint Reading Sessions:** 1-tap Ghost mode toggle in Reader HUD and Settings Sheet completely bypasses reading history logging, progress persistence, and unread chapter diff updates.
+- **Privacy Toast Feedback:** Displays instant confirmation feedback when entering or exiting Ghost reading mode.
+
+---
+
 ## [6.1.6] - 2026-11-16
 
 ### 🚀 Library Live Update Tracker & Green +X Badges: Vega Komix v6.1.6

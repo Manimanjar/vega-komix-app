@@ -14,6 +14,7 @@ import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native'
 import {NativeStackNavigationProp, NativeStackScreenProps} from '@react-navigation/native-stack';
 import Orientation from 'react-native-orientation-locker';
 import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
+import * as ScreenCapture from 'expo-screen-capture';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type {HomeStackParamList, RootStackParamList} from '../../App';
 import type {EpisodeLink, PageImage, Stream} from '../../lib/providers/types';
@@ -114,6 +115,20 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       return next;
     });
   }, []);
+
+  // Android FLAG_SECURE App Masking in Reader & Incognito mode
+  useEffect(() => {
+    const shouldProtect = settingsStorage.isMaskInRecentsEnabled() || isIncognito;
+    if (shouldProtect) {
+      ScreenCapture.preventScreenCaptureAsync('reader_content_protection').catch(() => {});
+    } else {
+      ScreenCapture.allowScreenCaptureAsync('reader_content_protection').catch(() => {});
+    }
+
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync('reader_content_protection').catch(() => {});
+    };
+  }, [isIncognito]);
 
   useEffect(() => {
     return turboPreloader.subscribe(setTurboStats);
