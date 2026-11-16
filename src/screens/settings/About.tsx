@@ -1,6 +1,7 @@
 import {useFocusEffect} from '@react-navigation/native';
 import {View, ScrollView, ToastAndroid, Linking, BackHandler, findNodeHandle} from 'react-native';
-// import pkg from '../../../package.json';
+import pkg from '../../../package.json';
+import appConfig from '../../../app.json';
 import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {settingsStorage} from '../../lib/storage';
 import * as RNFS from '@dr.pogodin/react-native-fs';
@@ -94,43 +95,86 @@ const downloadUpdate = async (url: string, name: string) => {
   }
 };
 
-export const CURRENT_VERSION =
-  Constants.expoConfig?.version ||
-  Application.nativeApplicationVersion ||
-  '6.1.1';
-export const RELEASE_DATE = 'November 15, 2026';
-export const BUILD_NUMBER = String(
-  Constants.expoConfig?.android?.versionCode ||
-    Application.nativeBuildVersion ||
-    '311',
-);
+export function compareVersions(localVersion: string, remoteVersion: string): boolean {
+  try {
+    const cleanLocal = (localVersion || '').trim().replace(/^v/i, '');
+    const cleanRemote = (remoteVersion || '').trim().replace(/^v/i, '');
 
-export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.1.1 Release Notes (Nov 15, 2026)
+    const localParts = cleanLocal.split('.').map(part => parseInt(part, 10) || 0);
+    const remoteParts = cleanRemote.split('.').map(part => parseInt(part, 10) || 0);
 
-**Build:** 311 | **Target:** Android 6.0+ (ARM64 & Universal)
+    const maxLength = Math.max(localParts.length, remoteParts.length, 3);
+    for (let i = 0; i < maxLength; i++) {
+      const l = localParts[i] || 0;
+      const r = remoteParts[i] || 0;
+      if (r > l) return true;
+      if (r < l) return false;
+    }
+    return false;
+  } catch (error) {
+    console.error('Invalid version format', error);
+    return false;
+  }
+}
 
-#### 📖 0-Gap Webtoon Stitching & Manga Double-Spread Splitter
-- **0-Gap Slicing:** Subpixel rounding compensation (-0.5px) and pure AMOLED #000000 framing eliminating all white/dark separator gaps.
-- **Double-Spread Auto-Split:** Direction-aware splitting of wide landscape scans into 2 portrait pages (RTL for Manga, LTR for Western) with subtle status badges.
+export const getResolvedVersion = (): string => {
+  const pkgVer = (pkg as {version?: string})?.version;
+  const nativeVer = Application.nativeApplicationVersion;
+  const expoVer = Constants.expoConfig?.version;
 
-#### 🔒 Privacy & Security Suite
-- **Biometric App Lock:** Fingerprint/PIN protection on resume with configurable lock timeout (Immediately, 1m, 5m).
-- **App Switcher Privacy Mask:** Android FLAG_SECURE prevents screen captures and masks app previews in Recent Apps.
-- **Incognito Reading:** 1-tap top-bar ghost mode prevents reading history and progress tracking.
+  if (pkgVer && nativeVer) {
+    return compareVersions(nativeVer, pkgVer) ? pkgVer : nativeVer;
+  }
+  return pkgVer || nativeVer || expoVer || '6.2.1';
+};
 
-#### 🏷️ Library Updates & Green +X Badges
-- **Automated Checker:** Periodic background update checks for bookmarked comics.
-- **Visual Indicators:** Neon-green +X badges for new chapters and NEW badges for recent bookmarks.
+export const CURRENT_VERSION = getResolvedVersion();
+export const RELEASE_DATE = 'November 16, 2026';
 
-#### 🔍 Search Overhaul & Genre Discovery
-- **Search History:** MMKV-backed search chips with 1-tap reuse and history clearing.
-- **15 Genre Tags:** Quick 1-tap comic category chips (Action, Romance, Isekai, Manhwa, etc.).
+export const getResolvedBuildNumber = (): string => {
+  const appBuild = (appConfig as any)?.expo?.android?.versionCode;
+  const nativeBuild = Application.nativeBuildVersion;
+  const expoBuild = Constants.expoConfig?.android?.versionCode;
 
-#### ⚡ Performance Engine & Original Quality
-- **Original Quality (32-bit ARGB):** Preserves 100% full original uncompressed resolution and 32-bit ARGB true color depth by default, with an optional performance toggle for low-end devices.
-- **Large Comic Scroll Optimization:** Eliminated scroll-fighting stutter, debounced storage I/O, and removed list re-renders for butter-smooth 60fps scrolling.
-- **Instant Chapter Open:** Progressive chunking opens 1000+ page chapters in < 300ms.
-- **Preloader & Preferences:** 8-page disk lookahead preloader and per-comic reading mode memory.`;
+  const resolved = Math.max(
+    Number(appBuild) || 0,
+    Number(nativeBuild) || 0,
+    Number(expoBuild) || 0,
+    321,
+  );
+  return String(resolved);
+};
+
+export const BUILD_NUMBER = getResolvedBuildNumber();
+
+export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.1 Release Notes (Nov 16, 2026)
+
+**Build:** 321 | **Target:** Android 6.0+ (ARM64 & Universal)
+
+#### 🛠️ Version Synchronization & In-App Updater Engine
+- **Native Version Sync:** Synchronized native Android build configuration dynamically with package.json and app.json, ensuring the installed version always matches the release tag.
+- **Automated Update Accuracy:** Upgraded update comparison engine to eliminate stale version mismatches, guaranteeing clean in-app update prompts for actual upcoming releases.
+
+#### 🔍 Search Engine Overhaul & 15-Genre Exploration
+- **15 Curated Comic Genres:** Direct 1-tap discovery for Action, Romance, Isekai, Fantasy, Slice of Life, Sci-Fi, Martial Arts, Comedy, Drama, Horror, Mystery, Psychological, Supernatural, Historical, and Sports.
+- **Search History Chips & 1-Tap Recall:** Fast chip-based history recall with instant search execution and 1-tap clear all option.
+- **Unified Series Room Clustering:** Automatically detects and clusters multiple provider editions and scattered chapter uploads under a unified series card with clear edition badges.
+
+#### 🛡️ Privacy & Security Suite
+- **Biometric App Lock:** Hardware-backed biometric authentication (Fingerprint, Face Unlock, or PIN fallback) on app launch and resume with configurable timeouts (Immediately, 1m, 5m).
+- **Android FLAG_SECURE App Masking:** Blank task switcher previews in recent apps and screenshot protection during sensitive reading.
+- **Ghost / Incognito Mode:** 1-tap toggle completely isolates reading sessions without writing to history or progress storage.
+
+#### 🟢 Dynamic Library Live Update Tracker & Green Badges
+- **Unread Chapter Tracking:** Real-time diff calculation with emerald green +X pill badges.
+- **Fresh Bookmarks:** "NEW" badge for newly added comics with 0 read progress.
+- **Non-Blocking Background Refresh:** Scraper queries batched in groups of 3 and scheduled via scheduleWhenIdle.
+
+#### 📖 Reader Experience & Physics Optimization
+- **Double-Spread Auto-Splitter:** Automatic portrait splitting for wide landscape scans (RTL for Manga, LTR for Comics).
+- **Zero-Lag Virtualization:** Calibrated FlatList windowing for fluid 60/120fps scrolling on 100+ page vertical manhwas.
+- **True-Color ARGB_8888 Quality Guarantee:** Original uncompressed resolution preserved across continuous and paged modes.
+- **Story-Chronological Navigation:** Smooth forward chapter advancement regardless of raw scraper ordering.`;
 
 // handle check for update
 export const checkForUpdate = async (
@@ -158,11 +202,8 @@ export const checkForUpdate = async (
     if (!data?.tag_name) {
       throw new Error('Invalid release data received from GitHub');
     }
-    const localVersion = Application.nativeApplicationVersion || CURRENT_VERSION;
-    const remoteVersion = Number(
-      data.tag_name.replace('v', '')?.split('.').join(''),
-    );
-    if (compareVersions(localVersion || '', data.tag_name.replace('v', ''))) {
+    const localVersion = CURRENT_VERSION;
+    if (compareVersions(localVersion, data.tag_name)) {
       ToastAndroid.show('New update available', ToastAndroid.SHORT);
       showAppDialog({
         title: `Update v${localVersion} -> ${data.tag_name}`,
@@ -200,7 +241,7 @@ export const checkForUpdate = async (
         'local version',
         localVersion,
         'remote version',
-        remoteVersion,
+        data?.tag_name,
       );
     } else {
       showToast && ToastAndroid.show('App is up to date', ToastAndroid.SHORT);
@@ -208,7 +249,7 @@ export const checkForUpdate = async (
         'local version',
         localVersion,
         'remote version',
-        remoteVersion,
+        data?.tag_name,
       );
     }
   } catch (error) {
@@ -346,7 +387,7 @@ const About = ({navigation}: any) => {
               <AppText
                 role="labelSmall"
                 style={{color: colors.onPrimaryContainer, fontWeight: '700'}}>
-                v{Application.nativeApplicationVersion || CURRENT_VERSION}
+                v{CURRENT_VERSION}
               </AppText>
             </View>
             <View
@@ -368,7 +409,7 @@ const About = ({navigation}: any) => {
         <SettingsSection title="App & Release Information">
           <SettingsRow
             title="App Version"
-            description={`Vega Komix v${Application.nativeApplicationVersion || CURRENT_VERSION} (Build ${BUILD_NUMBER})`}
+            description={`Vega Komix v${CURRENT_VERSION} (Build ${BUILD_NUMBER})`}
             icon="tag-outline"
           />
           <SettingsRow
@@ -388,7 +429,7 @@ const About = ({navigation}: any) => {
             divider={Constants.expoConfig?.extra?.isPlayStore}
             onPress={() => {
               showAppDialog({
-                title: `Vega Komix v${Application.nativeApplicationVersion || CURRENT_VERSION} Changelog`,
+                title: `Vega Komix v${CURRENT_VERSION} Changelog`,
                 message: CHANGELOG_CONTENT,
                 messageFormat: 'markdown',
                 actions: [{label: 'Close', variant: 'primary'}],
@@ -501,37 +542,3 @@ const About = ({navigation}: any) => {
 };
 
 export default About;
-
-function compareVersions(localVersion: string, remoteVersion: string): boolean {
-  try {
-    // Split versions into arrays and convert to numbers
-    const local = localVersion.split('.').map(Number);
-    const remote = remoteVersion.split('.').map(Number);
-
-    // Compare major version
-    if (remote[0] > local[0]) {
-      return true;
-    }
-    if (remote[0] < local[0]) {
-      return false;
-    }
-
-    // Compare minor version
-    if (remote[1] > local[1]) {
-      return true;
-    }
-    if (remote[1] < local[1]) {
-      return false;
-    }
-
-    // Compare patch version
-    if (remote[2] > local[2]) {
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Invalid version format');
-    return false;
-  }
-}

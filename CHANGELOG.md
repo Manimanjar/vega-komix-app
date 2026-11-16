@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.1] - 2026-11-16
+
+### 🛠️ Version Synchronization & In-App Updater Hotfix: Vega Komix v6.2.1
+- **Version:** `6.2.1`
+- **Version Code:** `321`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Fixed
+
+#### 📱 Native Android Version Synchronization
+- **Dynamic Gradle Versioning:** Configured `android/app/build.gradle` to resolve `versionName` and `versionCode` directly from `package.json` and `app.json` at build time, preventing native version stagnation.
+- **Update Dialog Stutter Fix:** Resolved the false in-app update prompt (`Update v6.1.1 -> v6.2.0`) occurring on freshly installed releases by synchronizing native metadata with runtime bundle version.
+
+#### 🔄 In-App Update Engine Hardening
+- **Semver Sanitization:** Enhanced `compareVersions` in `About.tsx` with prefix-tolerant numeric component parsing, preventing spurious update notifications when the app is up to date.
+- **Definitive Version Resolution:** Ensured `About.tsx` version displays and checks evaluate against package release metadata, guaranteeing accurate future update prompts when new releases land.
+
+---
+
 ## [6.2.0] - 2026-11-16
 
 ### 🌟 Major Release: Search Engine Overhaul, 15-Genre Exploration & Complete Reading Suite
