@@ -105,6 +105,7 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   const currentDimmer = settings.screenDimmer ?? 100;
   const isWarmFilter = settings.warmFilterEnabled ?? false;
   const isSplitSpreads = settings.splitDoubleSpreads ?? true;
+  const isHighQuality = settings.highQualityRendering ?? false;
 
   return (
     <Modal
@@ -362,6 +363,33 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     }
                     thumbColor={isSplitSpreads ? '#00E5FF' : '#71717A'}
                     trackColor={{false: '#27272A', true: 'rgba(0, 229, 255, 0.4)'}}
+                  />
+                </View>
+
+                {/* High-Quality 32-Bit Image Rendering */}
+                <View style={[styles.warmFilterRow, {marginTop: 10}]}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1}}>
+                    <MaterialCommunityIcons
+                      name="image-filter-hdr"
+                      size={22}
+                      color={isHighQuality ? '#7C4DFF' : '#71717A'}
+                    />
+                    <View style={{flex: 1}}>
+                      <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                        High-Quality 32-bit Rendering
+                      </AppText>
+                      <AppText role="bodySmall" style={{color: '#71717A'}}>
+                        Full 32-bit ARGB. Turn off for smooth 60fps scrolling on large comics
+                      </AppText>
+                    </View>
+                  </View>
+                  <Switch
+                    value={isHighQuality}
+                    onValueChange={highQualityRendering =>
+                      onUpdateSettings({highQualityRendering})
+                    }
+                    thumbColor={isHighQuality ? '#7C4DFF' : '#71717A'}
+                    trackColor={{false: '#27272A', true: 'rgba(124, 77, 255, 0.4)'}}
                   />
                 </View>
               </View>

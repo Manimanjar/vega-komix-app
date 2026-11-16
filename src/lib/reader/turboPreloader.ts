@@ -103,7 +103,7 @@ class TurboPreloader {
     const signal = abortController.signal;
 
     const totalPages = pages.length;
-    const maxAhead = 8; // Actively look ahead 8 upcoming pages
+    const maxAhead = settingsStorage.getTurboPreloadCount(); // User-configured sliding lookahead window
 
     // Priority 1 (Immediate): Current page + next 3 pages in view direction + previous page for back-scroll
     const immediateIndices: number[] = [];
@@ -177,7 +177,7 @@ class TurboPreloader {
         const resolvedHeaders = await resolvePageHeaders(targetUrl, page.headers);
         await ExpoImage.prefetch(targetUrl, {
           headers: resolvedHeaders,
-          cachePolicy: 'memory-disk',
+          cachePolicy: 'disk',
         });
         this.prefetchedUrls.add(targetUrl);
         this.prefetchedUrls.add(rawUrl);

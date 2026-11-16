@@ -126,10 +126,11 @@ export const CHANGELOG_CONTENT = `### 🚀 Vega Komix v6.1.1 Release Notes (Nov 
 - **Search History:** MMKV-backed search chips with 1-tap reuse and history clearing.
 - **15 Genre Tags:** Quick 1-tap comic category chips (Action, Romance, Isekai, Manhwa, etc.).
 
-#### ⚡ Maximum Resolution & Performance Engine
-- **32-Bit ARGB_8888 Pipeline:** Full color fidelity with banding-free dark gradients and uncompressed full-res image loading.
+#### ⚡ Performance Engine & High-Quality Switch
+- **High-Quality 32-bit Switch:** Toggle between 32-bit ARGB uncompressed mode and zero-lag downscaled 16-bit RGB performance mode.
+- **Large Comic Scroll Optimization:** Eliminated scroll-fighting stutter, debounced storage I/O, and removed list re-renders for butter-smooth 60fps scrolling.
 - **Instant Chapter Open:** Progressive chunking opens 1000+ page chapters in < 300ms.
-- **Preloader & Preferences:** 8-page lookahead preloader and per-comic reading mode memory.`;
+- **Preloader & Preferences:** 8-page disk lookahead preloader and per-comic reading mode memory.`;
 
 // handle check for update
 export const checkForUpdate = async (

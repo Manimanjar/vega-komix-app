@@ -61,7 +61,7 @@ class InstantChapterLauncher {
         .then(headers => {
           ExpoImage.prefetch(url, {
             headers,
-            cachePolicy: 'memory-disk',
+            cachePolicy: 'disk',
           }).catch(() => {});
         })
         .catch(() => {});

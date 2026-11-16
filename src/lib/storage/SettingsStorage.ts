@@ -152,6 +152,9 @@ export enum SettingsKeys {
   BIOMETRIC_LOCK_ENABLED = 'biometricLockEnabled',
   BIOMETRIC_LOCK_TIMEOUT = 'biometricLockTimeout',
   MASK_IN_RECENTS = 'maskInRecents',
+
+  // Vega Komix: Image Rendering Performance
+  HIGH_QUALITY_RENDERING = 'highQualityRendering',
 }
 
 /**
@@ -1075,6 +1078,21 @@ export class SettingsStorage {
       mainStorage.setObject('vega-komix-reader-settings', {
         ...curr,
         cropWhiteBorders: enabled,
+      });
+    } catch {}
+  }
+
+  isHighQualityRendering(): boolean {
+    return mainStorage.getBool(SettingsKeys.HIGH_QUALITY_RENDERING, false);
+  }
+
+  setHighQualityRendering(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.HIGH_QUALITY_RENDERING, enabled);
+    try {
+      const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
+      mainStorage.setObject('vega-komix-reader-settings', {
+        ...curr,
+        highQualityRendering: enabled,
       });
     } catch {}
   }

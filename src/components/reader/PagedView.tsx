@@ -35,6 +35,7 @@ interface PagedViewProps {
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
   splitDoubleSpreads?: boolean;
+  highQualityRendering?: boolean;
 }
 
 interface SpreadPageGroup {
@@ -67,6 +68,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   pageTranslations,
   onRetryTranslation,
   splitDoubleSpreads = true,
+  highQualityRendering = false,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -344,6 +346,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
                 onSingleTap={onToggleHUD}
+                highQualityRendering={highQualityRendering}
               />
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
@@ -364,6 +367,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
                 onSingleTap={onToggleHUD}
+                highQualityRendering={highQualityRendering}
               />
             </View>
           </View>
@@ -410,6 +414,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
                 onSingleTap={onToggleHUD}
                 onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
+                highQualityRendering={highQualityRendering}
               />
             </View>
 
@@ -444,6 +449,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
             onSingleTap={onToggleHUD}
             onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
+            highQualityRendering={highQualityRendering}
           />
         </View>
       );
@@ -463,6 +469,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       onRetryTranslation,
       onToggleHUD,
       handleRatioMeasured,
+      highQualityRendering,
     ],
   );
 
@@ -484,7 +491,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         data={spreadGroups}
         renderItem={renderSpreadGroup}
         keyExtractor={item => item.id}
-        extraData={`${currentPageIndex}-${zoomScale}-${reloadKey}`}
+        extraData={`${activeGroupIndex}-${zoomScale}-${reloadKey}-${highQualityRendering}`}
         horizontal
         pagingEnabled
         inverted={isManga}
@@ -507,7 +514,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
           onDismissHUD?.();
         }}
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        windowSize={7}
+        windowSize={3}
         maxToRenderPerBatch={2}
         initialNumToRender={2}
         removeClippedSubviews={true}

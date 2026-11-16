@@ -102,6 +102,9 @@ export default function PlayerSettings({navigation}: Props) {
   const [preloadCount, setPreloadCount] = useState<string>(() =>
     String(settingsStorage.getTurboPreloadCount()),
   );
+  const [highQualityRendering, setHighQualityRendering] = useState<boolean>(() =>
+    settingsStorage.isHighQualityRendering(),
+  );
 
   return (
     <TVFocusGuide autoFocus={true} trapFocusRight={true} trapFocusDown={true} style={{flex: 1}}>
@@ -276,6 +279,17 @@ export default function PlayerSettings({navigation}: Props) {
               }}
             />
           </View>
+
+          <SettingsSwitchRow
+            title="High-Quality 32-bit Rendering"
+            description="Decode uncompressed 32-bit ARGB images. Turn off for smooth 60fps scrolling and lower RAM usage on large comics"
+            value={highQualityRendering}
+            divider={false}
+            onValueChange={next => {
+              setHighQualityRendering(next);
+              settingsStorage.setHighQualityRendering(next);
+            }}
+          />
         </SettingsSection>
       </SettingsPage>
     </TVFocusGuide>

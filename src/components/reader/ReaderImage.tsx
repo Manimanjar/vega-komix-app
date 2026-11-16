@@ -44,6 +44,7 @@ interface ReaderImageProps {
   onDoubleTap?: () => void;
   onSingleTap?: (tapX: number, tapY: number) => void;
   onRatioMeasured?: (ratio: number) => void;
+  highQualityRendering?: boolean;
 }
 
 const CircularProgress = ({
@@ -117,6 +118,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   onRetryTranslation,
   onSingleTap,
   onRatioMeasured,
+  highQualityRendering,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
@@ -336,12 +338,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               headers: resolvedHeaders,
             }}
             contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
-            priority="high"
+            priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={currentUrl}
             enableLiveTextInteraction={false}
-            allowDownscaling={false}
-            decodeFormat="argb"
-            cachePolicy="memory-disk"
+            allowDownscaling={highQualityRendering ? false : true}
+            decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
+            cachePolicy={highQualityRendering ? 'memory-disk' : 'disk'}
             onProgress={e => {
               if (e.total > 0) {
                 setLoadProgress(e.loaded / e.total);

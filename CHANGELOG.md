@@ -48,13 +48,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remembers reading mode (Continuous / Manga / Comic / Double Spread), orientation lock, image fit, and zoom settings independently for each comic series.
 
 ### Changed & Performance
-- **32-Bit High-Fidelity ARGB_8888 Image Pipeline:** Configured ExpoImage with high priority, `allowDownscaling={false}`, and 32-bit ARGB_8888 decoding for smooth, banding-free dark gradients.
+- **High-Quality Rendering Switch & Large Comic Scroll Engine Overhaul:**
+  - Added a dedicated switch in Reader Settings Sheet and Settings -> Reader for "High-Quality 32-bit Rendering".
+  - **Zero-Lag Performance Mode (Default):** Uses screen-density downsampling (`allowDownscaling=true`), fast 16-bit RGB decoding, and disk caching. Drops bitmap RAM footprint from >100MB per page down to ~10MB, eliminating Android garbage collection pauses (`GC_FOR_ALLOC`).
+  - **Eliminated Scroll-Fighting Stutter:** Guarded programmatic `jumpToPage` with an internal scroll flag (`isInternalPageChange`) so continuous scrolling and momentum flings never get interrupted or rubberbanded.
+  - **Re-render Elimination:** Removed `currentPageIndex` from FlatList `extraData` and stabilized retry callbacks, eliminating full list re-evaluations on every scrolled page.
+  - **Debounced Progress Persistence:** Debounced chapter progress and watchlist MMKV storage writes by 400ms to eliminate synchronous disk I/O during fast scrolling.
+  - **Tuned FlatList Windowing:** Configured `windowSize={3}`, `maxToRenderPerBatch={2}`, and `scrollEventThrottle={32}` for smooth 60fps scrolling through huge chapters.
+- **32-Bit High-Fidelity ARGB_8888 Image Pipeline:** Configured ExpoImage with high priority, `allowDownscaling={false}`, and 32-bit ARGB_8888 decoding for smooth, banding-free dark gradients when High-Quality Rendering is enabled.
 - **Full Resolution Source Scrapers:** Stripped CDN downscaling suffixes (`-350x476`, `-scaled`, `?resize=`, `?w=`) across all provider scrapers to load 100% original uncompressed images.
 - **Instant Chapter Opening (< 300ms):** Progressive chunking streams initial pages immediately without blocking on large 1000-page metadata arrays.
-- **8-Page Lookahead Preloader:** Sliding memory-safe preloader pre-caches upcoming images and unloads distant bitmaps to maintain 60fps scrolling without OOM.
+- **8-Page Lookahead Preloader:** Sliding memory-safe preloader pre-caches upcoming images on disk and unloads distant bitmaps to maintain 60fps scrolling without OOM.
 - **Purged Legacy Video Subsystems:** Deleted obsolete video players, HLS downloaders, torrent engines, and subtitle caches.
 
 ### Fixed
+- **Large Comic Scrolling Lag & Freezes:** Resolved multi-frame GC stutter and scroll fights on long webtoon strips.
 - **Reader Slider Direct Jump:** Decoupled 60fps slider dragging UI feedback from scroll execution; commits jump once on finger release.
 - **Center-Tap HUD & Orientation Persistence:** Center tap strictly toggles HUD visibility without causing orientation resets or layout remounts; 3.5s and scroll auto-hiding HUD.
 - **Chronological Chapter Navigation:** Corrected navigation inversion where descending chapter lists caused "Next Chapter" to navigate backwards in the story.

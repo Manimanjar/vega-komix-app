@@ -575,25 +575,41 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [pages, currentPageIndex, episodeList, currentChapterIndex, providerValue]);
 
-  // Save Progress on every page turn (Skipped in Incognito / Ghost Mode)
+  const saveProgressTimer = useRef<any>(null);
+
+  // Clear pending progress save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveProgressTimer.current) {
+        clearTimeout(saveProgressTimer.current);
+      }
+    };
+  }, []);
+
+  // Save Progress on page turn (Debounced 400ms to eliminate storage I/O lag during fast scrolling)
   const handlePageChange = useCallback(
     (newPageIndex: number) => {
       setCurrentPageIndex(newPageIndex);
       if (!isIncognito) {
-        saveStoredReaderProgress({
-          comicLink: infoUrl || chapterLink,
-          chapterId: chapterLink,
-          chapterTitle,
-          chapterIndex: currentChapterIndex,
-          currentPageIndex: newPageIndex,
-          totalPages: pages.length,
-          readingMode: settings.readingMode,
-          comicTitle: primaryTitle,
-          poster: poster?.poster || poster?.background,
-          providerValue,
-        });
-        watchListStorage.recordLastReadChapter(infoUrl || chapterLink, currentChapterIndex + 1);
-        watchListStorage.acknowledgeChapters(infoUrl || chapterLink);
+        if (saveProgressTimer.current) {
+          clearTimeout(saveProgressTimer.current);
+        }
+        saveProgressTimer.current = setTimeout(() => {
+          saveStoredReaderProgress({
+            comicLink: infoUrl || chapterLink,
+            chapterId: chapterLink,
+            chapterTitle,
+            chapterIndex: currentChapterIndex,
+            currentPageIndex: newPageIndex,
+            totalPages: pages.length,
+            readingMode: settings.readingMode,
+            comicTitle: primaryTitle,
+            poster: poster?.poster || poster?.background,
+            providerValue,
+          });
+          watchListStorage.recordLastReadChapter(infoUrl || chapterLink, currentChapterIndex + 1);
+          watchListStorage.acknowledgeChapters(infoUrl || chapterLink);
+        }, 400);
       }
     },
     [
@@ -1006,6 +1022,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
+          highQualityRendering={settings.highQualityRendering ?? false}
         />
       ) : (
         <PagedView
@@ -1024,6 +1041,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           theme={settings.theme}
           interactionMode={interactionMode}
           splitDoubleSpreads={settings.splitDoubleSpreads ?? true}
+          highQualityRendering={settings.highQualityRendering ?? false}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}

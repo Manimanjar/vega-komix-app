@@ -34,9 +34,10 @@ export interface AutoHeightComicPageProps {
   cropWhiteBorders?: boolean;
   translateEnabled?: boolean;
   translationBubbles?: TranslatedBubble[];
-  onRetryTranslation?: () => void;
+  onRetryTranslation?: (pageIndex: number) => void;
   onPageMeasured?: (index: number, height: number) => void;
   onToggleHUD?: () => void;
+  highQualityRendering?: boolean;
 }
 
 export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
@@ -53,6 +54,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   onRetryTranslation,
   onPageMeasured,
   onToggleHUD,
+  highQualityRendering = false,
 }) => {
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
     cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl)),
@@ -160,7 +162,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       const naturalHeight = src?.height || item.height;
       if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
         const dynamicHeight = Math.ceil(Math.round(screenWidth * (naturalHeight / naturalWidth))) * (zoomScale || 1.0);
-        setPageHeight(dynamicHeight);
+        setPageHeight(prev => (Math.abs(prev - dynamicHeight) > 1 ? dynamicHeight : prev));
         onPageMeasured?.(index, dynamicHeight);
       }
     },
@@ -215,12 +217,12 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           }}
           style={{width: '100%', height: '100%'}}
           contentFit="contain"
-          priority="high"
+          priority={highQualityRendering ? 'high' : 'normal'}
           recyclingKey={item.imageUrl}
           enableLiveTextInteraction={false}
-          allowDownscaling={false}
-          decodeFormat="argb"
-          cachePolicy="memory-disk"
+          allowDownscaling={highQualityRendering ? false : true}
+          decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
+          cachePolicy={highQualityRendering ? 'memory-disk' : 'disk'}
           onLoad={handleImageLoad}
           onError={handleImageError}
         />
@@ -245,6 +247,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
               setLoading(true);
               setLoadError(false);
               setRetryKey(k => k + 1);
+              onRetryTranslation?.(index);
             }}
             style={styles.retryButton}>
             <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
@@ -287,6 +290,7 @@ export interface WebtoonViewProps {
   translateEnabled?: boolean;
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
+  highQualityRendering?: boolean;
 }
 
 export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
@@ -308,12 +312,14 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   translateEnabled = false,
   pageTranslations,
   onRetryTranslation,
+  highQualityRendering = false,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const listRef = useRef<FlatList<ReaderPageItem>>(null);
   const currentScrollY = useRef<number>(0);
   const isUserScrolling = useRef<boolean>(false);
   const isJumpingRef = useRef<boolean>(false);
+  const isInternalPageChange = useRef<boolean>(false);
   const jumpTimerRef = useRef<any>(null);
   const lastReportedIndex = useRef<number>(currentPageIndex);
   const pageHeights = useRef<Record<number, number>>({});
@@ -392,8 +398,12 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     }
   }, [sliderJumpTarget, jumpToPage]);
 
-  // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change)
+  // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change or resume)
   useEffect(() => {
+    if (isInternalPageChange.current) {
+      isInternalPageChange.current = false;
+      return;
+    }
     if (
       !isUserScrolling.current &&
       !isJumpingRef.current &&
@@ -448,6 +458,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       if (viewableItems && viewableItems.length > 0) {
         const topItem = viewableItems[0];
         if (typeof topItem.index === 'number') {
+          isInternalPageChange.current = true;
           lastReportedIndex.current = topItem.index;
           onPageChangeRef.current(topItem.index);
         }
@@ -487,9 +498,10 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           cropWhiteBorders={cropWhiteBorders}
           translateEnabled={translateEnabled}
           translationBubbles={bubbles}
-          onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(index) : undefined}
+          onRetryTranslation={onRetryTranslation}
           onPageMeasured={handlePageMeasured}
           onToggleHUD={onToggleHUD}
+          highQualityRendering={highQualityRendering}
         />
       );
     },
@@ -505,6 +517,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       onRetryTranslation,
       handlePageMeasured,
       onToggleHUD,
+      highQualityRendering,
     ],
   );
 
@@ -522,14 +535,14 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         data={pages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        extraData={`${currentPageIndex}-${zoomScale}-${reloadKey}`}
+        extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}`}
         horizontal={false}
         pagingEnabled={false}
         scrollEnabled={true}
         nestedScrollEnabled={true}
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
+        scrollEventThrottle={32}
         ItemSeparatorComponent={null}
         style={{backgroundColor: '#000000'}}
         contentContainerStyle={{backgroundColor: '#000000'}}
@@ -538,8 +551,14 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           isUserScrolling.current = true;
           onDismissHUD?.();
         }}
-        onScrollEndDrag={() => {
-          isUserScrolling.current = false;
+        onMomentumScrollBegin={() => {
+          isUserScrolling.current = true;
+        }}
+        onScrollEndDrag={(e: any) => {
+          const vy = Math.abs(e?.nativeEvent?.velocity?.y || 0);
+          if (vy < 0.1) {
+            isUserScrolling.current = false;
+          }
         }}
         onMomentumScrollEnd={() => {
           isUserScrolling.current = false;
@@ -557,9 +576,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
             } catch {}
           }, 50);
         }}
-        windowSize={7}
-        maxToRenderPerBatch={6}
-        initialNumToRender={4}
+        windowSize={highQualityRendering ? 4 : 3}
+        maxToRenderPerBatch={2}
+        initialNumToRender={3}
         onEndReached={onReachEnd}
         onEndReachedThreshold={0.05}
       />

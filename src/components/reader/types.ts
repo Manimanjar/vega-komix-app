@@ -29,6 +29,7 @@ export interface ReaderSettings {
   warmFilterEnabled?: boolean;
   liveTranslateEnabled?: boolean;
   splitDoubleSpreads?: boolean;
+  highQualityRendering?: boolean;
 }
 
 export interface ReaderProgress {
