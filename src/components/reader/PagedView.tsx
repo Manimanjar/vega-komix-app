@@ -68,7 +68,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   pageTranslations,
   onRetryTranslation,
   splitDoubleSpreads = true,
-  highQualityRendering = false,
+  highQualityRendering = true,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;

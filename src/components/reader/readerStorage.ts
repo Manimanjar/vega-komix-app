@@ -68,6 +68,7 @@ export const saveStoredReaderSettings = (settings: ReaderSettings): void => {
     if (settings.disableTapZonesInWebtoon !== undefined) settingsStorage.setTapZonesEnabled(!settings.disableTapZonesInWebtoon);
     if (settings.cropWhiteBorders !== undefined) settingsStorage.setAutoCropMargins(settings.cropWhiteBorders);
     if (settings.liveTranslateEnabled !== undefined) settingsStorage.setDefaultLiveTranslation(settings.liveTranslateEnabled);
+    if (settings.highQualityRendering !== undefined) settingsStorage.setHighQualityRendering(settings.highQualityRendering);
   } catch {}
 };
 

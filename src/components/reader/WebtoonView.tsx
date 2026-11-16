@@ -54,7 +54,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   onRetryTranslation,
   onPageMeasured,
   onToggleHUD,
-  highQualityRendering = false,
+  highQualityRendering = true,
 }) => {
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
     cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl)),
@@ -312,7 +312,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   translateEnabled = false,
   pageTranslations,
   onRetryTranslation,
-  highQualityRendering = false,
+  highQualityRendering = true,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const listRef = useRef<FlatList<ReaderPageItem>>(null);

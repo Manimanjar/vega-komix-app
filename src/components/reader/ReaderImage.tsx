@@ -118,7 +118,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   onRetryTranslation,
   onSingleTap,
   onRatioMeasured,
-  highQualityRendering,
+  highQualityRendering = true,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>

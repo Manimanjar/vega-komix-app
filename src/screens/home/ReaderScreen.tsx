@@ -1022,7 +1022,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
-          highQualityRendering={settings.highQualityRendering ?? false}
+          highQualityRendering={settings.highQualityRendering ?? true}
         />
       ) : (
         <PagedView
@@ -1041,7 +1041,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           theme={settings.theme}
           interactionMode={interactionMode}
           splitDoubleSpreads={settings.splitDoubleSpreads ?? true}
-          highQualityRendering={settings.highQualityRendering ?? false}
+          highQualityRendering={settings.highQualityRendering ?? true}
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}

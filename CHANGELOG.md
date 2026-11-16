@@ -48,14 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remembers reading mode (Continuous / Manga / Comic / Double Spread), orientation lock, image fit, and zoom settings independently for each comic series.
 
 ### Changed & Performance
-- **High-Quality Rendering Switch & Large Comic Scroll Engine Overhaul:**
-  - Added a dedicated switch in Reader Settings Sheet and Settings -> Reader for "High-Quality 32-bit Rendering".
-  - **Zero-Lag Performance Mode (Default):** Uses screen-density downsampling (`allowDownscaling=true`), fast 16-bit RGB decoding, and disk caching. Drops bitmap RAM footprint from >100MB per page down to ~10MB, eliminating Android garbage collection pauses (`GC_FOR_ALLOC`).
-  - **Eliminated Scroll-Fighting Stutter:** Guarded programmatic `jumpToPage` with an internal scroll flag (`isInternalPageChange`) so continuous scrolling and momentum flings never get interrupted or rubberbanded.
+- **Original Quality (32-bit ARGB) Preservation & Large Comic Scroll Optimization:**
+  - **100% Original Quality Maintained by Default:** By default, images render at their complete uncompressed source resolution (`allowDownscaling=false`) and full 32-bit `ARGB_8888` color depth, eliminating compression artifacts and color banding in dark gradients.
+  - **Original Quality Toggle:** Added a dedicated switch in Reader Settings Sheet and Settings -> Reader ("Original Quality (32-bit ARGB)"). Users on ultra low-end devices can toggle this to enable display-adapted downsampling if desired.
+  - **Eliminated Scroll-Fighting Stutter:** Guarded programmatic `jumpToPage` with an internal scroll flag (`isInternalPageChange`) and momentum scroll listeners (`onMomentumScrollBegin`/`onMomentumScrollEnd`), ensuring continuous scrolling and momentum flings are never interrupted or rubberbanded.
   - **Re-render Elimination:** Removed `currentPageIndex` from FlatList `extraData` and stabilized retry callbacks, eliminating full list re-evaluations on every scrolled page.
   - **Debounced Progress Persistence:** Debounced chapter progress and watchlist MMKV storage writes by 400ms to eliminate synchronous disk I/O during fast scrolling.
-  - **Tuned FlatList Windowing:** Configured `windowSize={3}`, `maxToRenderPerBatch={2}`, and `scrollEventThrottle={32}` for smooth 60fps scrolling through huge chapters.
-- **32-Bit High-Fidelity ARGB_8888 Image Pipeline:** Configured ExpoImage with high priority, `allowDownscaling={false}`, and 32-bit ARGB_8888 decoding for smooth, banding-free dark gradients when High-Quality Rendering is enabled.
+  - **Tuned FlatList Windowing & Memory Guard:** Configured `windowSize={4}`, `maxToRenderPerBatch={2}`, and `scrollEventThrottle={32}`, with TurboPreloader lookahead caching to disk (`cachePolicy='disk'`) to prevent heap exhaustion.
 - **Full Resolution Source Scrapers:** Stripped CDN downscaling suffixes (`-350x476`, `-scaled`, `?resize=`, `?w=`) across all provider scrapers to load 100% original uncompressed images.
 - **Instant Chapter Opening (< 300ms):** Progressive chunking streams initial pages immediately without blocking on large 1000-page metadata arrays.
 - **8-Page Lookahead Preloader:** Sliding memory-safe preloader pre-caches upcoming images on disk and unloads distant bitmaps to maintain 60fps scrolling without OOM.

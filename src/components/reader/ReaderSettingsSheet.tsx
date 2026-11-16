@@ -105,7 +105,7 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
   const currentDimmer = settings.screenDimmer ?? 100;
   const isWarmFilter = settings.warmFilterEnabled ?? false;
   const isSplitSpreads = settings.splitDoubleSpreads ?? true;
-  const isHighQuality = settings.highQualityRendering ?? false;
+  const isHighQuality = settings.highQualityRendering ?? true;
 
   return (
     <Modal
