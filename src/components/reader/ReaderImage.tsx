@@ -400,10 +400,10 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               headers: resolvedHeaders,
             }}
             contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
-            priority="high"
+            priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={currentUrl}
             enableLiveTextInteraction={false}
-            allowDownscaling={highQualityRendering ? false : true}
+            allowDownscaling={false}
             decodeFormat="argb"
             cachePolicy="memory-disk"
             onProgress={e => {

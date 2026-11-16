@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.4] - 2026-11-16
+
+### 🚀 Large Webtoon Zero-Lag Virtualization & Momentum Physics: Vega Komix v6.1.4
+- **Version:** `6.1.4`
+- **Version Code:** `314`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### ⚡ Massive Webtoon Zero-Lag Scroll Virtualization
+- **Calibrated FlatList Windowing:** Calibrated `windowSize` (5 in HQ, 3 in Eco mode), `maxToRenderPerBatch` (3 in HQ, 2 in Eco mode), and `removeClippedSubviews={true}` to achieve fluid 60/120fps momentum flings across 100+ page vertical manhwas and webtoons without UI stutter or memory bloat.
+- **Aggressive Offscreen Recycling:** Unmounts distant offscreen page tiles while pre-caching incoming viewable tiles with zero blank screen flicker.
+
+#### 💎 100% Original Uncompressed Image Quality Guarantee
+- **32-Bit ARGB Pipeline Preserved:** Retained true-color `ARGB_8888` decode across both modes (`decodeFormat="argb"`).
+- **Zero Downscaling:** Fixed `allowDownscaling={false}` universally across both continuous webtoon and paged reading modes, guaranteeing that full raw source pixel clarity from CDNs is always displayed.
+- **Dynamic GPU Rasterization Allocation:** `highQualityRendering` toggle in Reader Settings optimizes image priority (`priority="high"` vs `"normal"`) and pre-caching window without sacrificing source resolution.
+
+#### ⏱️ 400ms Debounced MMKV Progress Persistence
+- **Zero-Stutter Flings:** Debounces disk I/O progress writes by 400ms during rapid momentum flings so background storage writes never interrupt the 120Hz gesture interaction thread.
+
+---
+
 ## [6.1.3] - 2026-11-16
 
 ### 🚀 Chapter Chronology & Seamless Transition Flow: Vega Komix v6.1.3

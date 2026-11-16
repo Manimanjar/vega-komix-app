@@ -306,10 +306,10 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
             }}
             style={{width: '100%', height: '100%'}}
             contentFit="contain"
-            priority="high"
+            priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={item.imageUrl}
             enableLiveTextInteraction={false}
-            allowDownscaling={highQualityRendering ? false : true}
+            allowDownscaling={false}
             decodeFormat="argb"
             cachePolicy="memory-disk"
             onLoad={handleImageLoad}
@@ -687,8 +687,8 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
             } catch {}
           }, 50);
         }}
-        windowSize={highQualityRendering ? 4 : 3}
-        maxToRenderPerBatch={2}
+        windowSize={highQualityRendering ? 5 : 3}
+        maxToRenderPerBatch={highQualityRendering ? 3 : 2}
         initialNumToRender={3}
       />
 
