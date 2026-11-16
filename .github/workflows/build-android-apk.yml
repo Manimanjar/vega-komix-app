@@ -74,6 +74,17 @@ jobs:
           fi
           cd ..
 
+      - name: Extract App Version & Metadata
+        id: app_version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD=$(node -p "require('./app.json').expo.android.versionCode")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build=${BUILD}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building Vega Komix v${VERSION} (build ${BUILD})..."
+
       - name: Locate and Package APK
         shell: bash
         run: |
@@ -89,51 +100,43 @@ jobs:
             exit 1
           fi
 
-          echo "Found generated APK: $APK_PATH"
-          cp "$APK_PATH" output/Vega-Komix-v6.1.1.apk
+          VERSION="${{ steps.app_version.outputs.version }}"
+          TARGET_APK="output/Vega-Komix-v${VERSION}.apk"
+          echo "Found generated APK: $APK_PATH -> Packaging to $TARGET_APK"
+          cp "$APK_PATH" "$TARGET_APK"
           ls -la output/
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Vega-Komix-v6.1.1-APK
-          path: output/Vega-Komix-v6.1.1.apk
+          name: Vega-Komix-v${{ steps.app_version.outputs.version }}-APK
+          path: output/Vega-Komix-v${{ steps.app_version.outputs.version }}.apk
           retention-days: 30
+
+      - name: Generate Release Notes from CHANGELOG
+        id: release_notes
+        shell: bash
+        run: |
+          VERSION="${{ steps.app_version.outputs.version }}"
+          # Extract section from CHANGELOG.md for current version
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > output/release_notes.md || true
+
+          if [ ! -s output/release_notes.md ]; then
+            echo "Vega Komix v${VERSION} release build." > output/release_notes.md
+          fi
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v6.1.1
-          name: "Vega Komix v6.1.1 (Maintenance Release - Provider & Image Pipeline Fixes)"
-          body: |
-            # 🚀 Vega Komix v6.1.1 Maintenance Release
-
-            **Release Date:** November 15, 2026  
-            **Build Target:** Android 6.0+ (ARM64 & Universal)  
-            **Package:** `com.vegakomix.app` (versionCode: 311)
-
-            ---
-
-            ### 📖 What's New in Vega Komix v6.1.1
-
-            #### 1. 🖼️ Native ExpoImage Pipeline & Zero-Failure Readers
-            - Migrated `WebtoonView` from React Native `Animated.Image` to `ExpoImage` with `cachePolicy="memory-disk"`, fixing failed-to-load page errors on CDN-protected images.
-            - Migrated `ComicThumbnail` to `ExpoImage` with apex-domain referer derivation, guaranteeing reliable thumbnail rendering across all providers.
-            - Replaced desktop User-Agent in preloader and stream headers with native Android Mobile User-Agent to bypass Cloudflare bot challenges.
-
-            #### 2. 🌐 Provider Fixes & Silence Background WAF Popups
-            - **NovelCrow:** Suppressed non-interactive Cloudflare WAF WebView popups during background search and aggregation.
-            - **AllPornComic:** Fixed thumbnail extraction from lazyload `data-src` / `data-srcset` attributes, restored complete multi-page chapter extraction, and bumped provider version to `v1.1.0`.
-            - **ComicsValley:** Updated mobile headers, added fallback search resilience, and bumped provider to `v1.1.0`.
-            - Bumped all provider extensions in `manifest.json` to trigger immediate in-app updates.
-
-            ---
-
-            ### 📦 Download & Installation
-            Download the signed APK below and install it directly on your Android device:
-            - **Vega-Komix-v6.1.1.apk** (ARM64 & Universal)
-          files: output/Vega-Komix-v6.1.1.apk
+          tag_name: ${{ steps.app_version.outputs.tag }}
+          name: "Vega Komix v${{ steps.app_version.outputs.version }} (Build ${{ steps.app_version.outputs.build }})"
+          body_path: output/release_notes.md
+          files: output/Vega-Komix-v${{ steps.app_version.outputs.version }}.apk
           draft: false
           prerelease: false
         env:
