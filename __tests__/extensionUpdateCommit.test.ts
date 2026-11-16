@@ -68,7 +68,7 @@ it('rejects a stale CDN module and keeps the installed code and version', async 
     .rejects.toThrow('not synchronized');
   expect(extensionStorage.cacheProviderModules).not.toHaveBeenCalled();
   expect(extensionStorage.installProvider).not.toHaveBeenCalled();
-  expect(axios.get).toHaveBeenCalledTimes(12);
+  expect(axios.get).toHaveBeenCalledTimes(16);
 });
 it('recovers with one fresh request for a stale module', async () => {
   const manager = new ExtensionManager();
@@ -80,7 +80,7 @@ it('recovers with one fresh request for a stale module', async () => {
   expect(await manager.updateProvider(provider('2.0'))).toBe(true);
   expect(streamUrls).toHaveLength(2);
   expect(streamUrls[0]).not.toBe(streamUrls[1]);
-  expect(axios.get).toHaveBeenCalledTimes(7);
+  expect(axios.get).toHaveBeenCalledTimes(9);
   expect(extensionStorage.installProvider).toHaveBeenCalled();
 });
 it('allows headerless third-party provider installations', async () => {

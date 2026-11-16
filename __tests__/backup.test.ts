@@ -145,19 +145,15 @@ describe('backup', () => {
 
   it('includes only saved settings and skips device specific ones', () => {
     mockValues.set('hapticFeedback', false);
-    mockValues.set('useExternalPlayer', true);
-    mockValues.set('subtitleFontSize', 20);
-    mockValues.set('seekInterval', 30);
-    mockValues.set('playbackSpeed', 1.5);
-    mockValues.set('excludedQualities', ['480p']);
-    mockValues.set('autoPlayNextEpisode', true);
+    mockValues.set('defaultReadingMode', 'webtoon');
+    mockValues.set('pageFit', 'fit_width');
+    mockValues.set('readerBgColor', 'amoled');
+    mockValues.set('tapZonesEnabled', true);
+    mockValues.set('volumeKeysEnabled', true);
+    mockValues.set('turboPreloadCount', 8);
     mockValues.set('forwardBufferMB', 128);
     mockValues.set('backBufferMB', 32);
     mockValues.set('downloadConnections', 8);
-    mockValues.set('parallelStreaming', true);
-    mockValues.set('subtitleTextOpacity', 0.8);
-    mockValues.set('alwaysCastMode', true);
-    mockValues.set('askLocalFileFirst', true);
     mockValues.set('downloadLocation', 'content://tree/primary');
     mockValues.set('launcherIcon', 'dark');
 
@@ -167,31 +163,24 @@ describe('backup', () => {
     expect(backup.version).toBe(BACKUP_VERSION);
     expect(backup.settings).toEqual({
       hapticFeedback: false,
-      useExternalPlayer: true,
-      subtitleFontSize: 20,
-      seekInterval: 30,
-      playbackSpeed: 1.5,
-      excludedQualities: ['480p'],
-      autoPlayNextEpisode: true,
+      defaultReadingMode: 'webtoon',
+      pageFit: 'fit_width',
+      readerBgColor: 'amoled',
+      tapZonesEnabled: true,
+      volumeKeysEnabled: true,
+      turboPreloadCount: 8,
       downloadConnections: 8,
-      parallelStreaming: true,
-      subtitleTextOpacity: 0.8,
-      alwaysCastMode: true,
-      askLocalFileFirst: true,
     });
   });
 
-  it('round trips player appearance, arrangement, ambient and download preferences', () => {
+  it('round trips reader preferences, translation and download preferences', () => {
     const saved = {
-      playerControlStyle: JSON.stringify({backgroundOpacity: 0.3,
-        titleBackground: true, scale: 1.2, seekbarScale: 1.5}),
-      playerControlLayout: JSON.stringify({top: ['settings'], bottom: ['audio', 'subtitle']}),
-      hiddenPlayerControls: ['speed', 'pip'],
-      ambientVideo: true,
-      ambientIntensity: 0.45,
-      ambientSpread: 1.25,
-      ambientResponseMs: 120,
-      enableVolumeBoost: false,
+      defaultReadingMode: 'webtoon',
+      pageFit: 'fit_width',
+      readerBgColor: 'amoled',
+      tapZonesEnabled: true,
+      autoAdvanceChapter: true,
+      turboPreloadCount: 8,
       autoDownloadServerFallback: false,
     };
     Object.entries(saved).forEach(([key, value]) => mockValues.set(key, value));
@@ -241,8 +230,8 @@ describe('backup', () => {
       createdAt: '',
       settings: {
         hapticFeedback: 'yes',
-        subtitleFontSize: 18,
-        playbackSpeed: 1.25,
+        turboPreloadCount: 8,
+        defaultReadingMode: 'webtoon',
         downloadLocation: 'content://tree/primary',
         somethingElse: true,
       },
@@ -250,8 +239,8 @@ describe('backup', () => {
     });
 
     expect(mockValues.has('hapticFeedback')).toBe(false);
-    expect(mockValues.get('subtitleFontSize')).toBe(18);
-    expect(mockValues.get('playbackSpeed')).toBe(1.25);
+    expect(mockValues.get('turboPreloadCount')).toBe(8);
+    expect(mockValues.get('defaultReadingMode')).toBe('webtoon');
     expect(mockValues.has('downloadLocation')).toBe(false);
     expect(mockValues.has('somethingElse')).toBe(false);
   });

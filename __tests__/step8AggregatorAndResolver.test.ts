@@ -6,8 +6,11 @@ jest.mock('../src/lib/storage/StorageService', () => ({
     setObject: (key: string, value: any) => mockStorage.set(key, value),
     getString: (key: string) => mockStorage.get(key),
     setString: (key: string, value: string) => mockStorage.set(key, value),
+    getBool: (key: string, def = false) => (mockStorage.has(key) ? mockStorage.get(key) : def),
+    setBool: (key: string, val: boolean) => mockStorage.set(key, val),
     delete: (key: string) => mockStorage.delete(key),
   },
+  registerStorageClearHook: jest.fn(),
 }));
 
 jest.mock('../src/lib/storage/extensionStorage', () => ({
