@@ -122,17 +122,41 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
     onError,
   } = props;
 
+  const isZeroProgress = useMemo(() => {
+    if (comicLink) {
+      const item = watchListStorage.getWatchList().find(i => i.link === comicLink);
+      if (item) {
+        const read = item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+        return read === 0;
+      }
+    }
+    return true;
+  }, [comicLink]);
+
+  const showNewBadge = useMemo(() => {
+    if (typeof isNew === 'boolean') return isNew && isZeroProgress;
+    if (comicLink) return watchListStorage.getNewComicStatus(comicLink);
+    return false;
+  }, [isNew, comicLink, isZeroProgress]);
+
   const unreadCount = useMemo(() => {
     if (typeof newChaptersCount === 'number') return newChaptersCount;
     if (comicLink) return watchListStorage.getUnreadChapterCount(comicLink);
     return 0;
   }, [newChaptersCount, comicLink]);
 
-  const showNewBadge = useMemo(() => {
-    if (typeof isNew === 'boolean') return isNew;
-    if (comicLink) return watchListStorage.getNewComicStatus(comicLink);
-    return false;
-  }, [isNew, comicLink]);
+  const badgeInfo = useMemo(() => {
+    if (showNewBadge && (!newChaptersCount || newChaptersCount === 0)) {
+      return {text: 'NEW'};
+    }
+    if (unreadCount > 0) {
+      return {text: `+${unreadCount}`};
+    }
+    if (showNewBadge) {
+      return {text: 'NEW'};
+    }
+    return null;
+  }, [showNewBadge, newChaptersCount, unreadCount]);
 
   const rawUri = extractThumbnailUrl(props);
   const upgradedUrl = useMemo(() => upgradeThumbnailUrl(rawUri), [rawUri]);
@@ -243,16 +267,10 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
         ) : null}
 
         {/* Green +X New Chapters Badge or NEW Comic Badge */}
-        {unreadCount > 0 ? (
+        {badgeInfo ? (
           <View style={styles.neonBadgeContainer}>
             <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
-              +{unreadCount}
-            </AppText>
-          </View>
-        ) : showNewBadge ? (
-          <View style={styles.neonBadgeContainer}>
-            <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
-              NEW
+              {badgeInfo.text}
             </AppText>
           </View>
         ) : null}
@@ -279,16 +297,10 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
       />
 
       {/* Green +X New Chapters Badge or NEW Comic Badge */}
-      {unreadCount > 0 ? (
+      {badgeInfo ? (
         <View style={styles.neonBadgeContainer}>
           <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
-            +{unreadCount}
-          </AppText>
-        </View>
-      ) : showNewBadge ? (
-        <View style={styles.neonBadgeContainer}>
-          <AppText role="labelSmallEmphasized" style={styles.neonBadgeText}>
-            NEW
+            {badgeInfo.text}
           </AppText>
         </View>
       ) : null}
@@ -319,20 +331,20 @@ const styles = StyleSheet.create({
     top: 6,
     right: 6,
     backgroundColor: '#10B981',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     zIndex: 10,
     shadowColor: '#10B981',
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.55,
     shadowOffset: {width: 0, height: 2},
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 5,
+    elevation: 5,
   },
   neonBadgeText: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 10.5,
     letterSpacing: 0.2,
   },
 });

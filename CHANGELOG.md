@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.6] - 2026-11-16
+
+### 🚀 Library Live Update Tracker & Green +X Badges: Vega Komix v6.1.6
+- **Version:** `6.1.6`
+- **Version Code:** `316`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 🟢 Dynamic Green +X Unread Chapter Badges
+- **Real-Time Unread Chapter Diff Calculation:** Directly computes unread chapter count using `totalReleasedChapters - lastReadChapterIndex` across all bookmarked titles in `Library.tsx` / `LibraryScreen.tsx`.
+- **Vibrant Green Pill Badge (`+X`):** Renders a high-contrast emerald green pill badge (`#10B981`) on the top-right corner of the comic poster whenever unread chapters > 0, complete with subtle elevation and soft glow.
+- **`"NEW"` Badge for Fresh Titles:** Automatically tags newly bookmarked comics having 0 read progress with a vibrant `"NEW"` pill badge until the user begins reading or acknowledges the title.
+
+#### 🔄 Library Pull-to-Refresh & Background Update Checker
+- **Zero UI-Thread Interruption:** Background update checks on screen focus are automatically scheduled via `scheduleWhenIdle`, ensuring zero frame drops or gesture lag during navigation transitions.
+- **Micro-Batched Online Scraper Queries:** `LibraryUpdateChecker` queries providers in parallel micro-batches of 3, fetching fresh metadata, updating baseline chapter counts, and persisting fresh unread diffs to MMKV.
+- **Force Pull-to-Refresh:** Pulling down on any library category or empty collection immediately triggers a live online check across all saved comics and syncs the library store state upon completion.
+
+---
+
 ## [6.1.5] - 2026-11-16
 
 ### 🚀 Manga Double-Spread Auto-Splitter & Orientation Lock: Vega Komix v6.1.5

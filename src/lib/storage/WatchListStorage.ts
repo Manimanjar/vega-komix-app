@@ -17,9 +17,6 @@ export enum WatchListKeys {
  */
 export const DEFAULT_COLLECTION_ID = 'reading';
 
-/**
- * Interface for watchlist item
- */
 export interface WatchListItem {
   title: string;
   poster: string;
@@ -28,8 +25,10 @@ export interface WatchListItem {
   updatedAt?: number;
   /** Category ids. Missing or empty means the default category. */
   collections?: string[];
+  totalReleasedChapters?: number;
   lastKnownChapterCount?: number;
   lastReadChapterNumber?: number;
+  lastReadChapterIndex?: number;
   newChaptersCount?: number;
   isNew?: boolean;
 }
@@ -144,8 +143,11 @@ export class WatchListStorage {
       : collections.length === 1
         ? [collections[0].id]
         : [];
+    const hasReadProgress =
+      (item.lastReadChapterNumber ?? item.lastReadChapterIndex ?? 0) > 0;
     newWatchList.push({
       ...item,
+      isNew: item.isNew ?? !hasReadProgress,
       collections: item.collections?.length ? item.collections : fallback,
       updatedAt: Date.now(),
     });
@@ -270,33 +272,37 @@ export class WatchListStorage {
 
   /**
    * Retrieves the number of unread / new chapters for a bookmarked comic.
+   * unreadCount = totalReleasedChapters - lastReadChapterIndex
    */
   getUnreadChapterCount(comicLink: string): number {
     if (!comicLink) return 0;
     const watchList = this.getWatchList();
     const item = watchList.find(i => i.link === comicLink);
     if (!item) return 0;
+    const total =
+      item.totalReleasedChapters ?? item.lastKnownChapterCount ?? 0;
+    const read =
+      item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+    if (total > read) {
+      return total - read;
+    }
     if (typeof item.newChaptersCount === 'number' && item.newChaptersCount > 0) {
       return item.newChaptersCount;
-    }
-    if (
-      typeof item.lastKnownChapterCount === 'number' &&
-      typeof item.lastReadChapterNumber === 'number' &&
-      item.lastKnownChapterCount > item.lastReadChapterNumber
-    ) {
-      return Math.max(0, item.lastKnownChapterCount - item.lastReadChapterNumber);
     }
     return 0;
   }
 
   /**
-   * Returns whether a comic is marked as new.
+   * Returns whether a comic is marked as new with 0 read progress.
    */
   getNewComicStatus(comicLink: string): boolean {
     if (!comicLink) return false;
     const watchList = this.getWatchList();
     const item = watchList.find(i => i.link === comicLink);
-    return Boolean(item?.isNew);
+    if (!item) return false;
+    const read =
+      item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+    return Boolean(item.isNew && read === 0);
   }
 
   /**
@@ -312,35 +318,30 @@ export class WatchListStorage {
     if (index === -1) return {newChaptersCount: 0};
 
     const item = watchList[index];
-    let newCount = 0;
+    const lastRead =
+      item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+    const previousTotal =
+      item.totalReleasedChapters ?? item.lastKnownChapterCount ?? 0;
 
-    if (item.lastKnownChapterCount === undefined || item.lastKnownChapterCount === null) {
-      // First discovery: initialize baseline
-      watchList[index] = {
-        ...item,
-        lastKnownChapterCount: currentTotalChapters,
-        newChaptersCount: 0,
-        updatedAt: Date.now(),
-      };
-    } else if (currentTotalChapters > item.lastKnownChapterCount) {
-      newCount = currentTotalChapters - item.lastKnownChapterCount;
-      watchList[index] = {
-        ...item,
-        newChaptersCount: newCount,
-        updatedAt: Date.now(),
-      };
-    } else if (currentTotalChapters < item.lastKnownChapterCount) {
-      // Provider pruned dead links: recalibrate baseline
-      watchList[index] = {
-        ...item,
-        lastKnownChapterCount: currentTotalChapters,
-        newChaptersCount: 0,
-        updatedAt: Date.now(),
-      };
+    let newCount = 0;
+    if (currentTotalChapters > previousTotal && previousTotal > 0) {
+      newCount = currentTotalChapters - Math.max(previousTotal, lastRead);
+    } else if (currentTotalChapters > lastRead) {
+      newCount = currentTotalChapters - lastRead;
     }
 
+    const calculatedUnread = Math.max(0, currentTotalChapters - lastRead);
+
+    watchList[index] = {
+      ...item,
+      totalReleasedChapters: currentTotalChapters,
+      lastKnownChapterCount: currentTotalChapters,
+      newChaptersCount: calculatedUnread,
+      updatedAt: Date.now(),
+    };
+
     mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
-    return {newChaptersCount: newCount};
+    return {newChaptersCount: calculatedUnread};
   }
 
   /**
@@ -356,11 +357,12 @@ export class WatchListStorage {
     const newBaseline =
       typeof totalChapters === 'number' && totalChapters > 0
         ? totalChapters
-        : (item.lastKnownChapterCount || 0) + (item.newChaptersCount || 0);
+        : item.totalReleasedChapters || item.lastKnownChapterCount || 0;
 
     watchList[index] = {
       ...item,
       lastKnownChapterCount: Math.max(item.lastKnownChapterCount || 0, newBaseline),
+      totalReleasedChapters: Math.max(item.totalReleasedChapters || 0, newBaseline),
       newChaptersCount: 0,
       isNew: false,
       updatedAt: Date.now(),
@@ -378,22 +380,33 @@ export class WatchListStorage {
     if (index === -1) return;
 
     const item = watchList[index];
+    const newRead = Math.max(
+      item.lastReadChapterNumber || 0,
+      item.lastReadChapterIndex || 0,
+      chapterNumber,
+    );
+    const total =
+      item.totalReleasedChapters ?? item.lastKnownChapterCount ?? 0;
+    const unread = Math.max(0, total - newRead);
+
     const updated: WatchListItem = {
       ...item,
-      lastReadChapterNumber: Math.max(item.lastReadChapterNumber || 0, chapterNumber),
+      lastReadChapterNumber: newRead,
+      lastReadChapterIndex: newRead,
+      newChaptersCount: unread,
+      isNew: false,
       updatedAt: Date.now(),
     };
 
-    if (
-      typeof updated.lastKnownChapterCount === 'number' &&
-      typeof updated.lastReadChapterNumber === 'number' &&
-      updated.lastReadChapterNumber >= updated.lastKnownChapterCount
-    ) {
-      updated.newChaptersCount = 0;
-    }
-
     watchList[index] = updated;
     mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+  }
+
+  /**
+   * Records last read chapter index (0-based or 1-based, aligns with recordLastReadChapter).
+   */
+  recordLastReadChapterIndex(comicLink: string, chapterIndex: number): void {
+    this.recordLastReadChapter(comicLink, chapterIndex);
   }
 
   /**

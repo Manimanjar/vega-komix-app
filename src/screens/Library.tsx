@@ -63,6 +63,30 @@ type EditorState =
   | {visible: false}
   | {visible: true; collection?: LibraryCollection};
 
+/**
+ * Calculates unread chapter count: totalReleasedChapters - lastReadChapterIndex
+ */
+export const calculateUnreadChapters = (item: Partial<WatchListItem>): number => {
+  const total = item.totalReleasedChapters ?? item.lastKnownChapterCount ?? 0;
+  const read = item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+  if (total > read) {
+    return total - read;
+  }
+  if (typeof item.newChaptersCount === 'number' && item.newChaptersCount > 0) {
+    return item.newChaptersCount;
+  }
+  return 0;
+};
+
+/**
+ * Determines whether a comic is newly added with 0 read progress.
+ */
+export const isNewComicWithZeroProgress = (item: Partial<WatchListItem>): boolean => {
+  const read = item.lastReadChapterIndex ?? item.lastReadChapterNumber ?? 0;
+  if (read > 0) return false;
+  return item.isNew ?? true;
+};
+
 const Library = () => {
   const insets = useSafeAreaInsets();
   const colors = useM3Colors();
@@ -87,10 +111,12 @@ const Library = () => {
   const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Background update check on library screen focus
+  // Background update check on library screen focus (idle-scheduled, zero UI thread blocking)
   useFocusEffect(
     useCallback(() => {
-      libraryUpdateChecker.checkLibraryUpdates(false).catch(() => {});
+      scheduleWhenIdle(() => {
+        libraryUpdateChecker.checkLibraryUpdates(false).catch(() => {});
+      });
     }, []),
   );
 
@@ -546,6 +572,9 @@ const Library = () => {
 
   const renderLibraryCard = ({item, index}: {item: WatchListItem; index: number}) => {
     const isTopRow = index < numColumns;
+    const unreadCount = calculateUnreadChapters(item);
+    const isComicNew = isNewComicWithZeroProgress(item);
+
     return (
       <MediaPosterCard
         ref={index === 0 ? firstCardRef : undefined}
@@ -553,8 +582,8 @@ const Library = () => {
         title={item.title}
         poster={item.poster}
         width={itemWidth}
-        newChaptersCount={item.newChaptersCount}
-        isNew={item.isNew}
+        newChaptersCount={unreadCount}
+        isNew={isComicNew}
         comicLink={item.link}
         selected={selectedLinks.has(item.link)}
         selectionMode={isSelectionMode}
@@ -817,7 +846,17 @@ const Library = () => {
             }
           />
         )) : (
-          <View className="flex-1">
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{flexGrow: 1}}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                colors={['#10B981', colors.primary]}
+                tintColor="#10B981"
+              />
+            }>
             <View className="items-center justify-center mt-16 mb-12 px-6">
               {activeCollection ? (
                 <LibraryIcon
@@ -847,7 +886,7 @@ const Library = () => {
                 Use Save on a title to add it here.
               </AppText>
             </View>
-          </View>
+          </ScrollView>
         )}
       </View>
 
