@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.3] - 2026-11-16
+
+### 🚀 Chapter Chronology & Seamless Transition Flow: Vega Komix v6.1.3
+- **Version:** `6.1.3`
+- **Version Code:** `313`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 🧭 Story-Chronological Forward Chapter Navigation
+- **Ascending Reading Advance:** "Next Chapter" navigation now strictly proceeds forward in story chronology (e.g. Chapter 1 → Chapter 2 → Chapter 3) regardless of whether the scraper provider lists chapters in descending order (latest at top) or ascending order (first at top).
+- **Automated Chronology Detection:** In-depth chapter number extraction from metadata, title regexes, and endpoint URI slugs eliminates reverse reading bugs across all 20+ comic scrapers.
+
+#### 🏁 Seamless End-of-Chapter Transition Cards
+- **Webtoon & Paged Transition Cards:** Rendered dynamically at the end of both continuous vertical Webtoon (`WebtoonView`) and horizontal page-by-page (`PagedView`) reader modes.
+- **Dynamic Action Button:** When a subsequent chapter exists in the series, displays a high-contrast 1-tap `"Read Next Chapter"` action button and pull-up / swipe-advance helper text.
+- **Caught-Up Status:** When reading the latest released chapter, shows an affirmative `"You've caught up!"` badge to let readers know no further chapters are available yet.
+- **Theme-Synchronized Styling:** Background, cards, and text automatically adapt to AMOLED Black (`#000000`), Dark Gray (`#121212`), Sepia (`#FBF0D9`), or Clean White (`#FFFFFF`).
+
+#### 🏷️ HUD Chapter Switcher Reading Position Indicator
+- **Live Reading Badge:** Highlights the currently active chapter in the HUD dropdown modal with a purple accent border and distinct `READING` tag for instant visual location among long chapter lists.
+
+#### 📌 Per-Comic Reader Preferences & Zoom Memory
+- **Comic-Specific Persistence:** In addition to reading mode (Webtoon vs Manga RTL vs Comic LTR), orientation, and page fit, custom pinch-to-zoom scaling levels are saved per comic ID and automatically restored on return.
+
+---
+
 ## [6.1.2] - 2026-11-16
 
 ### 🚀 Reader Experience & Full-Stack Hardening: Vega Komix v6.1.2

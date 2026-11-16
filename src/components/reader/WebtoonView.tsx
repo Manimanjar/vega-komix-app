@@ -26,6 +26,7 @@ import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
 import type {AutoScrollSpeed, ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
+import {EndOfChapterCard} from './EndOfChapterCard';
 import type {PageTranslationResult, TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
 
 export interface AutoHeightComicPageProps {
@@ -368,6 +369,9 @@ export interface WebtoonViewProps {
   onToggleHUD: () => void;
   onDismissHUD?: () => void;
   onReachEnd?: () => void;
+  hasNextChapter?: boolean;
+  nextChapterTitle?: string;
+  onNextChapter?: () => void;
   scaleMode?: ImageScale;
   zoomScale?: number;
   autoScrollSpeed?: AutoScrollSpeed;
@@ -390,6 +394,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   onToggleHUD,
   onDismissHUD,
   onReachEnd,
+  hasNextChapter,
+  nextChapterTitle,
+  onNextChapter,
   scaleMode = 'fit_width',
   zoomScale = 1.0,
   autoScrollSpeed = 'off',
@@ -633,6 +640,21 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={32}
         ItemSeparatorComponent={null}
+        ListFooterComponent={
+          <EndOfChapterCard
+            hasNextChapter={!!hasNextChapter}
+            nextChapterTitle={nextChapterTitle}
+            onNextChapter={onNextChapter}
+            theme={theme}
+            isPaged={false}
+          />
+        }
+        onEndReachedThreshold={0.05}
+        onEndReached={() => {
+          if (onReachEnd) {
+            onReachEnd();
+          }
+        }}
         style={{backgroundColor: themeColors.background}}
         contentContainerStyle={{backgroundColor: themeColors.background}}
         onScroll={handleScroll}
@@ -668,8 +690,6 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         windowSize={highQualityRendering ? 4 : 3}
         maxToRenderPerBatch={2}
         initialNumToRender={3}
-        onEndReached={onReachEnd}
-        onEndReachedThreshold={0.05}
       />
 
       {/* In ONE_TAP mode: 3-Zone Edge Tap & HUD Toggle Overlay (Left 28%, Center 44%, Right 28%) */}

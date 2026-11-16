@@ -138,6 +138,23 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     [currentChapterIndex, episodeList.length, isDescending],
   );
 
+  const nextChapter = useMemo(
+    () =>
+      hasChronologicalNext &&
+      chronologicalNextIndex >= 0 &&
+      chronologicalNextIndex < episodeList.length
+        ? episodeList[chronologicalNextIndex]
+        : null,
+    [hasChronologicalNext, chronologicalNextIndex, episodeList],
+  );
+
+  const nextChapterTitle = useMemo(
+    () =>
+      nextChapter?.title ||
+      (hasChronologicalNext ? `Chapter ${chronologicalNextIndex + 1}` : undefined),
+    [nextChapter, hasChronologicalNext, chronologicalNextIndex],
+  );
+
   // Helper to load effective settings (per-comic preferences if present, falling back to global defaults)
   const getEffectiveSettings = useCallback((): ReaderSettings => {
     const globalDefaults = getStoredReaderSettings();
@@ -152,11 +169,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         const mappedMode = toInternalReadingMode(perComic.readingMode);
         const mappedOri = toInternalOrientation(perComic.orientation);
         const mappedFit = toInternalPageFit(perComic.pageFit);
+        const customZoom = typeof perComic.zoomScale === 'number' && perComic.zoomScale > 0 ? perComic.zoomScale : undefined;
         return {
           ...globalDefaults,
           ...(mappedMode ? {readingMode: mappedMode} : {}),
           ...(mappedOri ? {orientationMode: mappedOri} : {}),
           ...(mappedFit ? {imageScale: mappedFit} : {}),
+          ...(customZoom !== undefined ? {zoomScale: customZoom} : {}),
         };
       }
     }
@@ -173,11 +192,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         const mappedMode = toInternalReadingMode(perComic.readingMode);
         const mappedOri = toInternalOrientation(perComic.orientation);
         const mappedFit = toInternalPageFit(perComic.pageFit);
+        const customZoom = typeof perComic.zoomScale === 'number' && perComic.zoomScale > 0 ? perComic.zoomScale : undefined;
         return {
           ...globalDefaults,
           ...(mappedMode ? {readingMode: mappedMode} : {}),
           ...(mappedOri ? {orientationMode: mappedOri} : {}),
           ...(mappedFit ? {imageScale: mappedFit} : {}),
+          ...(customZoom !== undefined ? {zoomScale: customZoom} : {}),
         };
       }
     }
@@ -1000,6 +1021,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         const f = fromInternalPageFit(newPartial.imageScale);
         if (f) prefsUpdate.pageFit = f;
       }
+      if (typeof newPartial.zoomScale === 'number') {
+        prefsUpdate.zoomScale = newPartial.zoomScale;
+      }
       if (Object.keys(prefsUpdate).length > 0) {
         comicPreferencesStorage.savePreferences(targetComicLink, prefsUpdate);
       }
@@ -1067,6 +1091,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
+          hasNextChapter={hasChronologicalNext}
+          nextChapterTitle={nextChapterTitle}
+          onNextChapter={handleNextChapter}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
           autoScrollSpeed={settings.autoScrollSpeed}
@@ -1089,6 +1116,9 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
+          hasNextChapter={hasChronologicalNext}
+          nextChapterTitle={nextChapterTitle}
+          onNextChapter={handleNextChapter}
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}

@@ -6,7 +6,7 @@ import {mainStorage} from '../lib/storage/StorageService';
  * - orientation: 'PORTRAIT' or 'LANDSCAPE'
  * - pageFit: 'CONTAIN' (fit height), 'COVER' (fit screen), or 'WIDTH' (fit width)
  */
-export type ComicReadingMode = 'CONTINUOUS' | 'PAGED';
+export type ComicReadingMode = 'CONTINUOUS' | 'PAGED' | 'MANGA' | 'COMIC' | 'WEBTOON';
 export type ComicOrientation = 'PORTRAIT' | 'LANDSCAPE';
 export type ComicPageFit = 'CONTAIN' | 'COVER' | 'WIDTH';
 
@@ -14,19 +14,27 @@ export interface ComicPreferences {
   readingMode?: ComicReadingMode;
   orientation?: ComicOrientation;
   pageFit?: ComicPageFit;
+  zoomScale?: number;
 }
 
 /**
  * Type-mapping utilities between ComicPreferences and internal Reader types
  */
-export function toInternalReadingMode(mode?: ComicReadingMode): 'webtoon' | 'manga' | undefined {
+export function toInternalReadingMode(mode?: ComicReadingMode | string): 'webtoon' | 'manga' | 'comic' | undefined {
   if (!mode) return undefined;
-  return mode === 'CONTINUOUS' ? 'webtoon' : 'manga';
+  if (mode === 'CONTINUOUS' || mode === 'WEBTOON' || mode === 'webtoon') return 'webtoon';
+  if (mode === 'MANGA' || mode === 'manga') return 'manga';
+  if (mode === 'COMIC' || mode === 'comic') return 'comic';
+  if (mode === 'PAGED') return 'manga';
+  return undefined;
 }
 
 export function fromInternalReadingMode(mode?: string): ComicReadingMode | undefined {
   if (!mode) return undefined;
-  return mode === 'webtoon' ? 'CONTINUOUS' : 'PAGED';
+  if (mode === 'webtoon') return 'CONTINUOUS';
+  if (mode === 'manga') return 'MANGA';
+  if (mode === 'comic') return 'COMIC';
+  return 'PAGED';
 }
 
 export function toInternalOrientation(ori?: ComicOrientation): 'portrait' | 'landscape' | undefined {

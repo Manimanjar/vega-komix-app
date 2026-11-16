@@ -13,6 +13,7 @@ import {ReaderImage} from './ReaderImage';
 import {turboPreloader} from '../../lib/reader/turboPreloader';
 import type {ImageScale, InteractionMode, ReaderPageItem, ReaderTheme, ReadingMode} from './types';
 import {THEME_COLORS} from './types';
+import {EndOfChapterCard} from './EndOfChapterCard';
 
 import type {PageTranslationResult} from '../../lib/translator/mangaTranslatorEngine';
 
@@ -24,6 +25,9 @@ interface PagedViewProps {
   onToggleHUD: () => void;
   onDismissHUD?: () => void;
   onReachEnd?: () => void;
+  hasNextChapter?: boolean;
+  nextChapterTitle?: string;
+  onNextChapter?: () => void;
   readingMode: ReadingMode;
   scaleMode?: ImageScale;
   zoomScale?: number;
@@ -41,12 +45,13 @@ interface PagedViewProps {
 interface SpreadPageGroup {
   id: string;
   isPair: boolean;
-  pageA: ReaderPageItem;
+  pageA?: ReaderPageItem;
   pageB?: ReaderPageItem;
   indexA: number;
   indexB?: number;
   isSplit?: boolean;
   splitHalf?: 'left' | 'right';
+  isEndOfChapter?: boolean;
 }
 
 export const PagedView: React.FC<PagedViewProps> = ({
@@ -57,6 +62,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
   onToggleHUD,
   onDismissHUD,
   onReachEnd,
+  hasNextChapter,
+  nextChapterTitle,
+  onNextChapter,
   readingMode,
   scaleMode = 'fit_width',
   zoomScale = 1.0,
@@ -136,6 +144,14 @@ export const PagedView: React.FC<PagedViewProps> = ({
           });
         }
       });
+      if (pages.length > 0) {
+        groups.push({
+          id: 'spread-end-of-chapter',
+          isPair: false,
+          indexA: pages.length - 1,
+          isEndOfChapter: true,
+        });
+      }
       return groups;
     }
 
@@ -182,13 +198,23 @@ export const PagedView: React.FC<PagedViewProps> = ({
         }
       }
     }
+    if (pages.length > 0) {
+      groups.push({
+        id: 'spread-end-of-chapter',
+        isPair: false,
+        indexA: pages.length - 1,
+        isEndOfChapter: true,
+      });
+    }
     return groups;
   }, [pages, isDoubleSpread, splitDoubleSpreads, isLandscape, isManga, measuredRatios]);
 
   // Find the group index matching currentPageIndex
   const activeGroupIndex = useMemo(() => {
     const idx = spreadGroups.findIndex(
-      g => g.indexA === currentPageIndex || g.indexB === currentPageIndex,
+      g =>
+        !g.isEndOfChapter &&
+        (g.indexA === currentPageIndex || g.indexB === currentPageIndex),
     );
     return idx !== -1 ? idx : 0;
   }, [spreadGroups, currentPageIndex]);
@@ -212,7 +238,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
     (targetPageIndex: number) => {
       if (spreadGroups.length === 0) return;
       const targetGroupIdx = spreadGroups.findIndex(
-        g => g.indexA === targetPageIndex || g.indexB === targetPageIndex,
+        g =>
+          !g.isEndOfChapter &&
+          (g.indexA === targetPageIndex || g.indexB === targetPageIndex),
       );
       const clampedGroupIdx = Math.min(
         Math.max(0, targetGroupIdx !== -1 ? targetGroupIdx : targetPageIndex),
@@ -272,7 +300,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
       if (newGroupIdx >= 0 && newGroupIdx < spreadGroups.length) {
         const group = spreadGroups[newGroupIdx];
         lastTargetIndex.current = newGroupIdx;
-        onPageChange(group.indexA);
+        if (!group.isEndOfChapter) {
+          onPageChange(group.indexA);
+        }
 
         if (newGroupIdx === spreadGroups.length - 1 && onReachEnd) {
           onReachEnd();
@@ -289,6 +319,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
     if (isManga) {
       if (activeGroupIndex < spreadGroups.length - 1) {
         goToGroupIndex(activeGroupIndex + 1, true);
+      } else if (onNextChapter && hasNextChapter) {
+        onNextChapter();
       } else if (onReachEnd) {
         onReachEnd();
       }
@@ -297,7 +329,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         goToGroupIndex(activeGroupIndex - 1, true);
       }
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, goToGroupIndex]);
+  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
 
   const handleRightTap = useCallback(() => {
     if (isManga) {
@@ -307,15 +339,41 @@ export const PagedView: React.FC<PagedViewProps> = ({
     } else {
       if (activeGroupIndex < spreadGroups.length - 1) {
         goToGroupIndex(activeGroupIndex + 1, true);
+      } else if (onNextChapter && hasNextChapter) {
+        onNextChapter();
       } else if (onReachEnd) {
         onReachEnd();
       }
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, goToGroupIndex]);
+  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {
-      if (item.isPair && item.pageB) {
+      if (item.isEndOfChapter) {
+        return (
+          <View
+            style={[
+              styles.pageContainer,
+              {
+                width: windowWidth,
+                height: windowHeight,
+                backgroundColor: themeColors.background,
+                justifyContent: 'center',
+                alignItems: 'center',
+              },
+            ]}>
+            <EndOfChapterCard
+              hasNextChapter={!!hasNextChapter}
+              nextChapterTitle={nextChapterTitle}
+              onNextChapter={onNextChapter}
+              theme={theme}
+              isPaged={true}
+            />
+          </View>
+        );
+      }
+
+      if (item.isPair && item.pageA && item.pageB) {
         // In Manga mode, right page is page A (first read), left is page B (second read).
         // In Comic mode, left page is page A, right is page B.
         const leftPage = isManga ? item.pageB : item.pageA;
@@ -375,7 +433,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         );
       }
 
-      if (item.isSplit) {
+      if (item.isSplit && item.pageA) {
         const isFirstHalf = item.splitHalf === (isManga ? 'right' : 'left');
         return (
           <View
@@ -430,6 +488,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       }
 
       // Single page view
+      if (!item.pageA) return null;
       return (
         <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: themeColors.background}]}>
           <ReaderImage

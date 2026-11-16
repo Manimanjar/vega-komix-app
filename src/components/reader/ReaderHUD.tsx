@@ -474,6 +474,8 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                       styles.chapterRow,
                       isSelected && {
                         backgroundColor: 'rgba(124, 77, 255, 0.18)',
+                        borderColor: 'rgba(124, 77, 255, 0.35)',
+                        borderWidth: 1,
                       },
                     ]}>
                     <MaterialCommunityIcons
@@ -490,6 +492,13 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                       }}>
                       {ch.title || `Chapter ${idx + 1}`}
                     </AppText>
+                    {isSelected && (
+                      <View style={styles.readingBadge}>
+                        <AppText role="labelSmall" style={styles.readingBadgeText}>
+                          READING
+                        </AppText>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -655,5 +664,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,
+  },
+  readingBadge: {
+    backgroundColor: '#7C4DFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  readingBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
 });
