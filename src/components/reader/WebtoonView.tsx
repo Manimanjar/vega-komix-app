@@ -217,12 +217,12 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           }}
           style={{width: '100%', height: '100%'}}
           contentFit="contain"
-          priority={highQualityRendering ? 'high' : 'normal'}
+          priority="high"
           recyclingKey={item.imageUrl}
           enableLiveTextInteraction={false}
           allowDownscaling={highQualityRendering ? false : true}
-          decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
-          cachePolicy={highQualityRendering ? 'memory-disk' : 'disk'}
+          decodeFormat="argb"
+          cachePolicy="memory-disk"
           onLoad={handleImageLoad}
           onError={handleImageError}
         />

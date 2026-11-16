@@ -338,12 +338,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               headers: resolvedHeaders,
             }}
             contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
-            priority={highQualityRendering ? 'high' : 'normal'}
+            priority="high"
             recyclingKey={currentUrl}
             enableLiveTextInteraction={false}
             allowDownscaling={highQualityRendering ? false : true}
-            decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
-            cachePolicy={highQualityRendering ? 'memory-disk' : 'disk'}
+            decodeFormat="argb"
+            cachePolicy="memory-disk"
             onProgress={e => {
               if (e.total > 0) {
                 setLoadProgress(e.loaded / e.total);

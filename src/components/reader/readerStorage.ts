@@ -23,7 +23,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   warmFilterEnabled: false,
   liveTranslateEnabled: false,
   splitDoubleSpreads: true,
-  highQualityRendering: false,
+  highQualityRendering: true,
 };
 
 export const getStoredReaderSettings = (): ReaderSettings => {

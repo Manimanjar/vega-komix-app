@@ -1083,7 +1083,7 @@ export class SettingsStorage {
   }
 
   isHighQualityRendering(): boolean {
-    return mainStorage.getBool(SettingsKeys.HIGH_QUALITY_RENDERING, false);
+    return mainStorage.getBool(SettingsKeys.HIGH_QUALITY_RENDERING, true);
   }
 
   setHighQualityRendering(enabled: boolean): void {

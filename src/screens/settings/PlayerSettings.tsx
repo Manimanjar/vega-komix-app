@@ -281,8 +281,8 @@ export default function PlayerSettings({navigation}: Props) {
           </View>
 
           <SettingsSwitchRow
-            title="High-Quality 32-bit Rendering"
-            description="Decode uncompressed 32-bit ARGB images. Turn off for smooth 60fps scrolling and lower RAM usage on large comics"
+            title="Original Quality (32-bit ARGB)"
+            description="Render 100% full original resolution with 32-bit color depth (no downsampling). Keep ON for best clarity."
             value={highQualityRendering}
             divider={false}
             onValueChange={next => {

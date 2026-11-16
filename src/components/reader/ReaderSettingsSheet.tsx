@@ -376,10 +376,10 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     />
                     <View style={{flex: 1}}>
                       <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
-                        High-Quality 32-bit Rendering
+                        Original Quality (32-bit ARGB)
                       </AppText>
                       <AppText role="bodySmall" style={{color: '#71717A'}}>
-                        Full 32-bit ARGB. Turn off for smooth 60fps scrolling on large comics
+                        100% full original resolution without downsampling. Keep ON for best clarity
                       </AppText>
                     </View>
                   </View>
