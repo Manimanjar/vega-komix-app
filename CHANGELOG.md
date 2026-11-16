@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.0] - 2026-11-16
+
+### 🌟 Major Release: Search Engine Overhaul, 15-Genre Exploration & Complete Reading Suite
+- **Version:** `6.2.0`
+- **Version Code:** `320`
+- **Release Date:** November 16, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Added
+
+#### 🔍 Search Engine Overhaul & 15 Curated Genre Tags
+- **15 Curated Comic Genres:** Direct 1-tap discovery for Action, Romance, Isekai, Fantasy, Slice of Life, Sci-Fi, Martial Arts, Comedy, Drama, Horror, Mystery, Psychological, Supernatural, Historical, and Sports.
+- **Search History Chips & 1-Tap Recall:** Fast chip-based history recall with instant search execution and 1-tap clear all option.
+- **Unified Series Room Clustering:** Automatically detects and clusters multiple provider editions and scattered chapter uploads under a unified series card with clear edition badges.
+
+#### 🛡️ Privacy & Security Suite
+- **Biometric App Lock:** Hardware-backed biometric authentication (Fingerprint, Face Unlock, or PIN fallback) on app launch and resume with configurable timeouts (`Immediately`, `1min`, `5min`).
+- **Android `FLAG_SECURE` App Masking:** Blank task switcher previews in recent apps and screenshot protection during sensitive reading.
+- **Ghost / Incognito Mode:** 1-tap toggle completely isolates reading sessions without writing to history or progress storage.
+
+#### 🟢 Dynamic Library Live Update Tracker & Green Badges
+- **Unread Chapter Tracking:** Real-time diff calculation (`totalReleasedChapters - lastReadChapterIndex`) with emerald green `+X` pill badges.
+- **Fresh Bookmarks:** `"NEW"` badge for newly added comics with 0 read progress.
+- **Non-Blocking Background Refresh:** Scraper queries batched in groups of 3 and scheduled via `scheduleWhenIdle`.
+
+#### 📖 Reader Experience & Physics Optimization
+- **Double-Spread Auto-Splitter:** Automatic portrait splitting for wide landscape scans (RTL for Manga, LTR for Comics).
+- **Zero-Lag Virtualization:** Calibrated FlatList windowing for fluid 60/120fps scrolling on 100+ page vertical manhwas.
+- **True-Color ARGB_8888 Quality Guarantee:** Original uncompressed resolution preserved across continuous and paged modes.
+- **Story-Chronological Navigation:** Smooth forward chapter advancement regardless of raw scraper ordering.
+
+---
+
 ## [6.1.7] - 2026-11-16
 
 ### 🚀 Privacy & Security Suite: Vega Komix v6.1.7

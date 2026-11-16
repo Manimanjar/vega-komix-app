@@ -25,23 +25,23 @@ import {MMKV} from '../lib/Mmkv';
 const KEY_SEARCH_HISTORY = 'vega_komix_search_history';
 const MAX_HISTORY_ITEMS = 25;
 
-// Popular comic genres and tags for instant 1-tap discovery
-const COMIC_GENRES = [
+// 15 Curated comic genre tags for instant 1-tap discovery
+export const COMIC_GENRES = [
   {name: 'Action', icon: 'sword-cross'},
-  {name: 'Manhwa', icon: 'book-open-page-variant'},
   {name: 'Romance', icon: 'heart-outline'},
-  {name: 'Fantasy', icon: 'creation'},
   {name: 'Isekai', icon: 'portal'},
-  {name: 'Manga', icon: 'book-outline'},
-  {name: 'Shounen', icon: 'fire'},
-  {name: 'Sci-Fi', icon: 'rocket-launch-outline'},
-  {name: 'Supernatural', icon: 'ghost-outline'},
-  {name: 'Comedy', icon: 'emoticon-happy-outline'},
-  {name: 'Mystery', icon: 'magnify'},
-  {name: 'Martial Arts', icon: 'karate'},
-  {name: 'Adventure', icon: 'compass-outline'},
-  {name: 'Horror', icon: 'skull-outline'},
+  {name: 'Fantasy', icon: 'creation'},
   {name: 'Slice of Life', icon: 'coffee-outline'},
+  {name: 'Sci-Fi', icon: 'rocket-launch-outline'},
+  {name: 'Martial Arts', icon: 'karate'},
+  {name: 'Comedy', icon: 'emoticon-happy-outline'},
+  {name: 'Drama', icon: 'theater'},
+  {name: 'Horror', icon: 'skull-outline'},
+  {name: 'Mystery', icon: 'magnify'},
+  {name: 'Psychological', icon: 'head-cog-outline'},
+  {name: 'Supernatural', icon: 'ghost-outline'},
+  {name: 'Historical', icon: 'castle'},
+  {name: 'Sports', icon: 'basketball'},
 ];
 
 const HeaderContainer = isTV ? View : Animated.View;
