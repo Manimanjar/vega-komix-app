@@ -67,17 +67,17 @@ export const THEME_COLORS: Record<
     hudBorder: 'rgba(255, 255, 255, 0.12)',
   },
   dark: {
-    background: '#18181B',
+    background: '#121212',
     text: '#F4F4F5',
     subText: '#A1A1AA',
-    hudBackground: 'rgba(24, 24, 27, 0.92)',
+    hudBackground: 'rgba(18, 18, 18, 0.92)',
     hudBorder: 'rgba(255, 255, 255, 0.12)',
   },
   sepia: {
-    background: '#F4ECD8',
+    background: '#FBF0D9',
     text: '#433422',
     subText: '#7D6A53',
-    hudBackground: 'rgba(244, 236, 216, 0.95)',
+    hudBackground: 'rgba(251, 240, 217, 0.95)',
     hudBorder: 'rgba(67, 52, 34, 0.2)',
   },
   white: {

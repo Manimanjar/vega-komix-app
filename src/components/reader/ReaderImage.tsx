@@ -378,7 +378,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
         {
           width: containerDimensions.width,
           height: containerDimensions.height,
-          backgroundColor: '#000000',
+          backgroundColor: themeColors.background,
         },
       ]}>
       <GestureDetector gesture={gesture}>
@@ -388,7 +388,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             {
               width: containerDimensions.width,
               height: containerDimensions.height,
-              backgroundColor: '#000000',
+              backgroundColor: themeColors.background,
               overflow: cropWhiteBorders ? 'hidden' : 'visible',
             },
             animatedStyle,

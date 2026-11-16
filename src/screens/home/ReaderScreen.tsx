@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Animated,
   BackHandler,
   StatusBar,
   StyleSheet,
@@ -329,11 +330,63 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     setHudVisible(prev => !prev);
   }, []);
 
+  // Floating Page Indicator auto-fade timer (2 seconds of inactivity)
+  const pageIndicatorOpacity = useRef(new Animated.Value(hudVisible ? 1 : 0)).current;
+  const pageIndicatorTimer = useRef<any>(null);
+
+  const showPageIndicator = useCallback(() => {
+    Animated.timing(pageIndicatorOpacity, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+
+    if (pageIndicatorTimer.current) {
+      clearTimeout(pageIndicatorTimer.current);
+    }
+
+    if (!hudVisible) {
+      pageIndicatorTimer.current = setTimeout(() => {
+        Animated.timing(pageIndicatorOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }, 2000);
+    }
+  }, [hudVisible, pageIndicatorOpacity]);
+
+  // Sync indicator visibility with hudVisible
+  useEffect(() => {
+    if (hudVisible) {
+      if (pageIndicatorTimer.current) {
+        clearTimeout(pageIndicatorTimer.current);
+      }
+      Animated.timing(pageIndicatorOpacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      showPageIndicator();
+    }
+  }, [hudVisible, showPageIndicator, pageIndicatorOpacity]);
+
+  // Clear page indicator timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pageIndicatorTimer.current) {
+        clearTimeout(pageIndicatorTimer.current);
+      }
+    };
+  }, []);
+
   // Dismiss HUD on comic scroll
   const handleDismissHUD = useCallback(() => {
     clearAutoHideTimer();
     setHudVisible(false);
-  }, [clearAutoHideTimer]);
+    showPageIndicator();
+  }, [clearAutoHideTimer, showPageIndicator]);
 
   // Handle hardware back button
   useFocusEffect(
@@ -550,11 +603,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   // Hardware Volume Keys: Turn pages
   const handlePrevPage = useCallback(() => {
     setCurrentPageIndex(prev => Math.max(0, prev - 1));
-  }, []);
+    showPageIndicator();
+  }, [showPageIndicator]);
 
   const handleNextPage = useCallback(() => {
     setCurrentPageIndex(prev => Math.min(pages.length - 1, prev + 1));
-  }, [pages.length]);
+    showPageIndicator();
+  }, [pages.length, showPageIndicator]);
 
   useVolumeKeyTurn({
     enabled: settings.volumeKeysEnabled,
@@ -590,6 +645,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const handlePageChange = useCallback(
     (newPageIndex: number) => {
       setCurrentPageIndex(newPageIndex);
+      showPageIndicator();
       if (!isIncognito) {
         if (saveProgressTimer.current) {
           clearTimeout(saveProgressTimer.current);
@@ -1076,19 +1132,23 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         />
       )}
 
-      {/* Floating Page Number indicator (when HUD is hidden) */}
-      {!hudVisible && settings.showFloatingPageNumber && pages.length > 0 && (
-        <View
+      {/* Floating Page Number indicator (stays visible with HUD; fades out smoothly after 2s inactivity when HUD hidden) */}
+      {settings.showFloatingPageNumber && pages.length > 0 && (
+        <Animated.View
+          pointerEvents="none"
           style={[
             styles.floatingPagePill,
-            {backgroundColor: 'rgba(0, 0, 0, 0.65)'},
+            {
+              backgroundColor: 'rgba(0, 0, 0, 0.65)',
+              opacity: pageIndicatorOpacity,
+            },
           ]}>
           <AppText
             role="labelSmall"
             style={{color: '#FFFFFF', fontWeight: '700', fontSize: 11}}>
-            {currentPageIndex + 1} / {pages.length}
+            Page {currentPageIndex + 1} / {pages.length}
           </AppText>
-        </View>
+        </Animated.View>
       )}
 
       {/* Reader HUD (Top & Bottom Controls) */}

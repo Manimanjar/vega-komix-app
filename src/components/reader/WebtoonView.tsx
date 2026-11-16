@@ -284,7 +284,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           width: '100%',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#000000',
+          backgroundColor: themeColors.background,
           marginTop: index > 0 ? -0.5 : 0,
           zIndex: isZoomed ? 999 : 1,
         }}>
@@ -293,7 +293,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
             {
               width: effectiveWidth, // width: screenWidth
               height: Math.ceil(pageHeight),
-              backgroundColor: '#000000',
+              backgroundColor: themeColors.background,
             },
             animatedStyle,
           ]}>
@@ -618,7 +618,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const themeColors = THEME_COLORS[theme];
 
   return (
-    <View style={[styles.container, {backgroundColor: '#000000'}]}>
+    <View style={[styles.container, {backgroundColor: themeColors.background}]}>
       <FlatList
         ref={listRef}
         data={pages}
@@ -633,8 +633,8 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={32}
         ItemSeparatorComponent={null}
-        style={{backgroundColor: '#000000'}}
-        contentContainerStyle={{backgroundColor: '#000000'}}
+        style={{backgroundColor: themeColors.background}}
+        contentContainerStyle={{backgroundColor: themeColors.background}}
         onScroll={handleScroll}
         onScrollBeginDrag={() => {
           isUserScrolling.current = true;

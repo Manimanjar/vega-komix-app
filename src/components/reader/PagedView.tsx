@@ -74,6 +74,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   const isLandscape = windowWidth > windowHeight;
   const isManga = readingMode === 'manga';
   const isDoubleSpread = readingMode === 'double_spread' && isLandscape;
+  const themeColors = THEME_COLORS[theme];
 
   const [measuredRatios, setMeasuredRatios] = useState<Record<number, number>>({});
   const handleRatioMeasured = useCallback((idx: number, ratio: number) => {
@@ -326,7 +327,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
           <View
             style={[
               styles.pageContainer,
-              {width: windowWidth, height: windowHeight, flexDirection: 'row', backgroundColor: '#000000'},
+              {width: windowWidth, height: windowHeight, flexDirection: 'row', backgroundColor: themeColors.background},
             ]}>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
               <ReaderImage
@@ -383,7 +384,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
               {
                 width: windowWidth,
                 height: windowHeight,
-                backgroundColor: '#000000',
+                backgroundColor: themeColors.background,
                 overflow: 'hidden',
               },
             ]}>
@@ -430,7 +431,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
 
       // Single page view
       return (
-        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: '#000000'}]}>
+        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: themeColors.background}]}>
           <ReaderImage
             imageUrl={item.pageA.imageUrl}
             index={item.indexA}
@@ -482,10 +483,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
     [windowWidth],
   );
 
-  const themeColors = THEME_COLORS[theme];
-
   return (
-    <View style={[styles.container, {backgroundColor: '#000000'}]}>
+    <View style={[styles.container, {backgroundColor: themeColors.background}]}>
       <FlatList
         ref={listRef}
         data={spreadGroups}
@@ -496,6 +495,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
         pagingEnabled
         inverted={isManga}
         showsHorizontalScrollIndicator={false}
+        style={{backgroundColor: themeColors.background}}
+        contentContainerStyle={{backgroundColor: themeColors.background}}
         getItemLayout={getItemLayout}
         initialScrollIndex={activeGroupIndex}
         onScrollToIndexFailed={(info: any) => {
