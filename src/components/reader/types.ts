@@ -4,7 +4,7 @@ export type ReadingMode = 'webtoon' | 'manga' | 'comic' | 'double_spread';
 
 export type ReaderTheme = 'amoled' | 'dark' | 'sepia' | 'white';
 
-export type ImageScale = 'fit_width' | 'fit_height' | 'fit_screen' | 'original';
+export type ImageScale = 'fit_width' | 'fit_height' | 'fit_screen' | 'full_screen' | 'original';
 
 export type ScreenOrientationMode = 'portrait' | 'landscape' | 'auto';
 

@@ -102,6 +102,12 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const translationY = useSharedValue(0);
   const savedTranslationY = useSharedValue(0);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  // Soft fade-in when the image decodes: the page melts in instead of
+  // popping, which makes continuous scrolling feel fluid rather than jumpy.
+  const fade = useSharedValue(0);
+  useEffect(() => {
+    fade.value = 0;
+  }, [currentUrl, retryKey, fade]);
 
   const resetZoom = useCallback(() => {
     scale.value = withTiming(1, {duration: 200});
@@ -166,6 +172,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     (e: any) => {
       setLoading(false);
       setLoadError(false);
+      fade.value = withTiming(1, {duration: 200});
       const src = e?.source || (e.nativeEvent as any)?.source;
       const naturalWidth = src?.width || item.width;
       const naturalHeight = src?.height || item.height;
@@ -299,6 +306,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const gesture = Gesture.Simultaneous(zoomGestures, tapGestures);
 
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fade.value,
     transform: [
       {translateX: translationX.value},
       {translateY: translationY.value},
@@ -335,7 +343,9 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
               headers: resolvedHeaders,
             }}
             style={{width: '100%', height: '100%'}}
-            contentFit="contain"
+            // Full Screen fills the frame edge to edge, so the image must
+            // cover-crop; every other mode contains the whole page.
+            contentFit={scaleMode === 'full_screen' ? 'cover' : 'contain'}
             priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={item.imageUrl}
             enableLiveTextInteraction={false}
@@ -453,6 +463,13 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const jumpTimerRef = useRef<any>(null);
   const lastReportedIndex = useRef<number>(currentPageIndex);
   const pageHeights = useRef<Record<number, number>>({});
+  // Rotation guard (see the effect below): re-anchor to the same page when
+  // the window size changes, instead of keeping the old pixel offset.
+  const prevDimsRef = useRef<{width: number; height: number} | null>(null);
+  // In ONE_TAP mode the edge/centre overlay owns every tap, so the page's
+  // own tap gesture must stay silent — otherwise one centre tap toggles the
+  // HUD twice and the bars flash on and off instantly.
+  const overlayActive = interactionMode === 'one_tap' && !disableTapZones;
 
   const handlePageMeasured = useCallback((idx: number, height: number) => {
     pageHeights.current[idx] = height;
@@ -551,6 +568,30 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     }
   }, [currentPageIndex, jumpToPage]);
 
+  // Stay on the SAME page across an orientation change. Rotation resizes
+  // every page (a fit-screen portrait page is much shorter in landscape),
+  // so the old pixel offset lands on a different page — or on a gap while
+  // heights settle, which is the shaking / disappearing image. Re-anchor to
+  // the last reported page, without animation, once the new layout settles.
+  // The jump lock keeps the viewability handler from fighting it.
+  useEffect(() => {
+    const prev = prevDimsRef.current;
+    prevDimsRef.current = {width: windowWidth, height: windowHeight};
+    if (!prev) return;
+    if (prev.width === windowWidth && prev.height === windowHeight) return;
+    isJumpingRef.current = true;
+    if (jumpTimerRef.current) {
+      clearTimeout(jumpTimerRef.current);
+    }
+    jumpTimerRef.current = setTimeout(() => {
+      isJumpingRef.current = false;
+    }, 400);
+    const timer = setTimeout(() => {
+      jumpToPage(lastReportedIndex.current);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [windowWidth, windowHeight, jumpToPage]);
+
   // Clear jump timer on unmount
   useEffect(() => {
     return () => {
@@ -619,7 +660,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           onRetryTranslation={onRetryTranslation}
           onPageMeasured={handlePageMeasured}
           onPageLoaded={onPageLoaded}
-          onToggleHUD={onToggleHUD}
+          onToggleHUD={overlayActive ? undefined : onToggleHUD}
           highQualityRendering={highQualityRendering}
         />
       );
@@ -638,6 +679,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       handlePageMeasured,
       onPageLoaded,
       onToggleHUD,
+      overlayActive,
       highQualityRendering,
     ],
   );

@@ -3,7 +3,6 @@ import {
   Modal,
   StyleSheet,
   Switch,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -14,6 +13,7 @@ import BottomSheet, {
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AppText from '../ui/Text';
 import type {ImageScale, ReaderSettings} from './types';
+import {PressScale} from './readerMotion';
 
 interface ReaderSettingsSheetProps {
   visible: boolean;
@@ -29,21 +29,15 @@ interface ReaderSettingsSheetProps {
   onToggleIncognito?: () => void;
 }
 
-const ZOOM_LEVELS: Array<{value: number; label: string}> = [
-  {value: 1.0, label: '1.0x (Reset)'},
-  {value: 1.25, label: '1.25x'},
-  {value: 1.5, label: '1.5x'},
-  {value: 2.0, label: '2.0x'},
-  {value: 2.5, label: '2.5x'},
-];
-
 const SCALE_OPTIONS: Array<{
   scale: ImageScale;
   label: string;
   icon: string;
 }> = [
   {scale: 'fit_height', label: 'Fit Height', icon: 'arrow-expand-vertical'},
+  {scale: 'fit_width', label: 'Fit Width', icon: 'arrow-expand-horizontal'},
   {scale: 'fit_screen', label: 'Fit Screen', icon: 'fit-to-screen-outline'},
+  {scale: 'full_screen', label: 'Full Screen', icon: 'fullscreen'},
   {scale: 'original', label: 'Original', icon: 'aspect-ratio'},
 ];
 
@@ -77,7 +71,6 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
 
   if (!visible) return null;
 
-  const currentZoom = settings.zoomScale ?? 1.0;
   const isWarmFilter = settings.warmFilterEnabled ?? false;
   const isSplitSpreads = settings.splitDoubleSpreads ?? true;
   const isHighQuality = settings.highQualityRendering ?? true;
@@ -116,42 +109,17 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     Live reader adjustments & display tools
                   </AppText>
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <PressScale onPress={onClose} style={styles.closeBtn}>
                   <MaterialCommunityIcons name="close" size={20} color="#A1A1AA" />
-                </TouchableOpacity>
+                </PressScale>
               </View>
 
-              {/* 1. LIVE ZOOM LEVEL */}
-              <View style={styles.section}>
-                <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
-                  Live Zoom Level
-                </AppText>
-                <View style={styles.chipRow}>
-                  {ZOOM_LEVELS.map(opt => {
-                    const isSelected = Math.abs(currentZoom - opt.value) < 0.05;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        onPress={() => onUpdateSettings({zoomScale: opt.value})}
-                        style={[
-                          styles.chip,
-                          isSelected && styles.chipActive,
-                        ]}>
-                        <AppText
-                          role="labelMediumEmphasized"
-                          style={{
-                            color: isSelected ? '#FFFFFF' : '#A1A1AA',
-                            fontSize: 12,
-                          }}>
-                          {opt.label}
-                        </AppText>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* 2. IMAGE FIT & SCALING */}
+              {/* 1. IMAGE FIT & SCALING — every mode works in portrait and
+                  landscape, continuous and paged. Full Screen fills the
+                  display edge to edge (cover-crops); Fit Width fills the
+                  width. In landscape, Fit Height / Fit Screen / Original all
+                  compute the same height-limited box, so Fit Width and Full
+                  Screen are the two that visibly change the picture there. */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
                   Image Fit & Scaling
@@ -160,7 +128,7 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                   {SCALE_OPTIONS.map(opt => {
                     const isSelected = settings.imageScale === opt.scale;
                     return (
-                      <TouchableOpacity
+                      <PressScale
                         key={opt.scale}
                         onPress={() => onUpdateSettings({imageScale: opt.scale})}
                         style={[
@@ -182,13 +150,13 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                           }}>
                           {opt.label}
                         </AppText>
-                      </TouchableOpacity>
+                      </PressScale>
                     );
                   })}
                 </View>
               </View>
 
-              {/* 3. DISPLAY & EYE CARE (Warm Night Filter kept — see fix list) */}
+              {/* 2. DISPLAY & EYE CARE (Warm Night Filter kept — see fix list) */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
                   Display & Eye Care
@@ -301,14 +269,14 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                 </View>
               </View>
 
-              {/* 4. QUICK PAGE & CHAPTER TOOLS */}
+              {/* 3. QUICK PAGE & CHAPTER TOOLS */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
                   Quick Page & Chapter Tools
                 </AppText>
                 <View style={styles.toolsGrid}>
                   {/* Tool 1: Jump to First Page */}
-                  <TouchableOpacity
+                  <PressScale
                     onPress={() => {
                       onJumpToFirstPage?.();
                       onClose();
@@ -324,10 +292,10 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                       style={styles.toolCardLabel}>
                       Jump to First Page
                     </AppText>
-                  </TouchableOpacity>
+                  </PressScale>
 
                   {/* Tool 2: Reload Current Page */}
-                  <TouchableOpacity
+                  <PressScale
                     onPress={() => {
                       onReloadCurrentPage?.();
                     }}
@@ -342,10 +310,10 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                       style={styles.toolCardLabel}>
                       Reload Page
                     </AppText>
-                  </TouchableOpacity>
+                  </PressScale>
 
                   {/* Tool 3: Quality Toggle */}
-                  <TouchableOpacity
+                  <PressScale
                     onPress={() => {
                       onToggleQuality?.();
                     }}
@@ -360,10 +328,10 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                       style={styles.toolCardLabel}>
                       {quality === 'original' ? 'Quality: HD' : 'Quality: Saver'}
                     </AppText>
-                  </TouchableOpacity>
+                  </PressScale>
 
                   {/* Tool 4: Download Chapter */}
-                  <TouchableOpacity
+                  <PressScale
                     onPress={() => {
                       onDownloadChapter?.();
                     }}
@@ -378,7 +346,7 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                       style={styles.toolCardLabel}>
                       Download Chapter
                     </AppText>
-                  </TouchableOpacity>
+                  </PressScale>
                 </View>
               </View>
             </BottomSheetScrollView>
@@ -419,26 +387,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     fontSize: 11,
     fontWeight: '700',
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  chipActive: {
-    backgroundColor: '#7C4DFF',
-    borderColor: '#7C4DFF',
   },
   scaleGrid: {
     flexDirection: 'row',

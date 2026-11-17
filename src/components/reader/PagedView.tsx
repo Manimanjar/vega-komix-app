@@ -99,6 +99,11 @@ export const PagedView: React.FC<PagedViewProps> = ({
   const isJumpingRef = useRef<boolean>(false);
   const jumpTimerRef = useRef<any>(null);
   const lastTargetIndex = useRef<number>(currentPageIndex);
+  // Rotation guard: re-anchor to the same page when the window size changes.
+  // Without this, the scroll offset stays at the old pixel value while every
+  // page is now a different width — the image vanishes and the next swipe
+  // lands on a far-away page. Skipped on first mount (nothing to preserve).
+  const prevDimsRef = useRef<{width: number; height: number} | null>(null);
 
   // Group pages into double spreads when in landscape double_spread mode,
   // or split wide double-spread scans into two portrait pages in portrait mode.
@@ -286,6 +291,31 @@ export const PagedView: React.FC<PagedViewProps> = ({
     }
   }, [activeGroupIndex, goToGroupIndex]);
 
+  // Stay on the SAME page across an orientation change. The window size
+  // change regroups spreads (pairs become singles and back) and resizes every
+  // page, so the old pixel offset points at a wrong / empty page. Re-anchor
+  // to the group that holds the current page, without animation, once the
+  // new layout has settled. The jump lock keeps the momentum handler from
+  // fighting it.
+  useEffect(() => {
+    const prev = prevDimsRef.current;
+    prevDimsRef.current = {width: windowWidth, height: windowHeight};
+    if (!prev) return;
+    if (prev.width === windowWidth && prev.height === windowHeight) return;
+    isJumpingRef.current = true;
+    if (jumpTimerRef.current) {
+      clearTimeout(jumpTimerRef.current);
+    }
+    jumpTimerRef.current = setTimeout(() => {
+      isJumpingRef.current = false;
+    }, 400);
+    const timer = setTimeout(() => {
+      lastTargetIndex.current = activeGroupIndex;
+      goToGroupIndex(activeGroupIndex, false);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [windowWidth, windowHeight, activeGroupIndex, goToGroupIndex]);
+
   // Clean up jump timer on unmount
   useEffect(() => {
     return () => {
@@ -319,39 +349,25 @@ export const PagedView: React.FC<PagedViewProps> = ({
   );
 
   // Safe 3-Zone Edge Tap Handlers (executed on JS thread via Pressable)
-  // In Manga (RTL): Left = Next page, Right = Prev page
-  // In Comic / Double spread (LTR): Left = Prev page, Right = Next page
+  // Same in BOTH paged modes, matching the swipe: Left edge = previous
+  // page, Right edge = next page (or next chapter at the end). Manga used
+  // to mirror this (Left = next) because its list was inverted; the list
+  // is no longer inverted, so the taps follow the swipe, not the mode.
   const handleLeftTap = useCallback(() => {
-    if (isManga) {
-      if (activeGroupIndex < spreadGroups.length - 1) {
-        goToGroupIndex(activeGroupIndex + 1, true);
-      } else if (onNextChapter && hasNextChapter) {
-        onNextChapter();
-      } else if (onReachEnd) {
-        onReachEnd();
-      }
-    } else {
-      if (activeGroupIndex > 0) {
-        goToGroupIndex(activeGroupIndex - 1, true);
-      }
+    if (activeGroupIndex > 0) {
+      goToGroupIndex(activeGroupIndex - 1, true);
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
+  }, [activeGroupIndex, goToGroupIndex]);
 
   const handleRightTap = useCallback(() => {
-    if (isManga) {
-      if (activeGroupIndex > 0) {
-        goToGroupIndex(activeGroupIndex - 1, true);
-      }
-    } else {
-      if (activeGroupIndex < spreadGroups.length - 1) {
-        goToGroupIndex(activeGroupIndex + 1, true);
-      } else if (onNextChapter && hasNextChapter) {
-        onNextChapter();
-      } else if (onReachEnd) {
-        onReachEnd();
-      }
+    if (activeGroupIndex < spreadGroups.length - 1) {
+      goToGroupIndex(activeGroupIndex + 1, true);
+    } else if (onNextChapter && hasNextChapter) {
+      onNextChapter();
+    } else if (onReachEnd) {
+      onReachEnd();
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
+  }, [activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {
@@ -411,7 +427,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
-                onSingleTap={onToggleHUD}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
               />
@@ -434,7 +449,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
-                onSingleTap={onToggleHUD}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
               />
@@ -484,7 +498,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translateEnabled={translateEnabled}
                 translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
-                onSingleTap={onToggleHUD}
                 onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
@@ -521,7 +534,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
             translateEnabled={translateEnabled}
             translationBubbles={pageTranslations?.[item.indexA]?.bubbles}
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
-            onSingleTap={onToggleHUD}
             onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
             onPageLoaded={onPageLoaded}
             highQualityRendering={highQualityRendering}
@@ -567,8 +579,17 @@ export const PagedView: React.FC<PagedViewProps> = ({
         keyExtractor={item => item.id}
         extraData={`${activeGroupIndex}-${zoomScale}-${reloadKey}-${highQualityRendering}`}
         horizontal
-        pagingEnabled
-        inverted={isManga}
+        // Snap instead of pagingEnabled: the snap interval is identical in
+        // both directions, so a swipe feels equally fast and smooth whether
+        // turning forward or back.
+        // The list is never inverted: in BOTH paged modes (Comic and Manga)
+        // the next page is a swipe right-to-left, from page 1 onward — the
+        // user's habit. Manga keeps its own reading order inside spreads
+        // (right page first, right half first), but the page-turn gesture
+        // is the same as Comic.
+        snapToInterval={windowWidth}
+        snapToAlignment="start"
+        decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         style={{backgroundColor: themeColors.background}}
         contentContainerStyle={{backgroundColor: themeColors.background}}

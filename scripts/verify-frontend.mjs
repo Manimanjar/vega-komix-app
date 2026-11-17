@@ -395,7 +395,8 @@ if (!fs.existsSync(readerSettingsSheetPath)) {
   }
 
   // Must NOT contain the removed toggles (incl. Auto-Scroll and Eye
-  // Brightness, removed at the user's request).
+  // Brightness, removed at the user's request, and the Live Zoom buttons,
+  // removed at the user's request in the reader-animation batch).
   const forbiddenSheetStrings = [
     'Auto-Crop White Borders',
     'Keep Screen Awake',
@@ -405,6 +406,8 @@ if (!fs.existsSync(readerSettingsSheetPath)) {
     'AUTO_SCROLL_OPTIONS',
     'Eye Brightness',
     'screenDimmer',
+    'Live Zoom Level',
+    'ZOOM_LEVELS',
   ];
   for (const str of forbiddenSheetStrings) {
     if (sheetContent.includes(str)) {
@@ -413,21 +416,24 @@ if (!fs.existsSync(readerSettingsSheetPath)) {
     }
   }
 
-  // Must contain Zoom, Image Fit, Eye Care (Warm Night Filter kept),
-  // Quick Tools. Auto-Scroll was removed at the user's request.
-  const hasZoom = sheetContent.includes('Live Zoom Level') || sheetContent.includes('ZOOM_LEVELS');
-  const hasFit = sheetContent.includes('Image Fit & Scaling') || sheetContent.includes('SCALE_OPTIONS');
+  // Must contain Image Fit (with Full Screen + Fit Width), Eye Care (Warm
+  // Night Filter kept), Quick Tools. The Live Zoom buttons were removed at
+  // the user's request; Auto-Scroll was removed earlier, also at their word.
+  const hasFit =
+    (sheetContent.includes('Image Fit & Scaling') || sheetContent.includes('SCALE_OPTIONS')) &&
+    sheetContent.includes('Full Screen') &&
+    sheetContent.includes('Fit Width');
   const hasEyeCare = sheetContent.includes('Display & Eye Care') || sheetContent.includes('Warm Night Filter');
   const hasQuickTools = sheetContent.includes('Quick Page & Chapter Tools');
 
-  if (!hasZoom || !hasFit || !hasEyeCare || !hasQuickTools) {
-    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx missing one of required sections (Zoom, Image Fit, Eye Care / Warm Night Filter, Quick Tools).');
+  if (!hasFit || !hasEyeCare || !hasQuickTools) {
+    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx missing one of required sections (Image Fit with Full Screen + Fit Width, Eye Care / Warm Night Filter, Quick Tools).');
     check10Errors++;
   }
 }
 
 if (check10Errors === 0) {
-  reportPass('Check 10 (Reader Settings Sheet)', 'In-reader ReaderSettingsSheet is cleanly focused on live controls (Zoom, Image Fit, Eye Care / Warm Night Filter, Quick Tools) with zero redundant main settings toggles.');
+  reportPass('Check 10 (Reader Settings Sheet)', 'In-reader ReaderSettingsSheet is cleanly focused on live controls (Image Fit with Full Screen + Fit Width, Eye Care / Warm Night Filter, Quick Tools) with zero redundant main settings toggles.');
 }
 
 // --------------------------------------------------------------------------

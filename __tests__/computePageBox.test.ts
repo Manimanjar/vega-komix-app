@@ -70,6 +70,40 @@ describe('computePageBox', () => {
     }
   });
 
+  it('full_screen fills the whole frame edge to edge, any page shape', () => {
+    // The box is the frame itself; the image cover-crops to it, so a tall
+    // portrait page in landscape fills the width and crops top/bottom.
+    expect(
+      computePageBox({width: 1000, height: 1500}, PORTRAIT.w, PORTRAIT.h, 'full_screen', 1),
+    ).toEqual({width: 1080, height: 1920});
+    expect(
+      computePageBox({width: 1000, height: 1500}, LANDSCAPE.w, LANDSCAPE.h, 'full_screen', 1),
+    ).toEqual({width: 1920, height: 1080});
+    expect(
+      computePageBox({width: 2000, height: 1000}, LANDSCAPE.w, LANDSCAPE.h, 'full_screen', 1),
+    ).toEqual({width: 1920, height: 1080});
+  });
+
+  it('fit_width in landscape fills the width and runs taller than the screen', () => {
+    // A portrait page in a landscape frame: width fills, height follows the
+    // ratio past the frame (the page centre-crops top and bottom) — this is
+    // what makes Fit Width visibly different from Fit Screen in landscape.
+    expect(
+      computePageBox({width: 1000, height: 1500}, LANDSCAPE.w, LANDSCAPE.h, 'fit_width', 1),
+    ).toEqual({width: 1920, height: 2880});
+  });
+
+  it('fit_height, fit_screen and original agree in landscape (height-limited)', () => {
+    // All three are height-limited on a wide-short frame, which is why the
+    // sheet's Fit Width and Full Screen are the two modes that visibly
+    // change the picture in landscape continuous mode.
+    const page = {width: 1000, height: 1500};
+    const expected = {width: 720, height: 1080};
+    expect(computePageBox(page, LANDSCAPE.w, LANDSCAPE.h, 'fit_height', 1)).toEqual(expected);
+    expect(computePageBox(page, LANDSCAPE.w, LANDSCAPE.h, 'fit_screen', 1)).toEqual(expected);
+    expect(computePageBox(page, LANDSCAPE.w, LANDSCAPE.h, 'original', 1)).toEqual(expected);
+  });
+
   it('applies the zoom scale to every mode', () => {
     expect(
       computePageBox({width: 1000, height: 1500}, PORTRAIT.w, PORTRAIT.h, 'fit_width', 2),
@@ -77,6 +111,9 @@ describe('computePageBox', () => {
     expect(
       computePageBox({width: 1000, height: 1500}, PORTRAIT.w, PORTRAIT.h, 'fit_height', 2),
     ).toEqual({width: 2160, height: 3240});
+    expect(
+      computePageBox({width: 1000, height: 1500}, PORTRAIT.w, PORTRAIT.h, 'full_screen', 2),
+    ).toEqual({width: 2160, height: 3840});
   });
 
   it('falls back to the 1.45 aspect ratio when no dimensions are known', () => {
@@ -93,7 +130,7 @@ describe('computePageBox', () => {
       {width: 4000, height: 6000},
       undefined,
     ];
-    const modes = ['fit_width', 'fit_height', 'fit_screen', 'original'] as const;
+    const modes = ['fit_width', 'fit_height', 'fit_screen', 'full_screen', 'original'] as const;
     for (const d of dims) {
       for (const mode of modes) {
         const box = computePageBox(d, PORTRAIT.w, PORTRAIT.h, mode, 1);

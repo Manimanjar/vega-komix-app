@@ -139,13 +139,15 @@ describe('Chapter Chronology Navigation & Transitions', () => {
       expect(fromInternalOrientation('portrait')).toBe('PORTRAIT');
       expect(fromInternalOrientation('landscape')).toBe('LANDSCAPE');
 
-      // 'WIDTH' is legacy: fit-width (Full Bleed) was removed, so old stored
-      // WIDTH preferences resolve to fit-screen and are never written again.
-      expect(toInternalPageFit('WIDTH')).toBe('fit_screen');
+      // Fit Width is back and Full Screen is new: WIDTH and FULL round-trip
+      // to their own modes instead of collapsing to fit-screen.
+      expect(toInternalPageFit('WIDTH')).toBe('fit_width');
+      expect(toInternalPageFit('FULL')).toBe('full_screen');
       expect(toInternalPageFit('COVER')).toBe('fit_screen');
       expect(toInternalPageFit('CONTAIN')).toBe('fit_height');
       expect(toInternalPageFit('ORIGINAL')).toBe('original');
-      expect(fromInternalPageFit('fit_width')).toBe('COVER');
+      expect(fromInternalPageFit('fit_width')).toBe('WIDTH');
+      expect(fromInternalPageFit('full_screen')).toBe('FULL');
       expect(fromInternalPageFit('fit_screen')).toBe('COVER');
       expect(fromInternalPageFit('original')).toBe('ORIGINAL');
     });

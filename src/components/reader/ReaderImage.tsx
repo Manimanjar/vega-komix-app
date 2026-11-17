@@ -169,6 +169,12 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   const savedTranslationX = useSharedValue(0);
   const translationY = useSharedValue(0);
   const savedTranslationY = useSharedValue(0);
+  // Soft fade-in when the image decodes, so a page turn melts in instead of
+  // popping — part of the fluid page-turn feel.
+  const fade = useSharedValue(0);
+  useEffect(() => {
+    fade.value = 0;
+  }, [currentUrl, retryKey, fade]);
 
   // Resolve native cookies and headers
   useEffect(() => {
@@ -203,6 +209,15 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     }
 
     // Paged mode
+    // Full Screen fills the whole physical display edge to edge; the image
+    // cover-crops to the frame (see contentFit below).
+    if (scaleMode === 'full_screen') {
+      return {
+        width: Math.round(frameWidth * zoom),
+        height: Math.round(windowHeight * zoom),
+      };
+    }
+
     if (scaleMode === 'fit_height') {
       const renderHeight = Math.round(windowHeight * zoom);
       const renderWidth = imageRatio ? Math.round(renderHeight * imageRatio) : Math.round(frameWidth * zoom);
@@ -225,10 +240,13 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       return {width: fitMaxWidth, height: maxHeight};
     }
 
-    // Default: fit_width
+    // Default: fit_width — width fills the frame and the height follows the
+    // aspect ratio, even if that runs taller than the screen (the page then
+    // centre-crops top and bottom). It is NOT clamped to the screen height:
+    // clamping made fit-width identical to fit-screen for tall pages.
     const renderWidth = Math.round(frameWidth * zoom);
     const renderHeight = imageRatio
-      ? Math.min(Math.round(renderWidth / imageRatio), Math.round(windowHeight * zoom))
+      ? Math.round(renderWidth / imageRatio)
       : Math.round(windowHeight * zoom);
     return {width: renderWidth, height: renderHeight};
   }, [
@@ -354,6 +372,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   const gesture = Gesture.Simultaneous(zoomGestures, tapGestures);
 
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fade.value,
     transform: [
       {translateX: translationX.value},
       {translateY: translationY.value},
@@ -406,7 +425,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
               uri: currentUrl,
               headers: resolvedHeaders,
             }}
-            contentFit={isWebtoon ? 'fill' : scaleMode === 'fit_height' ? 'contain' : 'contain'}
+            contentFit={isWebtoon ? 'fill' : scaleMode === 'full_screen' ? 'cover' : 'contain'}
             priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={currentUrl}
             enableLiveTextInteraction={false}
@@ -432,6 +451,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             onLoad={e => {
               setLoading(false);
               setLoadError(false);
+              fade.value = withTiming(1, {duration: 200});
               onPageLoaded?.(index);
               const src = e.source;
               if (src && src.width > 0 && src.height > 0) {
