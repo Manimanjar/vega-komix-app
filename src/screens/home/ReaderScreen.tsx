@@ -885,11 +885,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [episodeList.length]);
 
-  // 1-Tap Toggle Reading Mode: cycles Continuous -> Page by Page (LTR) ->
-  // Manga RTL -> Continuous. The first tap out of Continuous always lands on
+  // 1-Tap Toggle Reading Mode: cycles Continuous -> Page by Page ->
+  // Manga -> Continuous. The first tap out of Continuous always lands on
   // the left-to-right paged mode, so a Western comic never opens in the
-  // right-to-left manga direction by accident — that was the reversed swipe
-  // (next page on a left-to-right swipe). Manga stays one more tap away.
+  // manga direction by accident — that was the reversed swipe (next page on
+  // a left-to-right swipe). Manga stays one more tap away, and in both
+  // paged modes the next page is a swipe right-to-left from page 1 onward.
   const handleToggleReadingMode = useCallback(() => {
     const nextMode: ReadingMode = nextReadingMode(settings.readingMode);
     if (nextMode === 'webtoon') {
@@ -917,7 +918,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
       nextMode === 'webtoon'
         ? 'Reading Mode: Continuous Webtoon'
         : nextMode === 'manga'
-        ? 'Reading Mode: Page by Page (Manga RTL)'
+        ? 'Reading Mode: Page by Page (Manga)'
         : 'Reading Mode: Page by Page',
       ToastAndroid.SHORT,
     );

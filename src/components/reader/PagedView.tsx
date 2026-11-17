@@ -349,39 +349,25 @@ export const PagedView: React.FC<PagedViewProps> = ({
   );
 
   // Safe 3-Zone Edge Tap Handlers (executed on JS thread via Pressable)
-  // In Manga (RTL): Left = Next page, Right = Prev page
-  // In Comic / Double spread (LTR): Left = Prev page, Right = Next page
+  // Same in BOTH paged modes, matching the swipe: Left edge = previous
+  // page, Right edge = next page (or next chapter at the end). Manga used
+  // to mirror this (Left = next) because its list was inverted; the list
+  // is no longer inverted, so the taps follow the swipe, not the mode.
   const handleLeftTap = useCallback(() => {
-    if (isManga) {
-      if (activeGroupIndex < spreadGroups.length - 1) {
-        goToGroupIndex(activeGroupIndex + 1, true);
-      } else if (onNextChapter && hasNextChapter) {
-        onNextChapter();
-      } else if (onReachEnd) {
-        onReachEnd();
-      }
-    } else {
-      if (activeGroupIndex > 0) {
-        goToGroupIndex(activeGroupIndex - 1, true);
-      }
+    if (activeGroupIndex > 0) {
+      goToGroupIndex(activeGroupIndex - 1, true);
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
+  }, [activeGroupIndex, goToGroupIndex]);
 
   const handleRightTap = useCallback(() => {
-    if (isManga) {
-      if (activeGroupIndex > 0) {
-        goToGroupIndex(activeGroupIndex - 1, true);
-      }
-    } else {
-      if (activeGroupIndex < spreadGroups.length - 1) {
-        goToGroupIndex(activeGroupIndex + 1, true);
-      } else if (onNextChapter && hasNextChapter) {
-        onNextChapter();
-      } else if (onReachEnd) {
-        onReachEnd();
-      }
+    if (activeGroupIndex < spreadGroups.length - 1) {
+      goToGroupIndex(activeGroupIndex + 1, true);
+    } else if (onNextChapter && hasNextChapter) {
+      onNextChapter();
+    } else if (onReachEnd) {
+      onReachEnd();
     }
-  }, [isManga, activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
+  }, [activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {
@@ -595,12 +581,15 @@ export const PagedView: React.FC<PagedViewProps> = ({
         horizontal
         // Snap instead of pagingEnabled: the snap interval is identical in
         // both directions, so a swipe feels equally fast and smooth whether
-        // turning forward or back. pagingEnabled's fling could feel laggy in
-        // one direction (the inverted manga list made it worse).
+        // turning forward or back.
+        // The list is never inverted: in BOTH paged modes (Comic and Manga)
+        // the next page is a swipe right-to-left, from page 1 onward — the
+        // user's habit. Manga keeps its own reading order inside spreads
+        // (right page first, right half first), but the page-turn gesture
+        // is the same as Comic.
         snapToInterval={windowWidth}
         snapToAlignment="start"
         decelerationRate="fast"
-        inverted={isManga}
         showsHorizontalScrollIndicator={false}
         style={{backgroundColor: themeColors.background}}
         contentContainerStyle={{backgroundColor: themeColors.background}}

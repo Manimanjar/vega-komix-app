@@ -43,10 +43,13 @@ export const PressScale: React.FC<{
 };
 
 /** The next reading mode in the HUD pill cycle: Continuous -> Page by Page
- * (left-to-right, Western comics) -> Manga RTL -> Continuous. The first tap
- * out of Continuous always lands on the left-to-right paged mode, so a
- * Western comic never opens in the right-to-left manga direction by
- * accident; manga is still one more tap away. Pure function, unit-tested. */
+ * (Western comics) -> Manga -> Continuous. The first tap out of Continuous
+ * always lands on the paged mode, so a Western comic never opens in the
+ * manga direction by accident; manga is still one more tap away. Both
+ * paged modes turn pages the same way — swipe right-to-left for the next
+ * page, from page 1 onward — because that is the user's habit. What makes
+ * Manga different is the reading order inside spreads (right page first,
+ * right half first), not the swipe. Pure function, unit-tested. */
 export const nextReadingMode = (
   current: 'webtoon' | 'manga' | 'comic' | 'double_spread',
 ): 'webtoon' | 'manga' | 'comic' => {

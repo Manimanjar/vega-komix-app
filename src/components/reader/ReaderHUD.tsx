@@ -228,11 +228,11 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
 
           {/* Right: 1-Tap Reading Mode Pill + [A/文] Translate Pill */}
           <View style={styles.topRightActions}>
-            {/* 1-Tap Reading Mode Button: cycles Continuous -> Page by Page (LTR) -> Manga RTL */}
+            {/* 1-Tap Reading Mode Button: cycles Continuous -> Page by Page -> Manga */}
             <PressScale
               onPress={onToggleReadingMode}
               style={styles.readingModePill}
-              accessibilityLabel={`Reading mode: ${isWebtoon ? 'Continuous' : readingMode === 'manga' ? 'Manga RTL' : 'Page by Page'}`}>
+              accessibilityLabel={`Reading mode: ${isWebtoon ? 'Continuous' : readingMode === 'manga' ? 'Manga' : 'Page by Page'}`}>
               <MaterialCommunityIcons
                 name={isWebtoon ? 'view-headline' : 'book-open-page-variant'}
                 size={16}
@@ -248,7 +248,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 {isWebtoon
                   ? 'Continuous'
                   : readingMode === 'manga'
-                  ? 'Manga RTL'
+                  ? 'Manga'
                   : readingMode === 'double_spread'
                   ? 'Double Page'
                   : 'Page by Page'}
