@@ -116,13 +116,23 @@ const shuffle = <T>(items: T[]): T[] => {
   return result;
 };
 
-/** Picks up to HERO_COUNT random posts from all catalogs, kept per provider. */
+// Highlights come only from these two categories — never from any other row.
+const HERO_CATEGORY_TITLES = ['incest', 'family'];
+
+/** Picks up to HERO_COUNT random posts from the Incest/Family catalogs only, kept per provider. */
 export const getRandomHeroPosts = (
   homeData: HomePageData[],
   providerValue?: string,
 ): Post[] => {
   const pool = new Map<string, Post>();
   for (const category of homeData || []) {
+    if (
+      !HERO_CATEGORY_TITLES.includes(
+        (category.title || '').trim().toLowerCase(),
+      )
+    ) {
+      continue;
+    }
     for (const post of category.Posts || []) {
       if (post?.link && !pool.has(post.link)) {
         pool.set(post.link, post);

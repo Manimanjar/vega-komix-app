@@ -204,4 +204,106 @@ describe('Library Live Update Tracker & Green +X Badges', () => {
       expect(report2.updatedCount).toBe(0);
     });
   });
+
+  describe('Chapter count resolution via getChapters (MangaDex-style providers)', () => {
+    beforeEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    const mangaDexComic: WatchListItem = {
+      title: 'MangaDex Title',
+      poster: 'https://example.com/poster.jpg',
+      link: 'https://mangadex.org/title/abc',
+      provider: 'mangadex',
+      lastReadChapterIndex: 0,
+    };
+
+    it('resolves the real chapter count through getChapters when getMeta returns only an episodesLink row', async () => {
+      watchListStorage.addToWatchList(mangaDexComic);
+      jest.spyOn(providerManager, 'getMetaData').mockResolvedValue({
+        linkList: [{title: 'Chapters', episodesLink: 'abc-uuid'}],
+      } as any);
+      const getChaptersSpy = jest
+        .spyOn(providerManager, 'getChapters')
+        .mockResolvedValue(
+          new Array(32).fill({
+            id: '1',
+            title: 'Ch',
+            chapterNumber: 1,
+          }) as any,
+        );
+
+      const report = await libraryUpdateChecker.checkLibraryUpdates(true);
+
+      expect(getChaptersSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: 'abc-uuid',
+          providerValue: 'mangadex',
+          silent: true,
+        }),
+      );
+      expect(report.checkedCount).toBe(1);
+      expect(report.updatedCount).toBe(1);
+      expect(report.results[0].newChaptersCount).toBe(32);
+      expect(watchListStorage.getUnreadChapterCount(mangaDexComic.link)).toBe(
+        32,
+      );
+    });
+
+    it('falls back to the meta count when getChapters fails, without breaking the check', async () => {
+      const comic: WatchListItem = {
+        ...mangaDexComic,
+        lastReadChapterIndex: 1,
+        lastKnownChapterCount: 1,
+      };
+      watchListStorage.addToWatchList(comic);
+      jest.spyOn(providerManager, 'getMetaData').mockResolvedValue({
+        linkList: [{title: 'Chapters', episodesLink: 'abc-uuid'}],
+      } as any);
+      jest
+        .spyOn(providerManager, 'getChapters')
+        .mockRejectedValue(new Error('boom'));
+
+      const report = await libraryUpdateChecker.checkLibraryUpdates(true);
+
+      expect(report.checkedCount).toBe(1);
+      expect(report.updatedCount).toBe(0);
+    });
+
+    it('does not call getChapters when getMeta already returns a real chapter list', async () => {
+      watchListStorage.addToWatchList(mangaDexComic);
+      jest.spyOn(providerManager, 'getMetaData').mockResolvedValue({
+        chapters: new Array(5).fill({
+          id: '1',
+          title: 'Ch',
+          chapterNumber: 1,
+        }),
+        linkList: [{title: 'Chapters', episodesLink: 'abc-uuid'}],
+      } as any);
+      const getChaptersSpy = jest
+        .spyOn(providerManager, 'getChapters')
+        .mockResolvedValue([] as any);
+
+      const report = await libraryUpdateChecker.checkLibraryUpdates(true);
+
+      expect(getChaptersSpy).not.toHaveBeenCalled();
+      expect(report.results[0].newChaptersCount).toBe(5);
+    });
+
+    it('does not call getChapters for one-shot galleries with no episodesLink', async () => {
+      watchListStorage.addToWatchList(mangaDexComic);
+      jest.spyOn(providerManager, 'getMetaData').mockResolvedValue({
+        chapters: [{id: '1', title: 'Ch', chapterNumber: 1}],
+        linkList: [{title: 'Gallery', directLinks: []}],
+      } as any);
+      const getChaptersSpy = jest
+        .spyOn(providerManager, 'getChapters')
+        .mockResolvedValue([] as any);
+
+      const report = await libraryUpdateChecker.checkLibraryUpdates(true);
+
+      expect(getChaptersSpy).not.toHaveBeenCalled();
+      expect(report.results[0].newChaptersCount).toBe(1);
+    });
+  });
 });

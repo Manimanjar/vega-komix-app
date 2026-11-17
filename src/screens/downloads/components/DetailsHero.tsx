@@ -10,7 +10,7 @@ import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
 
 export interface DetailsHeroProps {
   title: string;
-  backgroundImage: string;
+  backgroundImage?: string;
   posterLike: boolean;
   backdropReady: boolean;
   hasArtwork: boolean;

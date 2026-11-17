@@ -1,5 +1,5 @@
 import {InteractionManager} from 'react-native';
-import axios, {AxiosRequestConfig} from 'axios';
+import axios from 'axios';
 import {Buffer} from 'buffer';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {MMKV} from '../Mmkv';
@@ -63,9 +63,22 @@ const LINGVA_MIRRORS = [
 
 const TRANSLATOR_CONFIG_KEY = 'vega-komix-custom-translator-config';
 const TRANSLATION_CACHE_PREFIX = 'translation_cache_';
+const TITLE_CACHE_PREFIX = 'translation_title_';
+const MAX_TITLE_CACHE_ENTRIES = 500;
+const MAX_CONCURRENT_TITLE_TRANSLATIONS = 3;
+
+export interface TitleTranslationResult {
+  original: string;
+  translated: string;
+  status: 'cached' | 'translated' | 'unchanged' | 'error';
+  timestamp: number;
+}
 
 class MangaTranslatorEngine {
   private activeControllers = new Map<string, AbortController>();
+  private titleJobs = new Map<string, Promise<TitleTranslationResult>>();
+  private activeTitleTranslations = 0;
+  private titleQueue: Array<() => void> = [];
   private keyIndex = 0;
   private statusListeners = new Set<(status: TranslationStatus, pageIndex?: number) => void>();
   private currentStatus: TranslationStatus = 'idle';
@@ -204,6 +217,145 @@ class MangaTranslatorEngine {
       return 'eng';
     }
     return 'jpn';
+  }
+
+  /**
+   * Title translation: plain-text titles through the same zero-key
+   * uncensored pipeline as page bubbles (custom endpoint -> Pollinations AI
+   * -> Google GTX / Lingva). The AI branch is required, not optional:
+   * romaji titles (English letters, non-English meaning) come back
+   * unchanged from GTX, but the AI branch translates them by meaning.
+   * Results are cached by title string, in-flight duplicates share one
+   * request, and at most 3 title translations run at once so a screen of
+   * cards cannot fire one request per card.
+   */
+  public getCachedTitleTranslation(text: string): TitleTranslationResult | null {
+    const key = this.getTitleCacheKey(text);
+    if (!key) return null;
+    try {
+      const cached = MMKV.getString(key);
+      if (cached) return JSON.parse(cached) as TitleTranslationResult;
+    } catch {}
+    return null;
+  }
+
+  public async translateTitle(
+    text: string,
+    signal?: AbortSignal,
+  ): Promise<TitleTranslationResult> {
+    const original = (text || '').trim();
+    if (!original) {
+      return {original, translated: '', status: 'unchanged', timestamp: Date.now()};
+    }
+    const cached = this.getCachedTitleTranslation(original);
+    if (cached) {
+      return {...cached, status: 'cached'};
+    }
+    const existing = this.titleJobs.get(original);
+    if (existing) return existing;
+
+    const job = this.runTitleTranslation(original, signal);
+    this.titleJobs.set(original, job);
+    try {
+      return await job;
+    } finally {
+      this.titleJobs.delete(original);
+    }
+  }
+
+  private async runTitleTranslation(
+    original: string,
+    signal?: AbortSignal,
+  ): Promise<TitleTranslationResult> {
+    try {
+      await this.waitForTitleSlot(signal);
+      if (signal?.aborted) {
+        return {original, translated: original, status: 'error', timestamp: Date.now()};
+      }
+      this.activeTitleTranslations++;
+      try {
+        const results = await this.translateBubblesUncensored(
+          [{text: original, box: {xRatio: 0, yRatio: 0, wRatio: 1, hRatio: 1}}],
+          signal,
+        );
+        // An aborted job must not be cached as "unchanged": the fallback
+        // returns the input text on abort, which looks identical.
+        if (signal?.aborted) {
+          return {original, translated: original, status: 'error', timestamp: Date.now()};
+        }
+        const translated = (results?.[0] || '').trim() || original;
+        const changed = translated.toLowerCase() !== original.toLowerCase();
+        const result: TitleTranslationResult = {
+          original,
+          translated,
+          status: changed ? 'translated' : 'unchanged',
+          timestamp: Date.now(),
+        };
+        this.saveTitleTranslation(result);
+        return result;
+      } finally {
+        this.activeTitleTranslations--;
+        const next = this.titleQueue.shift();
+        next?.();
+      }
+    } catch {
+      return {original, translated: original, status: 'error', timestamp: Date.now()};
+    }
+  }
+
+  private waitForTitleSlot(signal?: AbortSignal): Promise<void> {
+    if (this.activeTitleTranslations < MAX_CONCURRENT_TITLE_TRANSLATIONS) {
+      return Promise.resolve();
+    }
+    return new Promise<void>(resolve => {
+      const entry = () => resolve();
+      this.titleQueue.push(entry);
+      signal?.addEventListener(
+        'abort',
+        () => {
+          const idx = this.titleQueue.indexOf(entry);
+          if (idx >= 0) this.titleQueue.splice(idx, 1);
+          resolve();
+        },
+        {once: true},
+      );
+    });
+  }
+
+  private getTitleCacheKey(text: string): string | null {
+    const clean = (text || '').trim();
+    if (!clean) return null;
+    return `${TITLE_CACHE_PREFIX}${encodeURIComponent(clean)}`;
+  }
+
+  private saveTitleTranslation(result: TitleTranslationResult): void {
+    const key = this.getTitleCacheKey(result.original);
+    if (!key) return;
+    try {
+      MMKV.setString(key, JSON.stringify(result));
+      this.evictOldTitleTranslations();
+    } catch {}
+  }
+
+  private evictOldTitleTranslations(): void {
+    try {
+      const allKeys: string[] = (MMKV as any).indexer?.getKeys() || [];
+      const titleKeys = allKeys.filter(k => k && k.startsWith(TITLE_CACHE_PREFIX));
+      if (titleKeys.length <= MAX_TITLE_CACHE_ENTRIES) return;
+      const entries = titleKeys
+        .map(k => {
+          try {
+            const parsed = JSON.parse(MMKV.getString(k) || '') as TitleTranslationResult;
+            return {key: k, timestamp: parsed.timestamp || 0};
+          } catch {
+            return {key: k, timestamp: 0};
+          }
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+      for (const entry of entries.slice(0, titleKeys.length - MAX_TITLE_CACHE_ENTRIES)) {
+        MMKV.removeItem(entry.key);
+      }
+    } catch {}
   }
 
   /**
@@ -349,7 +501,7 @@ class MangaTranslatorEngine {
             break;
           }
         }
-      } catch (err: any) {
+      } catch {
         if (signal?.aborted) return [];
         // Continue to next rotating key on error
       }

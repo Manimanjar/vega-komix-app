@@ -5,7 +5,7 @@ import {
   beginUIInteraction,
   endUIInteraction,
 } from '../../lib/performance/idleWork';
-import {RefreshControl, ScrollView, View, Modal, Pressable} from 'react-native';
+import {AppState, RefreshControl, ScrollView, View, Modal, Pressable} from 'react-native';
 import {FlashList} from '@shopify/flash-list';
 import Slider from '../../components/Slider';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
@@ -136,14 +136,57 @@ const Home = ({}: Props) => {
   }, []);
 
   // Heroes are kept per provider, so a refetch does not pick new ones.
+  // heroEpoch forces a re-pick when the app returns after being closed:
+  // the in-memory hero cache survives a warm resume, so without it the same
+  // heroes would show until the next pull-to-refresh.
+  const [heroEpoch, setHeroEpoch] = useState(0);
   const heroPosts = useMemo(
     () => getRandomHeroPosts(homeData, provider?.value),
-    [homeData, provider?.value],
+    [homeData, provider?.value, heroEpoch],
   );
 
+  // Last non-empty heroes for the current provider, so the hero never flashes
+  // blank while the Incest/Family rows are still loading on slow providers.
+  const lastHeroesRef = React.useRef<{
+    providerValue?: string;
+    posts: Post[];
+  }>({providerValue: undefined, posts: []});
+
+  // A provider switch drops the previous provider's heroes; the new
+  // provider's rows load from scratch.
+  useEffect(() => {
+    lastHeroesRef.current = {providerValue: provider?.value, posts: []};
+  }, [provider?.value]);
+
   React.useEffect(() => {
-    setHeroes(heroPosts);
-  }, [heroPosts, setHeroes]);
+    if (heroPosts.length > 0) {
+      lastHeroesRef.current = {
+        providerValue: provider?.value,
+        posts: heroPosts,
+      };
+      setHeroes(heroPosts);
+    } else if (lastHeroesRef.current.providerValue === provider?.value) {
+      setHeroes(lastHeroesRef.current.posts);
+    }
+  }, [heroPosts, provider?.value, setHeroes]);
+
+  // Re-randomize heroes when the app comes back after being closed or
+  // backgrounded for a while. Short foreground flickers do not re-pick.
+  useEffect(() => {
+    let backgroundedAt = 0;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'background' || state === 'inactive') {
+        backgroundedAt = Date.now();
+      } else if (state === 'active') {
+        if (backgroundedAt > 0 && Date.now() - backgroundedAt > 30_000) {
+          clearHeroCache(provider?.value);
+          setHeroEpoch(epoch => epoch + 1);
+        }
+        backgroundedAt = 0;
+      }
+    });
+    return () => subscription.remove();
+  }, [provider?.value]);
 
   useFocusEffect(
     useCallback(() => {

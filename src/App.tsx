@@ -10,7 +10,7 @@ import './global.css';
 import Home from './screens/home/Home';
 import Info from './screens/home/Info';
 import Player from './screens/home/Player';
-import {getInitialVideoIntent, subscribeVideoIntent, setVideoIntentsEnabled, supportsVideoIntents, videoIntentPlayerParams, type VideoIntentPayload} from './lib/services/videoIntent';
+import {setVideoIntentsEnabled, supportsVideoIntents} from './lib/services/videoIntent';
 import Settings from './screens/settings/Settings';
 import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
@@ -130,7 +130,6 @@ export type RootStackParamList = {
     episodeList: EpisodeLink[];
     directUrl?: string;
     localContent?: boolean;
-    externalVideo?: {mimeType: string};
     type: string;
     primaryTitle?: string;
     secondaryTitle?: string;
@@ -203,20 +202,6 @@ const WatchListStack = createNativeStackNavigator<WatchListStackParamList>();
 const DownloadsStack = createNativeStackNavigator<DownloadsStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
-let pendingVideo: VideoIntentPayload | undefined;
-const openVideoIntent = (payload: VideoIntentPayload): void => {
-  if (!settingsStorage.isOpenVideosFromOtherAppsEnabled()) return;
-  if (!navigationRef.isReady()) {
-    pendingVideo = payload;
-    return;
-  }
-  pendingVideo = undefined;
-  // Replace an already-open player so its episode and stream state is reset.
-  navigationRef.dispatch({
-    type: navigationRef.getCurrentRoute()?.name === 'Player' ? 'REPLACE' : 'PUSH',
-    payload: {name: 'Player', params: videoIntentPlayerParams(payload)},
-  });
-};
 let pendingDownloadsNavigation = false;
 let pendingAddSource: SourceIntentPayload | undefined;
 
@@ -721,11 +706,16 @@ const App = () => {
   }, []);
 
   useEffect(() => subscribeSourceIntent(openAddSourceScreen), []);
-  useEffect(() => subscribeVideoIntent(openVideoIntent), []);
+  // This is a comic reader, not a video player: external video intents are
+  // disabled at the OS level on every start (the native VideoPlayer
+  // activity-alias defaults to enabled in the manifest, and the old code
+  // routed incoming videos into the comic reader, which failed with
+  // "Unable to load chapter"). Nothing subscribes to video intents anymore.
   useEffect(() => {
     if (supportsVideoIntents)
-      setVideoIntentsEnabled(settingsStorage.isOpenVideosFromOtherAppsEnabled())
-        .catch(error => console.warn('Failed to update video Open with support:', error));
+      setVideoIntentsEnabled(false).catch(error =>
+        console.warn('Failed to disable video intents:', error),
+      );
   }, []);
 
   const handleNavigationReady = useCallback(async () => {
@@ -737,12 +727,6 @@ const App = () => {
     const initialSource = pendingAddSource ?? (await getInitialSourceIntent());
     if (initialSource) {
       openAddSourceScreen(initialSource);
-    }
-    try {
-      const initialVideo = pendingVideo ?? (await getInitialVideoIntent());
-      if (initialVideo) openVideoIntent(initialVideo);
-    } catch (error) {
-      console.warn('Failed to open incoming video:', error);
     }
     // Track initial screen
     if (hasFirebase) {

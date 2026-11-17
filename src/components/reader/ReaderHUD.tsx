@@ -18,8 +18,8 @@ import type {
   ReadingMode,
   ScreenOrientationMode,
 } from './types';
-import {THEME_COLORS} from './types';
 import type {TranslationStatus} from '../../lib/translator/mangaTranslatorEngine';
+import {useTranslatedTitle} from '../../lib/translator/useTranslatedTitle';
 
 interface ReaderHUDProps {
   visible: boolean;
@@ -68,7 +68,6 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   readingMode,
   orientationMode,
   interactionMode = 'scroll',
-  theme,
   translateEnabled = false,
   translationStatus = 'idle',
   onToggleTranslate,
@@ -89,10 +88,11 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onTouchActivity,
 }) => {
   const insets = useSafeAreaInsets();
-  const themeColors = THEME_COLORS[theme];
   const [chapterModalVisible, setChapterModalVisible] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubbingValue, setScrubbingValue] = useState<number | null>(null);
+  // Translated title in the top bar (cache is usually warm from Detail).
+  const {translated: translatedTitle} = useTranslatedTitle(title);
 
   if (!visible) return null;
 
@@ -154,7 +154,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
               numberOfLines={1}
               role="titleMediumEmphasized"
               style={{color: '#FFFFFF'}}>
-              {title}
+              {translatedTitle}
             </AppText>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
               <AppText

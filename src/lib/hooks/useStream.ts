@@ -8,12 +8,10 @@ const savedSubtitleTrack = (item: any) => ({
   uri: item.uri || '',
 });
 import {deduplicateVideoTracks} from '../player/playbackQuality';
-import {externalVideoStream} from '../services/videoIntent';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ToastAndroid } from 'react-native';
 import { providerManager } from '../services/ProviderManager';
-import { settingsStorage } from '../storage';
 import { ifExists } from '../file/ifExists';
 import { Stream } from '../providers/types';
 import { getEpisodeIdentity } from '../utils/episodeIdentity';
@@ -483,7 +481,6 @@ export const fetchStreamList = async ({
     return [];
   }
 
-  if (routeParams?.externalVideo) return [externalVideoStream(routeParams)!];
   if (routeParams?.localContent) {
     return isLocalPath(episode?.link)
       ? [{server: 'Local file', link: episode.link, type: 'local'}]
@@ -542,15 +539,12 @@ export const fetchStreamList = async ({
         providerValue: routeParams?.providerValue || provider,
       });
 
-      // Filter out excluded qualities
+      // No quality filtering: this is a comic app, there is no video
+      // quality to exclude. (The old excluded-qualities filter and its
+      // setting were video logic; both are removed.)
       const streamData = (data || []).filter((s): s is Stream => 'server' in s);
-      const excludedQualities = settingsStorage.getExcludedQualities() || [];
-      const filteredQualities = streamData.filter(
-        streamItem => !excludedQualities.includes(streamItem?.quality + 'p'),
-      );
 
-      remoteStreams =
-        filteredQualities.length > 0 ? filteredQualities : streamData;
+      remoteStreams = streamData;
     } finally {
       clearTimeout(timeoutId);
       signal?.removeEventListener('abort', abort);
@@ -591,9 +585,9 @@ export const useStream = ({
 }: UseStreamOptions) => {
   const [selectedStream, setSelectedStream] = useState<Stream>(() => {
     const path = getCompletedDownloadPathSync(activeEpisode, routeParams);
-    return externalVideoStream(routeParams) || (path
+    return path
       ? { server: routeParams?.localContent ? 'Local file' : 'Downloaded', link: path, type: routeParams?.localContent ? 'local' : 'mp4' }
-      : getInitialStream(activeEpisode, routeParams) || { server: '', link: '', type: '' });
+      : getInitialStream(activeEpisode, routeParams) || { server: '', link: '', type: '' };
   });
   const [externalSubs, setExternalSubs] = useState<any[]>([]);
 
@@ -617,15 +611,13 @@ export const useStream = ({
     previousEpisodeKeyRef.current = activeEpisodeKey;
     const path = getCompletedDownloadPathSync(activeEpisode, routeParams);
     setSelectedStream(
-      externalVideoStream(routeParams) || (path
+      path
         ? { server: routeParams?.localContent ? 'Local file' : 'Downloaded', link: path, type: routeParams?.localContent ? 'local' : 'mp4' }
-        : getInitialStream(activeEpisode, routeParams) || { server: '', link: '', type: '' }),
+        : getInitialStream(activeEpisode, routeParams) || { server: '', link: '', type: '' },
     );
   }, [activeEpisode, activeEpisodeKey, routeParams]);
 
   const localPlaceholder = useMemo(() => {
-    const openedStream = externalVideoStream(routeParams);
-    if (openedStream) return [openedStream];
     const path = getCompletedDownloadPathSync(activeEpisode, routeParams);
     return path
       ? [{ server: routeParams?.localContent ? 'Local file' : 'Downloaded', link: path, type: routeParams?.localContent ? 'local' : 'mp4' }]

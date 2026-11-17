@@ -57,8 +57,10 @@ describe('Step 16: Front-End Verification Suite', () => {
   it('Check 3: should dynamically compute webtoon page height edge-to-edge', () => {
     const webtoonViewFile = path.join(rootDir, 'src', 'components', 'reader', 'WebtoonView.tsx');
     const content = fs.readFileSync(webtoonViewFile, 'utf-8');
-    expect(content).toContain('Math.round(screenWidth * (naturalHeight / naturalWidth))');
-    expect(content).toContain('width: screenWidth');
+    // Page height comes from the shared computePageBox helper (fit modes +
+    // measured natural size), not the old inline width * ratio formula.
+    expect(content).toContain('computePageBox');
+    expect(content).toContain('box.height');
   });
 
   it('Check 4: should render visible action buttons and space-between chapter rows', () => {
@@ -133,8 +135,13 @@ describe('Step 16: Front-End Verification Suite', () => {
     expect(content).not.toContain('Floating Page Indicator');
     expect(content).toContain('Live Zoom Level');
     expect(content).toContain('Image Fit & Scaling');
-    expect(content).toContain('Hands-Free Auto-Scroll');
-    expect(content).toContain('Screen Brightness & Eye Care');
+    // Auto-Scroll and Eye Brightness were removed at the user's request;
+    // the Warm Night Filter in the same section was kept.
+    expect(content).not.toContain('Hands-Free Auto-Scroll');
+    expect(content).not.toContain('Auto-Scroll');
+    expect(content).not.toContain('Eye Brightness');
+    expect(content).toContain('Display & Eye Care');
+    expect(content).toContain('Warm Night Filter');
     expect(content).toContain('Quick Page & Chapter Tools');
   });
 });

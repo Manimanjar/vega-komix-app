@@ -139,11 +139,15 @@ describe('Chapter Chronology Navigation & Transitions', () => {
       expect(fromInternalOrientation('portrait')).toBe('PORTRAIT');
       expect(fromInternalOrientation('landscape')).toBe('LANDSCAPE');
 
-      expect(toInternalPageFit('WIDTH')).toBe('fit_width');
+      // 'WIDTH' is legacy: fit-width (Full Bleed) was removed, so old stored
+      // WIDTH preferences resolve to fit-screen and are never written again.
+      expect(toInternalPageFit('WIDTH')).toBe('fit_screen');
       expect(toInternalPageFit('COVER')).toBe('fit_screen');
       expect(toInternalPageFit('CONTAIN')).toBe('fit_height');
-      expect(fromInternalPageFit('fit_width')).toBe('WIDTH');
+      expect(toInternalPageFit('ORIGINAL')).toBe('original');
+      expect(fromInternalPageFit('fit_width')).toBe('COVER');
       expect(fromInternalPageFit('fit_screen')).toBe('COVER');
+      expect(fromInternalPageFit('original')).toBe('ORIGINAL');
     });
   });
 
@@ -181,7 +185,7 @@ describe('Chapter Chronology Navigation & Transitions', () => {
       expect(handleNextMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should render caught up card when hasNextChapter is false', () => {
+    it('renders nothing when hasNextChapter is false (the caught-up card was removed)', () => {
       let tree: renderer.ReactTestRenderer;
 
       act(() => {
@@ -194,14 +198,7 @@ describe('Chapter Chronology Navigation & Transitions', () => {
         );
       });
 
-      const instance = tree!.root;
-      const textNodes = instance.findAll(node => typeof node.props.children === 'string');
-      const texts = textNodes.map(node => node.props.children);
-
-      expect(texts).toContain("You've caught up!");
-      expect(
-        texts.some(t => t.includes('reached the latest released chapter')),
-      ).toBe(true);
+      expect(tree!.toJSON()).toBeNull();
     });
   });
 });

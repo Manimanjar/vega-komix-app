@@ -24,6 +24,13 @@ export const EndOfChapterCard: React.FC<EndOfChapterCardProps> = ({
   const isSepia = theme === 'sepia';
   const isWhite = theme === 'white';
 
+  // This card is the next-chapter navigation at the end of a chapter. The
+  // old "You've caught up!" variant was removed: it flashed into view on
+  // every far slider jump and served no navigation purpose.
+  if (!hasNextChapter) {
+    return null;
+  }
+
   const cardBg = isSepia
     ? '#F0E2C8'
     : isWhite
@@ -60,71 +67,45 @@ export const EndOfChapterCard: React.FC<EndOfChapterCardProps> = ({
             borderColor,
           },
         ]}>
-        {hasNextChapter ? (
-          <>
-            <View style={styles.badgeRow}>
-              <View style={styles.endPill}>
-                <AppText role="labelSmall" style={styles.endPillText}>
-                  END OF CHAPTER
-                </AppText>
-              </View>
-            </View>
-
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons
-                name="book-open-page-variant-outline"
-                size={36}
-                color="#7C4DFF"
-              />
-            </View>
-
-            <AppText
-              role="titleMediumEmphasized"
-              numberOfLines={2}
-              style={[styles.nextTitle, {color: primaryTextColor}]}>
-              {nextChapterTitle || 'Next Chapter'}
+        <View style={styles.badgeRow}>
+          <View style={styles.endPill}>
+            <AppText role="labelSmall" style={styles.endPillText}>
+              END OF CHAPTER
             </AppText>
+          </View>
+        </View>
 
-            <AppText role="bodySmall" style={[styles.hintText, {color: secondaryTextColor}]}>
-              {isPaged
-                ? 'Swipe or tap below to start reading the next chapter'
-                : 'Swipe up or tap below to advance to the next chapter'}
+        <View style={styles.iconCircle}>
+          <MaterialCommunityIcons
+            name="book-open-page-variant-outline"
+            size={36}
+            color="#7C4DFF"
+          />
+        </View>
+
+        <AppText
+          role="titleMediumEmphasized"
+          numberOfLines={2}
+          style={[styles.nextTitle, {color: primaryTextColor}]}>
+          {nextChapterTitle || 'Next Chapter'}
+        </AppText>
+
+        <AppText role="bodySmall" style={[styles.hintText, {color: secondaryTextColor}]}>
+          {isPaged
+            ? 'Swipe or tap below to start reading the next chapter'
+            : 'Swipe up or tap below to advance to the next chapter'}
+        </AppText>
+
+        {onNextChapter && (
+          <TouchableOpacity
+            onPress={onNextChapter}
+            activeOpacity={0.8}
+            style={styles.advanceButton}>
+            <AppText role="labelLargeEmphasized" style={styles.advanceButtonText}>
+              Read Next Chapter
             </AppText>
-
-            {onNextChapter && (
-              <TouchableOpacity
-                onPress={onNextChapter}
-                activeOpacity={0.8}
-                style={styles.advanceButton}>
-                <AppText role="labelLargeEmphasized" style={styles.advanceButtonText}>
-                  Read Next Chapter
-                </AppText>
-                <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
-          </>
-        ) : (
-          <>
-            <View style={[styles.iconCircle, {backgroundColor: 'rgba(255, 179, 0, 0.12)'}]}>
-              <MaterialCommunityIcons
-                name="check-decagram-outline"
-                size={40}
-                color="#FFB300"
-              />
-            </View>
-
-            <AppText
-              role="titleMediumEmphasized"
-              style={[styles.nextTitle, {color: primaryTextColor, marginTop: 12}]}>
-              You've caught up!
-            </AppText>
-
-            <AppText
-              role="bodySmall"
-              style={[styles.hintText, {color: secondaryTextColor, marginTop: 8}]}>
-              You have reached the latest released chapter. Check back later for new chapters.
-            </AppText>
-          </>
+            <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         )}
       </View>
     </View>
