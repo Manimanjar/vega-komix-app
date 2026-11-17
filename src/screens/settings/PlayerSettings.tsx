@@ -27,7 +27,7 @@ const READING_MODE_OPTIONS = [
 ] as const;
 
 const PAGE_FIT_OPTIONS = [
-  {key: 'fit_width', label: 'Fit Screen Width (Recommended)'},
+  {key: 'fit_height', label: 'Fit Height'},
   {key: 'fit_screen', label: 'Fit Entire Page'},
   {key: 'original', label: 'Original Size'},
 ] as const;

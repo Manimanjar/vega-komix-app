@@ -35,7 +35,6 @@ export enum SettingsKeys {
   VERIFICATION_WINDOWS = 'verificationWindows',
 
   // Player settings
-  OPEN_VIDEOS_FROM_OTHER_APPS = 'openVideosFromOtherApps',
   SHOW_MEDIA_CONTROLS = 'showMediaControls',
   SHOW_HAMBURGER_MENU = 'showHamburgerMenu',
   HIDE_SEEK_BUTTONS = 'hideSeekButtons',
@@ -58,9 +57,6 @@ export enum SettingsKeys {
   PLAYER_CONTROL_LAYOUT = 'playerControlLayout',
   PLAYER_CONTROL_STYLE = 'playerControlStyle',
   HIDDEN_PLAYER_CONTROLS = 'hiddenPlayerControls',
-
-  // Quality settings
-  EXCLUDED_QUALITIES = 'excludedQualities',
 
   // Provider list order picked in the provider drawer
   PROVIDER_ORDER = 'providerOrder',
@@ -240,14 +236,6 @@ export class SettingsStorage {
 
   setVerificationWindowPolicy(value: VerificationWindowPolicy): void {
     mainStorage.setString(SettingsKeys.VERIFICATION_WINDOWS, value);
-  }
-
-  isOpenVideosFromOtherAppsEnabled(): boolean {
-    return mainStorage.getBool(SettingsKeys.OPEN_VIDEOS_FROM_OTHER_APPS, true);
-  }
-
-  setOpenVideosFromOtherAppsEnabled(enabled: boolean): void {
-    mainStorage.setBool(SettingsKeys.OPEN_VIDEOS_FROM_OTHER_APPS, enabled);
   }
 
   isAlwaysCastMode(): boolean {
@@ -542,15 +530,6 @@ export class SettingsStorage {
     if (isValidSeekInterval(seconds)) {
       mainStorage.setNumber(SettingsKeys.SEEK_INTERVAL, seconds);
     }
-  }
-
-  // Quality settings
-  getExcludedQualities(): string[] {
-    return mainStorage.getArray<string>(SettingsKeys.EXCLUDED_QUALITIES) || [];
-  }
-
-  setExcludedQualities(qualities: string[]): void {
-    mainStorage.setArray(SettingsKeys.EXCLUDED_QUALITIES, qualities);
   }
 
   /** Installed provider keys in the user's order (see providerOrderKey). */
@@ -956,7 +935,10 @@ export class SettingsStorage {
   }
 
   getPageFit(): 'fit_width' | 'fit_screen' | 'fit_height' | 'original' {
-    return (mainStorage.getString(SettingsKeys.PAGE_FIT) as any) || 'fit_width';
+    const stored = mainStorage.getString(SettingsKeys.PAGE_FIT) as any;
+    // 'fit_width' (Full Bleed) was removed: old stored values resolve to fit-screen.
+    if (!stored || stored === 'fit_width') return 'fit_screen';
+    return stored;
   }
 
   setPageFit(fit: 'fit_width' | 'fit_screen' | 'fit_height' | 'original'): void {
@@ -965,7 +947,7 @@ export class SettingsStorage {
       const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
       mainStorage.setObject('vega-komix-reader-settings', {
         ...curr,
-        imageScale: fit === 'fit_screen' ? 'fit_width' : fit,
+        imageScale: fit === 'fit_width' ? 'fit_screen' : fit,
       });
     } catch {}
   }

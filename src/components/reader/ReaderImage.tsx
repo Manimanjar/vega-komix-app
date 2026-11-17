@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   View,
@@ -45,6 +44,12 @@ interface ReaderImageProps {
   onSingleTap?: (tapX: number, tapY: number) => void;
   onRatioMeasured?: (ratio: number) => void;
   highQualityRendering?: boolean;
+  /** Called when this page's image has decoded. ReaderScreen counts these
+      for the chapter load progress shown in the page-number pill. */
+  onPageLoaded?: (index: number) => void;
+  /** Width the image may occupy in paged mode (full window by default;
+      half the window for double-spread pairs). */
+  maxWidth?: number;
 }
 
 const CircularProgress = ({
@@ -119,6 +124,8 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   onSingleTap,
   onRatioMeasured,
   highQualityRendering = true,
+  onPageLoaded,
+  maxWidth,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
@@ -179,6 +186,9 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   // Compute layout dimensions with zoomScale and scaleMode
   const containerDimensions = useMemo(() => {
     const zoom = zoomScale || 1.0;
+    // Paged frame width: the full window for single pages, half the window
+    // for double-spread pairs (passed in as maxWidth).
+    const frameWidth = maxWidth ?? windowWidth;
 
     if (isWebtoon) {
       const renderWidth = Math.round(windowWidth * zoom);
@@ -195,32 +205,28 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     // Paged mode
     if (scaleMode === 'fit_height') {
       const renderHeight = Math.round(windowHeight * zoom);
-      const renderWidth = imageRatio ? Math.round(renderHeight * imageRatio) : Math.round(windowWidth * zoom);
+      const renderWidth = imageRatio ? Math.round(renderHeight * imageRatio) : Math.round(frameWidth * zoom);
       return {width: renderWidth, height: renderHeight};
     }
 
-    if (scaleMode === 'fit_screen') {
-      const maxWidth = Math.round(windowWidth * zoom);
+    // 'original' shares this branch with 'fit_screen': never stretched,
+    // never cropped, never a small image lost in the centre — the only box
+    // that satisfies all three is a proportional fit inside the frame.
+    if (scaleMode === 'fit_screen' || scaleMode === 'original') {
+      const fitMaxWidth = Math.round(frameWidth * zoom);
       const maxHeight = Math.round(windowHeight * zoom);
       if (imageRatio) {
-        if (maxWidth / imageRatio <= maxHeight) {
-          return {width: maxWidth, height: Math.round(maxWidth / imageRatio)};
+        if (fitMaxWidth / imageRatio <= maxHeight) {
+          return {width: fitMaxWidth, height: Math.round(fitMaxWidth / imageRatio)};
         } else {
           return {width: Math.round(maxHeight * imageRatio), height: maxHeight};
         }
       }
-      return {width: maxWidth, height: maxHeight};
-    }
-
-    if (scaleMode === 'original' && naturalWidth && naturalHeight) {
-      return {
-        width: Math.min(Math.round(naturalWidth * zoom), Math.round(windowWidth * zoom)),
-        height: Math.min(Math.round(naturalHeight * zoom), Math.round(windowHeight * zoom)),
-      };
+      return {width: fitMaxWidth, height: maxHeight};
     }
 
     // Default: fit_width
-    const renderWidth = Math.round(windowWidth * zoom);
+    const renderWidth = Math.round(frameWidth * zoom);
     const renderHeight = imageRatio
       ? Math.min(Math.round(renderWidth / imageRatio), Math.round(windowHeight * zoom))
       : Math.round(windowHeight * zoom);
@@ -235,6 +241,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     naturalHeight,
     scaleMode,
     zoomScale,
+    maxWidth,
   ]);
 
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
@@ -403,17 +410,29 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
             priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={currentUrl}
             enableLiveTextInteraction={false}
-            allowDownscaling={false}
-            decodeFormat="argb"
+            // High-quality ON (default): full original resolution, 32-bit
+            // ARGB, no downscaling. OFF: the decoder may downscale to the
+            // view size and uses 16-bit RGB — roughly half the bitmap memory
+            // per page, which is what makes big chapters scroll smoothly.
+            allowDownscaling={!highQualityRendering}
+            decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
             cachePolicy="memory-disk"
+            // Throttled to 5% steps: a setState per network chunk re-rendered
+            // this image on every progress event while scrolling.
             onProgress={e => {
               if (e.total > 0) {
-                setLoadProgress(e.loaded / e.total);
+                const progress = e.loaded / e.total;
+                setLoadProgress(prev =>
+                  Math.floor(progress * 20) !== Math.floor(prev * 20)
+                    ? progress
+                    : prev,
+                );
               }
             }}
             onLoad={e => {
               setLoading(false);
               setLoadError(false);
+              onPageLoaded?.(index);
               const src = e.source;
               if (src && src.width > 0 && src.height > 0) {
                 const ratio = src.width / src.height;

@@ -1,26 +1,18 @@
-import {normalizeContentTags} from '../../../lib/contentTags';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useMemo, useState} from 'react';
 import {
   Image,
-  Linking,
-  Pressable,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
   findNodeHandle,
-  useWindowDimensions,
 } from 'react-native';
-import {Image as ExpoImage} from 'expo-image';
-import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
 import ComicThumbnail from '../../../components/ComicThumbnail';
 import AppText from '../../../components/ui/Text';
 import SynopsisText from './SynopsisText';
-import Button from '../../../components/ui/Button';
 import {isTV} from '../../../lib/tv';
 import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
 import {TVFocusable} from '../../../components/tv';
@@ -38,7 +30,6 @@ interface ContentOverviewProps {
   onOpenMenu?: () => void;
   backButtonRef?: React.RefObject<View | null>;
   onBackButtonLayout?: () => void;
-  onOpenStory?: () => void;
   exploreRef?: React.RefObject<View | null>;
   onOpenWeb?: () => void;
   onSearchTitle: () => void;
@@ -47,13 +38,13 @@ interface ContentOverviewProps {
   providerName: string;
   rating?: string;
   readMore: boolean;
-  runtime?: string;
   synopsis: string;
   synopsisLoading: boolean;
   tags?: string[];
   title?: string;
-  trailerUrl?: string;
-  year?: string;
+  /** Original-language title, shown below the translated headline in small
+      grey letters when the two differ. */
+  originalTitle?: string;
   // Comic specific props
   author?: string;
   artist?: string;
@@ -167,10 +158,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   onOpenMenu,
   backButtonRef,
   onBackButtonLayout,
-  onOpenStory,
-  exploreRef,
   onOpenWeb,
-  onSearchTitle,
   onToggleLibrary,
   onToggleSynopsis,
   providerName,
@@ -180,7 +168,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   synopsisLoading,
   tags = [],
   title,
-  trailerUrl,
+  originalTitle,
   author,
   artist,
   status,
@@ -345,6 +333,21 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
                 {title || 'Unknown title'}
               </AppText>
             )}
+
+            {/* Original-language title, in small low-contrast grey letters
+                under the translated headline. */}
+            {originalTitle && originalTitle !== title ? (
+              <AppText
+                role="labelSmall"
+                numberOfLines={2}
+                style={{
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                  marginTop: 2,
+                }}>
+                {originalTitle}
+              </AppText>
+            ) : null}
 
             {author ? (
               <View

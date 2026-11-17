@@ -10,8 +10,6 @@ export type ScreenOrientationMode = 'portrait' | 'landscape' | 'auto';
 
 export type InteractionMode = 'scroll' | 'one_tap' | 'swipe';
 
-export type AutoScrollSpeed = 'off' | 'slow' | 'medium' | 'fast';
-
 export interface ReaderSettings {
   theme: ReaderTheme;
   readingMode: ReadingMode;
@@ -24,8 +22,6 @@ export interface ReaderSettings {
   orientationMode: ScreenOrientationMode;
   interactionMode?: InteractionMode;
   zoomScale?: number;
-  autoScrollSpeed?: AutoScrollSpeed;
-  screenDimmer?: number;
   warmFilterEnabled?: boolean;
   liveTranslateEnabled?: boolean;
   splitDoubleSpreads?: boolean;

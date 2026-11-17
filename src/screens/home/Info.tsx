@@ -8,11 +8,9 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   BackHandler,
   FlatList,
-  Image,
   Linking,
   RefreshControl,
   ToastAndroid,
-  UIManager,
   View,
   findNodeHandle,
 } from 'react-native';
@@ -30,7 +28,7 @@ import SkeletonLoader from '../../components/Skeleton';
 import {useContentDetails} from '../../lib/hooks/useContentInfo';
 import {useArtworkShape} from '../../lib/hooks/useHomePageData';
 import {useInfoAccent} from '../../lib/hooks/useInfoAccent';
-import type {ChapterLink, EpisodeLink, Link} from '../../lib/providers/types';
+import type {ChapterLink, EpisodeLink} from '../../lib/providers/types';
 import {settingsStorage, watchListStorage} from '../../lib/storage';
 import useContentStore from '../../lib/zustand/contentStore';
 import useWatchListStore from '../../lib/zustand/watchListStore';
@@ -39,7 +37,7 @@ import {M3PaletteContext, useM3Colors} from '../../theme/M3PaletteContext';
 import type {MaterialColors} from '../../theme/colors';
 import {buildDetailPalette} from '../../theme/detailPalette';
 import ContentOverview from './components/ContentOverview';
-import InfoStoryModal from './components/InfoStoryModal';
+import {useTranslatedTitle} from '../../lib/translator/useTranslatedTitle';
 import LibraryCollectionDialog from '../../components/library/LibraryCollectionDialog';
 import ProviderMetadataDialog from '../../components/metadata/ProviderMetadataDialog';
 import LocalMetadataDialog from '../../components/metadata/LocalMetadataDialog';
@@ -84,7 +82,6 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
   const [collectionPickerVisible, setCollectionPickerVisible] = useState(false);
   const [metadataMenuVisible, setMetadataMenuVisible] = useState(false);
   const [readMore, setReadMore] = useState(false);
-  const [storyVisible, setStoryVisible] = useState(false);
   const screenFocused = useIsFocused();
   const backButtonRef = useRef<View>(null);
   const registerBackFocus = useCallback(() => {
@@ -106,17 +103,6 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     };
   }, []));
   const exploreRef = useRef<View>(null);
-  const closeStory = useCallback(() => {
-    setStoryVisible(false);
-    if (isTV) {
-      setTimeout(() => {
-        const handle = findNodeHandle(exploreRef.current);
-        if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
-        }
-      }, 100);
-    }
-  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -143,6 +129,11 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
   const hasOptimisticData = Boolean(optTitle || optImage || route.params.poster);
 
   const displayTitle = meta?.name || info?.title || optTitle;
+  // Translated title is the headline on the detail screen; the original
+  // shows below it in small grey letters when it differs. Search, library
+  // and navigation keep using displayTitle (the providers index originals).
+  const {translated: translatedTitle, isTranslated: titleIsTranslated} =
+    useTranslatedTitle(displayTitle);
   const displayLogo = meta?.logo || info?.logo;
   const synopsis =
     meta?.description || info?.synopsis || optSynopsis || 'No synopsis available';
@@ -155,8 +146,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     optImage ||
     route.params.poster ||
     (route.params as any)?.cover ||
-    (route.params as any)?.image ||
-    'https://placehold.jp/24/363636/ffffff/500x750.png?text=Vega';
+    (route.params as any)?.image;
   const backgroundImage =
     meta?.background ||
     info?.image ||
@@ -164,11 +154,10 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     (info as any)?.cover ||
     optImage ||
     route.params.poster ||
-    (route.params as any)?.cover ||
-    'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Vega';
+    (route.params as any)?.cover;
   // Posters and small images are blurred behind the page, with the sharp
   // poster shown in the header instead of stretched across it.
-  const {ready: backdropReady, posterLike: backdropPosterLike, aspectRatio: backdropAspectRatio} =
+  const {posterLike: backdropPosterLike, aspectRatio: backdropAspectRatio} =
     useArtworkShape(backgroundImage);
 
   // Register only while this screen is focused. A hidden screen in a
@@ -191,17 +180,9 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
 
   const webUrl = info?.webUrl?.trim();
   const linkList = info?.linkList;
-  const filteredLinkList = useMemo(() => {
-    if (!linkList) {
-      return [];
-    }
-    const excludedQualities = settingsStorage.getExcludedQualities();
-    const filtered = linkList.filter(
-      (item: Link) =>
-        !item.quality || !excludedQualities.includes(item.quality),
-    );
-    return filtered.length > 0 ? filtered : linkList;
-  }, [linkList]);
+  // No quality filtering here: this is a comic app, chapters have no video
+  // quality to exclude. (The old excluded-qualities filter and its setting
+  // were video logic; both are removed.)
 
   // Promise chain instead of try/finally: React Compiler skips any component
   // that contains a finally clause.
@@ -359,12 +340,12 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     ],
   );
 
-  // Derive chapters from info.chapters, info.linkList, or filteredLinkList
+  // Derive chapters from info.chapters or info.linkList
   const derivedChapters = useMemo<(EpisodeLink | ChapterLink)[]>(() => {
     if (info?.chapters && info.chapters.length > 0) {
       return info.chapters;
     }
-    const links = filteredLinkList.length > 0 ? filteredLinkList : info?.linkList || [];
+    const links = info?.linkList || [];
     for (const linkItem of links) {
       if (linkItem.directLinks && linkItem.directLinks.length > 0) {
         return linkItem.directLinks as (EpisodeLink | ChapterLink)[];
@@ -388,7 +369,6 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
   }, [
     info?.chapters,
     info?.linkList,
-    filteredLinkList,
     isLoading,
     info,
     hasOptimisticData,
@@ -550,11 +530,6 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   onOpenMenu={() => setMetadataMenuVisible(true)}
                   backButtonRef={backButtonRef}
                   onBackButtonLayout={registerBackFocus}
-                  onOpenStory={
-                    info?.tmdbId || info?.imdbId
-                      ? () => setStoryVisible(true)
-                      : undefined
-                  }
                   exploreRef={exploreRef}
                   onOpenWeb={webUrl ? handleOpenWeb : undefined}
                   onSearchTitle={searchTitle}
@@ -563,13 +538,11 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   providerName={contentProviderName}
                   rating={meta?.imdbRating || info?.rating}
                   readMore={readMore}
-                  runtime={meta?.runtime}
                   synopsis={synopsis}
                   synopsisLoading={isSynopsisLoading}
                   tags={info?.tags || optTags}
-                  title={displayTitle}
-                  trailerUrl={info?.trailerUrl?.trim()}
-                  year={meta?.year}
+                  title={translatedTitle}
+                  originalTitle={titleIsTranslated ? displayTitle : undefined}
                   author={info?.author}
                   artist={info?.artist}
                   status={info?.status}
@@ -597,7 +570,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   ) : (
                     <ChapterList
                       chapters={derivedChapters}
-                      LinkList={filteredLinkList}
+                      LinkList={linkList}
                       providerValue={providerValue}
                       metaTitle={displayTitle || ''}
                       poster={{
@@ -640,16 +613,6 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
           />
           </ScreenOverlayHost>
           </TVFocusGuide>
-          <InfoStoryModal
-            fallbackBackdrop={backgroundImage}
-            fallbackOverview={synopsis}
-            fallbackTitle={displayTitle}
-            imdbId={info?.imdbId}
-            onClose={closeStory}
-            tmdbId={info?.tmdbId}
-            type={info?.type}
-            visible={storyVisible}
-          />
           <LibraryCollectionDialog
             visible={collectionPickerVisible}
             onClose={() => setCollectionPickerVisible(false)}

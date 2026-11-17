@@ -80,7 +80,6 @@ jest.mock('../src/lib/storage', () => ({
   watchProgressStorage: {getProgress: () => null, setProgress: jest.fn()},
   settingsStorage: {
     isHapticFeedbackEnabled: () => false,
-    getExcludedQualities: () => [],
   },
 }));
 jest.mock('../src/lib/file/ifExists', () => ({ifExists: jest.fn()}));

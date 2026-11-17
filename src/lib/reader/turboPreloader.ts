@@ -50,6 +50,18 @@ class TurboPreloader {
   }
 
   private notify(stats: TurboStats): void {
+    // Identical stats must not re-notify: the reader subscribes with
+    // setTurboStats, so every notify re-rendered the whole reader screen —
+    // twice per page turn, for a badge the HUD does not even display.
+    const prev = this.lastStats;
+    if (
+      prev.readyAheadCount === stats.readyAheadCount &&
+      prev.maxAheadCount === stats.maxAheadCount &&
+      prev.nextChapterReady === stats.nextChapterReady &&
+      prev.statusText === stats.statusText
+    ) {
+      return;
+    }
     this.lastStats = stats;
     for (const listener of this.listeners) {
       try {

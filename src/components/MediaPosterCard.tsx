@@ -1,14 +1,14 @@
 import React from 'react';
 import {NavigationContext} from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import {Image, Pressable, TouchableOpacity, View} from 'react-native';
-import {Image as ExpoImage} from 'expo-image';
+import {Pressable, TouchableOpacity, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 import ComicThumbnail from './ComicThumbnail';
 import {BlurView} from 'expo-blur';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import AppText from './ui/Text';
 import {isTV} from '../lib/tv/constants';
+import {useTranslatedTitle} from '../lib/translator/useTranslatedTitle';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import {useTVRemote} from '../lib/tv/useTVRemote';
 import {
@@ -136,6 +136,11 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
     ref,
   ) => {
     const colors = useM3Colors();
+
+    // Translated title is the main highlight; when it differs from the
+    // original, the original shows below it in small grey letters.
+    const {translated: translatedTitle, isTranslated} = useTranslatedTitle(title);
+    const displaySubtitle = isTranslated ? title : subtitle;
 
     const navigation = React.useContext(NavigationContext);
     const isNavFocused = useSafeIsNavFocused();
@@ -488,9 +493,9 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                     marginTop: selected ? 4 : 7,
                     marginHorizontal: selected ? 4 : 0,
                   }}>
-                  {title}
+                  {translatedTitle}
                 </AppText>
-                {subtitle ? (
+                {displaySubtitle ? (
                   <AppText
                     role="labelSmall"
                     ellipsizeMode="tail"
@@ -502,7 +507,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       marginTop: 1,
                       marginHorizontal: selected ? 4 : 0,
                     }}>
-                    {subtitle}
+                    {displaySubtitle}
                   </AppText>
                 ) : null}
               </>

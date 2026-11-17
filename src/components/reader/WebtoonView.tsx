@@ -23,16 +23,31 @@ import {resolvePageHeaders} from './usePagePreloader';
 import {retryPageImageWithUpdatedHeaders} from '../../lib/aggregator/failoverLoader';
 import {autoDomainResolver} from '../../lib/network/autoDomainResolver';
 import {cleanHighResImageUrl} from '../../lib/reader/highResImageCleaner';
-import type {AutoScrollSpeed, ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
+import type {ImageScale, InteractionMode, ReaderPageItem, ReaderTheme} from './types';
 import {THEME_COLORS} from './types';
 import {TranslatedBubbleOverlay} from './TranslatedBubbleOverlay';
 import {EndOfChapterCard} from './EndOfChapterCard';
 import type {PageTranslationResult, TranslatedBubble} from '../../lib/translator/mangaTranslatorEngine';
+import {computePageBox} from './pageBox';
+
+// Natural image sizes measured on load, keyed by image URL. Survives
+// remounts (removeClippedSubviews unmounts off-screen pages) and chapter
+// re-opens, so a page that loaded once never mounts again at a guessed height.
+const measuredNaturalSizeCache = new Map<string, {width: number; height: number}>();
+const MAX_CACHED_SIZES = 2000;
+const cacheNaturalSize = (url: string, dims: {width: number; height: number}) => {
+  if (!measuredNaturalSizeCache.has(url) && measuredNaturalSizeCache.size >= MAX_CACHED_SIZES) {
+    const oldest = measuredNaturalSizeCache.keys().next().value;
+    if (oldest) measuredNaturalSizeCache.delete(oldest);
+  }
+  measuredNaturalSizeCache.set(url, dims);
+};
 
 export interface AutoHeightComicPageProps {
   item: ReaderPageItem;
   index: number;
   screenWidth: number;
+  screenHeight: number;
   theme: ReaderTheme;
   scaleMode?: ImageScale;
   zoomScale?: number;
@@ -42,6 +57,8 @@ export interface AutoHeightComicPageProps {
   translationBubbles?: TranslatedBubble[];
   onRetryTranslation?: (pageIndex: number) => void;
   onPageMeasured?: (index: number, height: number) => void;
+  /** Called when this page's image has decoded (for chapter load progress). */
+  onPageLoaded?: (index: number) => void;
   onToggleHUD?: () => void;
   highQualityRendering?: boolean;
 }
@@ -50,15 +67,16 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   item,
   index,
   screenWidth,
+  screenHeight,
   theme,
   scaleMode = 'fit_width',
   zoomScale = 1.0,
   reloadKey = 0,
-  cropWhiteBorders = false,
   translateEnabled = false,
   translationBubbles,
   onRetryTranslation,
   onPageMeasured,
+  onPageLoaded,
   onToggleHUD,
   highQualityRendering = true,
 }) => {
@@ -95,24 +113,32 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     setIsZoomed(false);
   }, [savedScale, savedTranslationX, savedTranslationY, scale, translationX, translationY]);
 
-  const effectiveWidth = useMemo(() => {
-    return Math.round(screenWidth * (zoomScale || 1.0));
-  }, [screenWidth, zoomScale]);
+  // Natural size measured on load (from the cache when this page loaded
+  // before). Known dimensions — cached, then provider-supplied — feed the box
+  // below, so a remounted page starts at its true size instead of the 1.45
+  // fallback that made scrolling up shake.
+  const [naturalSize, setNaturalSize] = useState<{width: number; height: number} | null>(() =>
+    measuredNaturalSizeCache.get(item.imageUrl) ?? null,
+  );
+  const knownDims =
+    naturalSize ??
+    (item.width && item.height && item.width > 0 && item.height > 0
+      ? {width: item.width, height: item.height}
+      : undefined);
 
-  // Default aspect ratio: width = effectiveWidth, height = effectiveWidth * (naturalHeight / naturalWidth)
-  const initialHeight = useMemo(() => {
-    if (item.width && item.height && item.width > 0 && item.height > 0) {
-      return Math.ceil(Math.round(effectiveWidth * (item.height / item.width)));
-    }
-    return Math.ceil(Math.round(effectiveWidth * 1.45));
-  }, [effectiveWidth, item.width, item.height]);
+  // The page box for the current fit mode. Width and height always come from
+  // this one computation, so the fit buttons visibly change the layout.
+  const box = useMemo(
+    () => computePageBox(knownDims, screenWidth, screenHeight, scaleMode, zoomScale),
+    [knownDims, screenWidth, screenHeight, scaleMode, zoomScale],
+  );
 
-  const [pageHeight, setPageHeight] = useState<number>(initialHeight);
+  const [pageHeight, setPageHeight] = useState<number>(box.height);
 
-  // Update height when effectiveWidth changes
+  // Update height when the box changes (mode/zoom change, or the true size loads).
   useEffect(() => {
-    setPageHeight(initialHeight);
-  }, [initialHeight]);
+    setPageHeight(prev => (Math.abs(prev - box.height) > 1 ? box.height : prev));
+  }, [box.height]);
 
   // Trigger reload if reloadKey changes
   useEffect(() => {
@@ -144,12 +170,16 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       const naturalWidth = src?.width || item.width;
       const naturalHeight = src?.height || item.height;
       if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
-        const dynamicHeight = Math.ceil(Math.round(screenWidth * (naturalHeight / naturalWidth))) * (zoomScale || 1.0);
-        setPageHeight(prev => (Math.abs(prev - dynamicHeight) > 1 ? dynamicHeight : prev));
-        onPageMeasured?.(index, dynamicHeight);
+        const dims = {width: naturalWidth, height: naturalHeight};
+        setNaturalSize(dims);
+        cacheNaturalSize(item.imageUrl, dims);
+        const boxHeight = computePageBox(dims, screenWidth, screenHeight, scaleMode, zoomScale).height;
+        setPageHeight(prev => (Math.abs(prev - boxHeight) > 1 ? boxHeight : prev));
+        onPageMeasured?.(index, boxHeight);
+        onPageLoaded?.(index);
       }
     },
-    [screenWidth, zoomScale, item.width, item.height, index, onPageMeasured],
+    [screenWidth, screenHeight, scaleMode, zoomScale, item.width, item.height, item.imageUrl, index, onPageMeasured, onPageLoaded],
   );
 
   const handleImageError = useCallback(() => {
@@ -206,7 +236,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     })
     .onUpdate(e => {
       if (scale.value > 1.05) {
-        const maxTransX = (effectiveWidth * (scale.value - 1)) / 2;
+        const maxTransX = (box.width * (scale.value - 1)) / 2;
         const maxTransY = (pageHeight * (scale.value - 1)) / 2;
         const nextX = savedTranslationX.value + e.translationX;
         const nextY = savedTranslationY.value + e.translationY;
@@ -216,7 +246,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
     })
     .onEnd(() => {
       if (scale.value > 1.05) {
-        const maxTransX = (effectiveWidth * (scale.value - 1)) / 2;
+        const maxTransX = (box.width * (scale.value - 1)) / 2;
         const maxTransY = (pageHeight * (scale.value - 1)) / 2;
         const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
         const boundedY = Math.max(-maxTransY, Math.min(maxTransY, translationY.value));
@@ -251,7 +281,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         scale.value = withTiming(targetScale, {duration: 250});
         const centerX = screenWidth / 2;
         const centerY = pageHeight / 2;
-        const maxTransX = (effectiveWidth * (targetScale - 1)) / 2;
+        const maxTransX = (box.width * (targetScale - 1)) / 2;
         const maxTransY = (pageHeight * (targetScale - 1)) / 2;
         const targetX = Math.max(-maxTransX, Math.min(maxTransX, (centerX - e.x) * 1.5));
         const targetY = Math.max(-maxTransY, Math.min(maxTransY, (centerY - e.y) * 1.5));
@@ -292,7 +322,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         <Animated.View
           style={[
             {
-              width: effectiveWidth, // width: screenWidth
+              width: box.width,
               height: Math.ceil(pageHeight),
               backgroundColor: themeColors.background,
             },
@@ -309,8 +339,12 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
             priority={highQualityRendering ? 'high' : 'normal'}
             recyclingKey={item.imageUrl}
             enableLiveTextInteraction={false}
-            allowDownscaling={false}
-            decodeFormat="argb"
+            // High-quality ON (default): full original resolution, 32-bit
+            // ARGB, no downscaling. OFF: the decoder may downscale to the
+            // view size and uses 16-bit RGB — roughly half the bitmap memory
+            // per page, which is what makes big chapters scroll smoothly.
+            allowDownscaling={!highQualityRendering}
+            decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
             cachePolicy="memory-disk"
             onLoad={handleImageLoad}
             onError={handleImageError}
@@ -351,7 +385,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
           <TranslatedBubbleOverlay
             bubbles={translationBubbles}
-            renderedWidth={effectiveWidth}
+            renderedWidth={box.width}
             renderedHeight={pageHeight}
             visible={true}
           />
@@ -367,6 +401,7 @@ export interface WebtoonViewProps {
   sliderJumpTarget?: {index: number; timestamp: number} | null;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
+  onPageLoaded?: (index: number) => void;
   onDismissHUD?: () => void;
   onReachEnd?: () => void;
   hasNextChapter?: boolean;
@@ -374,7 +409,6 @@ export interface WebtoonViewProps {
   onNextChapter?: () => void;
   scaleMode?: ImageScale;
   zoomScale?: number;
-  autoScrollSpeed?: AutoScrollSpeed;
   reloadKey?: number;
   cropWhiteBorders?: boolean;
   theme?: ReaderTheme;
@@ -393,13 +427,13 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   onPageChange,
   onToggleHUD,
   onDismissHUD,
+  onPageLoaded,
   onReachEnd,
   hasNextChapter,
   nextChapterTitle,
   onNextChapter,
   scaleMode = 'fit_width',
   zoomScale = 1.0,
-  autoScrollSpeed = 'off',
   reloadKey = 0,
   cropWhiteBorders = false,
   theme = 'amoled',
@@ -429,25 +463,32 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     onPageChangeRef.current = onPageChange;
   }, [onPageChange]);
 
-  // Accurate offset calculation for instant jump without intermediate render passes
+  // Jump offsets use the same box math as the rendered pages (and the
+  // measured-size cache), so a far jump lands on the right page instead of
+  // overshooting to the end of the list.
   const calculatePageOffset = useCallback(
     (targetIndex: number): number => {
       let offset = 0;
-      const effectiveW = Math.round(windowWidth * (zoomScale || 1.0));
       for (let i = 0; i < targetIndex && i < pages.length; i++) {
-        const page = pages[i];
         const measured = pageHeights.current[i];
         if (measured && measured > 0) {
           offset += measured;
-        } else if (page && page.width && page.height && page.width > 0) {
-          offset += Math.round(effectiveW * (page.height / page.width));
-        } else {
-          offset += Math.round(effectiveW * 1.45);
+          continue;
         }
+        const page = pages[i];
+        const cached = page?.imageUrl
+          ? measuredNaturalSizeCache.get(page.imageUrl)
+          : undefined;
+        const dims =
+          cached ??
+          (page?.width && page?.height && page.width > 0
+            ? {width: page.width, height: page.height}
+            : undefined);
+        offset += computePageBox(dims, windowWidth, windowHeight, scaleMode, zoomScale).height;
       }
       return offset;
     },
-    [pages, windowWidth, zoomScale],
+    [pages, windowWidth, windowHeight, scaleMode, zoomScale],
   );
 
   // Jump directly with animated: false and lock scroll listener for 400ms to eliminate jitter
@@ -519,26 +560,6 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     };
   }, []);
 
-  // Hands-Free Auto-Scroll: Smooth continuous scroll, pauses automatically on touch
-  useEffect(() => {
-    if (!autoScrollSpeed || autoScrollSpeed === 'off') return;
-
-    const speedPx =
-      autoScrollSpeed === 'slow' ? 1.0 : autoScrollSpeed === 'medium' ? 2.4 : 4.5;
-
-    const timer = setInterval(() => {
-      if (!isUserScrolling.current && !isJumpingRef.current && listRef.current) {
-        currentScrollY.current += speedPx;
-        listRef.current.scrollToOffset({
-          offset: currentScrollY.current,
-          animated: false,
-        });
-      }
-    }, 32);
-
-    return () => clearInterval(timer);
-  }, [autoScrollSpeed]);
-
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     currentScrollY.current = e.nativeEvent.contentOffset.y;
   }, []);
@@ -587,6 +608,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           item={item}
           index={index}
           screenWidth={windowWidth}
+          screenHeight={windowHeight}
           theme={theme}
           scaleMode={scaleMode}
           zoomScale={zoomScale}
@@ -596,6 +618,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           translationBubbles={bubbles}
           onRetryTranslation={onRetryTranslation}
           onPageMeasured={handlePageMeasured}
+          onPageLoaded={onPageLoaded}
           onToggleHUD={onToggleHUD}
           highQualityRendering={highQualityRendering}
         />
@@ -603,6 +626,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     },
     [
       windowWidth,
+      windowHeight,
       theme,
       scaleMode,
       zoomScale,
@@ -612,6 +636,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       pageTranslations,
       onRetryTranslation,
       handlePageMeasured,
+      onPageLoaded,
       onToggleHUD,
       highQualityRendering,
     ],
@@ -631,7 +656,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         data={pages}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}`}
+        extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}-${scaleMode}`}
         horizontal={false}
         pagingEnabled={false}
         scrollEnabled={true}
@@ -641,13 +666,15 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         scrollEventThrottle={32}
         ItemSeparatorComponent={null}
         ListFooterComponent={
-          <EndOfChapterCard
-            hasNextChapter={!!hasNextChapter}
-            nextChapterTitle={nextChapterTitle}
-            onNextChapter={onNextChapter}
-            theme={theme}
-            isPaged={false}
-          />
+          hasNextChapter ? (
+            <EndOfChapterCard
+              hasNextChapter={!!hasNextChapter}
+              nextChapterTitle={nextChapterTitle}
+              onNextChapter={onNextChapter}
+              theme={theme}
+              isPaged={false}
+            />
+          ) : null
         }
         onEndReachedThreshold={0.05}
         onEndReached={() => {

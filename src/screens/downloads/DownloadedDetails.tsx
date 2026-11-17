@@ -238,10 +238,9 @@ const DownloadedFileDetails = ({navigation, route}: DownloadedDetailsProps) => {
     }
   };
 
-  const backgroundImage =
-    metadata.background ||
-    metadata.poster ||
-    'https://placehold.jp/24/171717/ffffff/800x450.png?text=Vega';
+  // No grey "Vega" placeholder: when a download has no artwork, the hero
+  // renders its own no-artwork state (hasArtwork is false).
+  const backgroundImage = metadata.background || metadata.poster;
   const hasArtwork = !!(metadata.background || metadata.poster);
 
   return (

@@ -10,14 +10,14 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
-import {NativeStackNavigationProp, NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useFocusEffect} from '@react-navigation/native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import Orientation from 'react-native-orientation-locker';
 import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
 import * as ScreenCapture from 'expo-screen-capture';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import type {HomeStackParamList, RootStackParamList} from '../../App';
-import type {EpisodeLink, PageImage, Stream} from '../../lib/providers/types';
+import type {RootStackParamList} from '../../App';
+import type {EpisodeLink} from '../../lib/providers/types';
 import {providerManager} from '../../lib/services/ProviderManager';
 import {openWebView} from '../../lib/services/wafResolver';
 import {fetchPagesWithFailover} from '../../lib/aggregator/failoverLoader';
@@ -48,7 +48,6 @@ import {downloadManager} from '../../lib/downloader';
 import AppText from '../../components/ui/Text';
 import {settingsStorage, watchListStorage} from '../../lib/storage';
 import {
-  DEFAULT_READER_SETTINGS,
   getStoredReaderProgress,
   getStoredReaderSettings,
   saveStoredReaderProgress,
@@ -64,7 +63,7 @@ import type {
 import {THEME_COLORS} from '../../components/reader/types';
 import {turboPreloader, type TurboStats} from '../../lib/reader/turboPreloader';
 import {useVolumeKeyTurn} from '../../components/reader/useVolumeKeyTurn';
-import {WebtoonContinuousReader, WebtoonView} from '../../components/reader/WebtoonView';
+import {WebtoonContinuousReader} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
 import {ReaderHUD} from '../../components/reader/ReaderHUD';
 import {ReaderSettingsSheet} from '../../components/reader/ReaderSettingsSheet';
@@ -88,13 +87,30 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     infoUrl = '',
   } = route.params;
 
-  const {width: viewportWidth, height: viewportHeight} = useWindowDimensions();
+  // Subscribes this screen to window-dimension changes (rotation): the
+  // values themselves are unused — the child views lay out from their own
+  // useWindowDimensions — but without this the screen would not re-render
+  // when the window size changes.
+  useWindowDimensions();
 
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(linkIndex);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [pages, setPages] = useState<ReaderPageItem[]>([]);
   const [loadingPages, setLoadingPages] = useState<boolean>(true);
   const [pageError, setPageError] = useState<string | null>(null);
+
+  // Chapter load progress for the page-number pill: the set of page indexes
+  // whose images have decoded. The count drives a thin transparent green
+  // fill inside the pill — no percentage number, the fill level is the
+  // estimate. "Loaded" means image decoded, not merely prefetched.
+  const loadedPagesRef = useRef<Set<number>>(new Set());
+  const [loadedPageCount, setLoadedPageCount] = useState<number>(0);
+  const handlePageLoaded = useCallback((index: number) => {
+    if (!loadedPagesRef.current.has(index)) {
+      loadedPagesRef.current.add(index);
+      setLoadedPageCount(loadedPagesRef.current.size);
+    }
+  }, []);
   const [hudVisible, setHudVisible] = useState<boolean>(false);
   const [settingsSheetVisible, setSettingsSheetVisible] = useState<boolean>(false);
   const [quality, setQuality] = useState<'original' | 'compressed'>('original');
@@ -263,6 +279,12 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   const currentChapter: EpisodeLink | undefined = episodeList[currentChapterIndex];
   const chapterLink = currentChapter?.link || '';
   const chapterTitle = currentChapter?.title || secondaryTitle || `Chapter ${currentChapterIndex + 1}`;
+
+  // Reset load progress when the chapter (or a manual reload) changes.
+  useEffect(() => {
+    loadedPagesRef.current = new Set();
+    setLoadedPageCount(0);
+  }, [chapterLink, reloadKey]);
 
   // Apply per-comic preferences once chapterLink is resolved if infoUrl was absent
   useEffect(() => {
@@ -1105,13 +1127,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
+          onPageLoaded={handlePageLoaded}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
           hasNextChapter={hasChronologicalNext}
           nextChapterTitle={nextChapterTitle}
           onNextChapter={handleNextChapter}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
-          autoScrollSpeed={settings.autoScrollSpeed}
           reloadKey={reloadKey}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
@@ -1130,6 +1152,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
+          onPageLoaded={handlePageLoaded}
           onReachEnd={settingsStorage.isAutoAdvanceChapter() && hasChronologicalNext ? handleNextChapter : undefined}
           hasNextChapter={hasChronologicalNext}
           nextChapterTitle={nextChapterTitle}
@@ -1146,20 +1169,6 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           translateEnabled={translateEnabled}
           pageTranslations={pageTranslations}
           onRetryTranslation={handleRetryTranslation}
-        />
-      )}
-
-      {/* Screen Brightness Dimmer Overlay */}
-      {typeof settings.screenDimmer === 'number' && settings.screenDimmer < 100 && (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              backgroundColor: `rgba(0, 0, 0, ${((100 - settings.screenDimmer) / 100) * 0.75})`,
-              zIndex: 15,
-            },
-          ]}
         />
       )}
 
@@ -1188,6 +1197,21 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
               opacity: pageIndicatorOpacity,
             },
           ]}>
+          {/* Chapter load progress: a thin transparent green fill that grows
+              as pages decode. No percentage number — the fill level itself is
+              the estimate. */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `${(loadedPageCount / pages.length) * 100}%`,
+              backgroundColor: 'rgba(0, 230, 118, 0.30)',
+              borderRadius: 14,
+            }}
+          />
           <AppText
             role="labelSmall"
             style={{color: '#FFFFFF', fontWeight: '700', fontSize: 11}}>
@@ -1289,5 +1313,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 10,
+    overflow: 'hidden',
   },
 });

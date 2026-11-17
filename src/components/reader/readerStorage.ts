@@ -9,7 +9,7 @@ const READER_PROGRESS_PREFIX = 'vega-komix-reader-progress:';
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   theme: 'amoled',
   readingMode: 'webtoon',
-  imageScale: 'fit_width',
+  imageScale: 'fit_screen',
   cropWhiteBorders: false,
   keepScreenAwake: true,
   volumeKeysEnabled: true,
@@ -18,8 +18,6 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   orientationMode: 'portrait',
   interactionMode: 'scroll',
   zoomScale: 1.0,
-  autoScrollSpeed: 'off',
-  screenDimmer: 100,
   warmFilterEnabled: false,
   liveTranslateEnabled: false,
   splitDoubleSpreads: true,
@@ -30,7 +28,7 @@ export const getStoredReaderSettings = (): ReaderSettings => {
   const dynamicDefaults: ReaderSettings = {
     theme: (settingsStorage.getReaderBgColor() as any) || 'amoled',
     readingMode: (settingsStorage.getDefaultReadingMode() as any) || 'webtoon',
-    imageScale: ((settingsStorage.getPageFit() === 'fit_screen' ? 'fit_screen' : settingsStorage.getPageFit()) as any) || 'fit_width',
+    imageScale: settingsStorage.getPageFit(),
     cropWhiteBorders: settingsStorage.isAutoCropMargins(),
     keepScreenAwake: settingsStorage.isKeepAwakeEnabled(),
     volumeKeysEnabled: settingsStorage.isVolumeKeysEnabled(),
@@ -39,8 +37,6 @@ export const getStoredReaderSettings = (): ReaderSettings => {
     orientationMode: 'portrait',
     interactionMode: 'scroll',
     zoomScale: 1.0,
-    autoScrollSpeed: 'off',
-    screenDimmer: 100,
     warmFilterEnabled: false,
     liveTranslateEnabled: settingsStorage.isDefaultLiveTranslation(),
     splitDoubleSpreads: true,
@@ -48,13 +44,14 @@ export const getStoredReaderSettings = (): ReaderSettings => {
   };
 
   const stored = mainStorage.getObject<Partial<ReaderSettings>>(READER_SETTINGS_KEY);
-  if (!stored) {
-    return dynamicDefaults;
+  const merged: ReaderSettings = stored
+    ? {...dynamicDefaults, ...stored}
+    : dynamicDefaults;
+  // 'fit_width' (Full Bleed) was removed: old stored settings resolve to fit-screen.
+  if (merged.imageScale === 'fit_width') {
+    merged.imageScale = 'fit_screen';
   }
-  return {
-    ...dynamicDefaults,
-    ...stored,
-  };
+  return merged;
 };
 
 export const saveStoredReaderSettings = (settings: ReaderSettings): void => {

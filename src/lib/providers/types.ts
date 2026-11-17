@@ -190,19 +190,6 @@ export interface ProviderType {
     providerContext: ProviderContext;
     isDownload?: boolean;
   }) => Promise<PageImage[]>;
-  GetHomePosts: ({
-    filter,
-    page,
-    providerValue,
-    signal,
-    providerContext,
-  }: {
-    filter: string;
-    page: number;
-    providerValue: string;
-    signal: AbortSignal;
-    providerContext: ProviderContext;
-  }) => Promise<Post[]>;
   GetEpisodeLinks?: ({
     url,
     providerContext,

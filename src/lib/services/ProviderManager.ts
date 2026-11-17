@@ -357,11 +357,12 @@ export class ProviderManager {
     }
     try {
       const startedAt = Date.now();
-      const exportName =
-        getStreamModule.code.includes('getPages') &&
-        !getStreamModule.code.includes('getStream')
-          ? 'getPages'
-          : 'getStream';
+      // Always ask for the canonical export. The sandbox worker resolves
+      // the real export itself (getStream falls back to getPages when that
+      // is what the provider exports) — never guess from the bundled code:
+      // a provider that merely mentions getStream in a comment would be
+      // called with the wrong export and fail.
+      const exportName = 'getStream';
       const streams = await this.executeModule<Array<Stream | PageImage>>(
         getStreamModule,
         providerValue,
@@ -446,10 +447,12 @@ export class ProviderManager {
     url,
     providerValue,
     signal,
+    silent = false,
   }: {
     url: string;
     providerValue: string;
     signal?: AbortSignal;
+    silent?: boolean;
   }): Promise<Array<EpisodeLink | ChapterLink>> => {
     throwIfProviderAborted(signal);
     const getEpisodeLinksModule =
@@ -461,11 +464,12 @@ export class ProviderManager {
       );
     }
     try {
-      const exportName =
-        getEpisodeLinksModule.code.includes('getChapters') &&
-        !getEpisodeLinksModule.code.includes('getEpisodes')
-          ? 'getChapters'
-          : 'getEpisodes';
+      // Always ask for the canonical export. The sandbox worker resolves
+      // the real export itself (getEpisodes falls back to getChapters when
+      // that is what the provider exports) — never guess from the bundled
+      // code: a provider that merely mentions getEpisodes in a comment
+      // would be called with the wrong export and fail.
+      const exportName = 'getEpisodes';
       const episodes = await this.executeModule<Array<EpisodeLink | ChapterLink>>(
         getEpisodeLinksModule,
         providerValue,
@@ -487,7 +491,11 @@ export class ProviderManager {
         error,
         `Failed to get episodes/chapters from provider: ${providerValue}`,
       );
-      ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      // Background callers (e.g. the library update checker) pass silent so
+      // a failed chapter fetch never pops a toast over the user's screen.
+      if (!silent) {
+        ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      }
       throw new Error(errorMessage);
     }
   };
@@ -496,6 +504,7 @@ export class ProviderManager {
     url: string;
     providerValue: string;
     signal?: AbortSignal;
+    silent?: boolean;
   }): Promise<ChapterLink[]> => {
     const results = await this.getEpisodes(params);
     return results as ChapterLink[];

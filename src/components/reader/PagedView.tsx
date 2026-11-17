@@ -24,6 +24,7 @@ interface PagedViewProps {
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
   onDismissHUD?: () => void;
+  onPageLoaded?: (index: number) => void;
   onReachEnd?: () => void;
   hasNextChapter?: boolean;
   nextChapterTitle?: string;
@@ -61,6 +62,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   onPageChange,
   onToggleHUD,
   onDismissHUD,
+  onPageLoaded,
   onReachEnd,
   hasNextChapter,
   nextChapterTitle,
@@ -144,7 +146,11 @@ export const PagedView: React.FC<PagedViewProps> = ({
           });
         }
       });
-      if (pages.length > 0) {
+      // The end-of-chapter card exists only when there IS a next chapter
+      // (its "Read Next Chapter" button). When there is none, no card is
+      // appended at all — the old "You've caught up!" card flashed into view
+      // on every far slider jump and served no navigation purpose.
+      if (pages.length > 0 && hasNextChapter) {
         groups.push({
           id: 'spread-end-of-chapter',
           isPair: false,
@@ -198,7 +204,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         }
       }
     }
-    if (pages.length > 0) {
+    if (pages.length > 0 && hasNextChapter) {
       groups.push({
         id: 'spread-end-of-chapter',
         isPair: false,
@@ -207,7 +213,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       });
     }
     return groups;
-  }, [pages, isDoubleSpread, splitDoubleSpreads, isLandscape, isManga, measuredRatios]);
+  }, [pages, isDoubleSpread, splitDoubleSpreads, isLandscape, isManga, measuredRatios, hasNextChapter]);
 
   // Find the group index matching currentPageIndex
   const activeGroupIndex = useMemo(() => {
@@ -394,7 +400,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 width={leftPage.width}
                 height={leftPage.height}
                 headers={leftPage.headers}
-                scaleMode="fit_height"
+                scaleMode={scaleMode}
+                maxWidth={windowWidth / 2}
                 zoomScale={zoomScale}
                 reloadKey={reloadKey}
                 cropWhiteBorders={cropWhiteBorders}
@@ -405,6 +412,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translationBubbles={pageTranslations?.[leftIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
                 onSingleTap={onToggleHUD}
+                onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
               />
             </View>
@@ -415,7 +423,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 width={rightPage.width}
                 height={rightPage.height}
                 headers={rightPage.headers}
-                scaleMode="fit_height"
+                scaleMode={scaleMode}
+                maxWidth={windowWidth / 2}
                 zoomScale={zoomScale}
                 reloadKey={reloadKey}
                 cropWhiteBorders={cropWhiteBorders}
@@ -426,6 +435,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 translationBubbles={pageTranslations?.[rightIndex]?.bubbles}
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
                 onSingleTap={onToggleHUD}
+                onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
               />
             </View>
@@ -455,6 +465,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 height: windowHeight,
                 ...(item.splitHalf === 'left' ? {left: 0} : {right: 0}),
               }}>
+              {/* Split halves keep fit_height on purpose: the image is
+                  double-wide and the visible half must fill the viewport
+                  height exactly; any other fit mode would misalign the half. */}
               <ReaderImage
                 imageUrl={item.pageA.imageUrl}
                 index={item.indexA}
@@ -473,6 +486,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
                 onSingleTap={onToggleHUD}
                 onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
+                onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
               />
             </View>
@@ -509,6 +523,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(item.indexA) : undefined}
             onSingleTap={onToggleHUD}
             onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
+            onPageLoaded={onPageLoaded}
             highQualityRendering={highQualityRendering}
           />
         </View>
@@ -528,6 +543,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       pageTranslations,
       onRetryTranslation,
       onToggleHUD,
+      onPageLoaded,
       handleRatioMeasured,
       highQualityRendering,
     ],

@@ -131,11 +131,15 @@ if (!fs.existsSync(webtoonViewPath)) {
   check3Errors++;
 } else {
   const content = fs.readFileSync(webtoonViewPath, 'utf-8');
+  // Page height is computed from the measured natural size via the shared
+  // computePageBox helper (fit modes + measured-size cache); the old inline
+  // width * ratio formula is kept as a legacy match.
   const hasDynamicCalculation =
+    content.includes('computePageBox') ||
     content.includes('Math.round(screenWidth * (naturalHeight / naturalWidth))') ||
     content.includes('screenWidth * (naturalHeight / naturalWidth)') ||
     content.includes('screenWidth * (height / width)');
-  const hasFullWidth = content.includes('width: screenWidth');
+  const hasFullWidth = content.includes('width: screenWidth') || content.includes('width: box.width');
 
   if (!hasDynamicCalculation) {
     reportFail('Check 3 (Webtoon Dynamic Height)', 'WebtoonView does not dynamically compute pageHeight from aspect ratio (naturalHeight / naturalWidth).');
@@ -152,7 +156,7 @@ if (!fs.existsSync(webtoonViewPath)) {
 }
 
 if (check3Errors === 0) {
-  reportPass('Check 3 (Webtoon Dynamic Height)', 'AutoHeightComicPage dynamically computes pageHeight = Math.round(screenWidth * (naturalHeight / naturalWidth)) edge-to-edge.');
+  reportPass('Check 3 (Webtoon Dynamic Height)', 'AutoHeightComicPage dynamically computes page height from the measured natural size via computePageBox, edge-to-edge.');
 }
 
 // --------------------------------------------------------------------------
@@ -232,11 +236,19 @@ if (check5Errors === 0) {
 // Check 6: Broken Providers Removed from Providers Manifest
 // --------------------------------------------------------------------------
 console.log('\n--- Check 6: Verifying Broken Providers Removed in vega-komix-providers/manifest.json ---');
-const providersManifestPath = path.resolve(rootDir, '..', 'vega-komix-providers', 'manifest.json');
+// The providers repo may sit next to this one under its own name
+// (vega-komix-providers) or as a local audit checkout
+// (vega-komix-providers-audit); an env override wins over both.
+const providersManifestCandidates = [
+  process.env.VEGA_KOMIX_PROVIDERS_MANIFEST,
+  path.resolve(rootDir, '..', 'vega-komix-providers', 'manifest.json'),
+  path.resolve(rootDir, '..', 'vega-komix-providers-audit', 'manifest.json'),
+].filter(Boolean);
+const providersManifestPath = providersManifestCandidates.find(p => fs.existsSync(p));
 let check6Errors = 0;
 
-if (!fs.existsSync(providersManifestPath)) {
-  reportFail('Check 6 (Broken Providers Removed)', `manifest.json not found at ${providersManifestPath}`);
+if (!providersManifestPath) {
+  reportFail('Check 6 (Broken Providers Removed)', `manifest.json not found in any of: ${providersManifestCandidates.join(', ')}`);
   check6Errors++;
 } else {
   const manifestRaw = fs.readFileSync(providersManifestPath, 'utf-8');
@@ -251,7 +263,7 @@ if (!fs.existsSync(providersManifestPath)) {
 }
 
 if (check6Errors === 0) {
-  reportPass('Check 6 (Broken Providers Removed)', 'komixGallery and webtoonManhwa are completely removed from manifest.json.');
+  reportPass('Check 6 (Broken Providers Removed)', `komixGallery and webtoonManhwa are completely removed from manifest.json (${providersManifestPath}).`);
 }
 
 // --------------------------------------------------------------------------
@@ -382,12 +394,17 @@ if (!fs.existsSync(readerSettingsSheetPath)) {
     check10Errors++;
   }
 
-  // Must NOT contain the 4 removed toggles
+  // Must NOT contain the removed toggles (incl. Auto-Scroll and Eye
+  // Brightness, removed at the user's request).
   const forbiddenSheetStrings = [
     'Auto-Crop White Borders',
     'Keep Screen Awake',
     'Volume Key Page Turn',
     'Floating Page Indicator',
+    'Hands-Free Auto-Scroll',
+    'AUTO_SCROLL_OPTIONS',
+    'Eye Brightness',
+    'screenDimmer',
   ];
   for (const str of forbiddenSheetStrings) {
     if (sheetContent.includes(str)) {
@@ -396,21 +413,21 @@ if (!fs.existsSync(readerSettingsSheetPath)) {
     }
   }
 
-  // Must contain Zoom, Image Fit, Auto-Scroll, Brightness/Night Filter, Quick Tools
+  // Must contain Zoom, Image Fit, Eye Care (Warm Night Filter kept),
+  // Quick Tools. Auto-Scroll was removed at the user's request.
   const hasZoom = sheetContent.includes('Live Zoom Level') || sheetContent.includes('ZOOM_LEVELS');
   const hasFit = sheetContent.includes('Image Fit & Scaling') || sheetContent.includes('SCALE_OPTIONS');
-  const hasAutoScroll = sheetContent.includes('Hands-Free Auto-Scroll') || sheetContent.includes('AUTO_SCROLL_OPTIONS');
-  const hasBrightness = sheetContent.includes('Screen Brightness & Eye Care') || sheetContent.includes('Warm Night Filter');
+  const hasEyeCare = sheetContent.includes('Display & Eye Care') || sheetContent.includes('Warm Night Filter');
   const hasQuickTools = sheetContent.includes('Quick Page & Chapter Tools');
 
-  if (!hasZoom || !hasFit || !hasAutoScroll || !hasBrightness || !hasQuickTools) {
-    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx missing one of required sections (Zoom, Image Fit, Auto-Scroll, Brightness/Warm Filter, Quick Tools).');
+  if (!hasZoom || !hasFit || !hasEyeCare || !hasQuickTools) {
+    reportFail('Check 10 (Reader Settings Sheet)', 'ReaderSettingsSheet.tsx missing one of required sections (Zoom, Image Fit, Eye Care / Warm Night Filter, Quick Tools).');
     check10Errors++;
   }
 }
 
 if (check10Errors === 0) {
-  reportPass('Check 10 (Reader Settings Sheet)', 'In-reader ReaderSettingsSheet is cleanly focused on live controls (Zoom, Image Fit, Auto-Scroll, Brightness/Night Filter, Quick Tools) with zero redundant main settings toggles.');
+  reportPass('Check 10 (Reader Settings Sheet)', 'In-reader ReaderSettingsSheet is cleanly focused on live controls (Zoom, Image Fit, Eye Care / Warm Night Filter, Quick Tools) with zero redundant main settings toggles.');
 }
 
 // --------------------------------------------------------------------------
