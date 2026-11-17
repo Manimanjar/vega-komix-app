@@ -28,7 +28,9 @@ const READING_MODE_OPTIONS = [
 
 const PAGE_FIT_OPTIONS = [
   {key: 'fit_height', label: 'Fit Height'},
+  {key: 'fit_width', label: 'Fit Width'},
   {key: 'fit_screen', label: 'Fit Entire Page'},
+  {key: 'full_screen', label: 'Full Screen (Fill Display)'},
   {key: 'original', label: 'Original Size'},
 ] as const;
 
@@ -68,7 +70,7 @@ export default function PlayerSettings({navigation}: Props) {
   const [readingMode, setReadingMode] = useState<'webtoon' | 'manga' | 'comic' | 'double_spread'>(
     () => settingsStorage.getDefaultReadingMode(),
   );
-  const [pageFit, setPageFit] = useState<'fit_width' | 'fit_screen' | 'fit_height' | 'original'>(
+  const [pageFit, setPageFit] = useState<'fit_width' | 'fit_screen' | 'fit_height' | 'full_screen' | 'original'>(
     () => settingsStorage.getPageFit(),
   );
   const [bgColor, setBgColor] = useState<'amoled' | 'dark' | 'sepia' | 'white'>(

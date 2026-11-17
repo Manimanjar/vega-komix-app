@@ -65,6 +65,7 @@ import {turboPreloader, type TurboStats} from '../../lib/reader/turboPreloader';
 import {useVolumeKeyTurn} from '../../components/reader/useVolumeKeyTurn';
 import {WebtoonContinuousReader} from '../../components/reader/WebtoonView';
 import {PagedView} from '../../components/reader/PagedView';
+import {nextReadingMode} from '../../components/reader/readerMotion';
 import {ReaderHUD} from '../../components/reader/ReaderHUD';
 import {ReaderSettingsSheet} from '../../components/reader/ReaderSettingsSheet';
 import CrashGuardBoundary from '../../components/CrashGuardBoundary';
@@ -200,13 +201,14 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         const mappedMode = toInternalReadingMode(perComic.readingMode);
         const mappedOri = toInternalOrientation(perComic.orientation);
         const mappedFit = toInternalPageFit(perComic.pageFit);
-        const customZoom = typeof perComic.zoomScale === 'number' && perComic.zoomScale > 0 ? perComic.zoomScale : undefined;
+        // No zoomScale here on purpose: the Live Zoom buttons are gone, so
+        // a stored per-comic zoom would stick forever with no way to reset
+        // it. Zooming is double-tap / pinch now; the setting stays at 1.0.
         return {
           ...globalDefaults,
           ...(mappedMode ? {readingMode: mappedMode} : {}),
           ...(mappedOri ? {orientationMode: mappedOri} : {}),
           ...(mappedFit ? {imageScale: mappedFit} : {}),
-          ...(customZoom !== undefined ? {zoomScale: customZoom} : {}),
         };
       }
     }
@@ -223,13 +225,11 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         const mappedMode = toInternalReadingMode(perComic.readingMode);
         const mappedOri = toInternalOrientation(perComic.orientation);
         const mappedFit = toInternalPageFit(perComic.pageFit);
-        const customZoom = typeof perComic.zoomScale === 'number' && perComic.zoomScale > 0 ? perComic.zoomScale : undefined;
         return {
           ...globalDefaults,
           ...(mappedMode ? {readingMode: mappedMode} : {}),
           ...(mappedOri ? {orientationMode: mappedOri} : {}),
           ...(mappedFit ? {imageScale: mappedFit} : {}),
-          ...(customZoom !== undefined ? {zoomScale: customZoom} : {}),
         };
       }
     }
@@ -885,9 +885,13 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [episodeList.length]);
 
-  // 1-Tap Toggle Reading Mode: Continuous <-> Page by Page
+  // 1-Tap Toggle Reading Mode: cycles Continuous -> Page by Page (LTR) ->
+  // Manga RTL -> Continuous. The first tap out of Continuous always lands on
+  // the left-to-right paged mode, so a Western comic never opens in the
+  // right-to-left manga direction by accident — that was the reversed swipe
+  // (next page on a left-to-right swipe). Manga stays one more tap away.
   const handleToggleReadingMode = useCallback(() => {
-    const nextMode: ReadingMode = settings.readingMode === 'webtoon' ? 'manga' : 'webtoon';
+    const nextMode: ReadingMode = nextReadingMode(settings.readingMode);
     if (nextMode === 'webtoon') {
       setInteractionMode(prev => (prev === 'one_tap' ? 'one_tap' : 'scroll'));
     } else {
@@ -910,7 +914,11 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
 
     ToastAndroid.show(
-      nextMode === 'webtoon' ? 'Reading Mode: Continuous Webtoon' : 'Reading Mode: Page by Page',
+      nextMode === 'webtoon'
+        ? 'Reading Mode: Continuous Webtoon'
+        : nextMode === 'manga'
+        ? 'Reading Mode: Page by Page (Manga RTL)'
+        : 'Reading Mode: Page by Page',
       ToastAndroid.SHORT,
     );
   }, [settings.readingMode, infoUrl, chapterLink]);

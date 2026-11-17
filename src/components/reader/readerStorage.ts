@@ -47,9 +47,11 @@ export const getStoredReaderSettings = (): ReaderSettings => {
   const merged: ReaderSettings = stored
     ? {...dynamicDefaults, ...stored}
     : dynamicDefaults;
-  // 'fit_width' (Full Bleed) was removed: old stored settings resolve to fit-screen.
-  if (merged.imageScale === 'fit_width') {
-    merged.imageScale = 'fit_screen';
+  // The Live Zoom buttons were removed from the reader sheet (useless, and
+  // double-tap/pinch zoom is the way to zoom now): a stored zoomScale other
+  // than 1.0 would otherwise stick forever with no way to reset it.
+  if (merged.zoomScale !== undefined && merged.zoomScale !== 1.0) {
+    merged.zoomScale = 1.0;
   }
   return merged;
 };

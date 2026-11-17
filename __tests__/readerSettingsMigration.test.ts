@@ -29,30 +29,40 @@ jest.mock('../src/lib/zustand/continueWatchingStore', () => ({
 import {beforeEach, describe, expect, it, jest} from '@jest/globals';
 import {getStoredReaderSettings} from '../src/components/reader/readerStorage';
 
-describe('getStoredReaderSettings — removed fit-width migration', () => {
+describe('getStoredReaderSettings — fit modes restored, zoom buttons gone', () => {
   beforeEach(() => {
     (global as any).__testReaderSettings = {};
     (global as any).__testPageFit = 'fit_screen';
   });
 
-  it('defaults to fit-screen, never fit-width', () => {
+  it('defaults to fit-screen', () => {
     const settings = getStoredReaderSettings();
     expect(settings.imageScale).toBe('fit_screen');
   });
 
-  it('migrates a stored fit_width value to fit-screen', () => {
-    (global as any).__testReaderSettings = {
-      'vega-komix-reader-settings': {imageScale: 'fit_width'},
-    };
-    expect(getStoredReaderSettings().imageScale).toBe('fit_screen');
-  });
-
-  it('keeps the surviving stored modes untouched', () => {
-    for (const mode of ['fit_height', 'fit_screen', 'original'] as const) {
+  it('keeps every stored fit mode untouched, including fit-width and full-screen', () => {
+    for (const mode of [
+      'fit_height',
+      'fit_width',
+      'fit_screen',
+      'full_screen',
+      'original',
+    ] as const) {
       (global as any).__testReaderSettings = {
         'vega-komix-reader-settings': {imageScale: mode},
       };
       expect(getStoredReaderSettings().imageScale).toBe(mode);
     }
+  });
+
+  it('resets a stored zoom scale to 1.0 — the Live Zoom buttons are gone, so a stuck zoom would have no reset path', () => {
+    (global as any).__testReaderSettings = {
+      'vega-komix-reader-settings': {zoomScale: 2.5},
+    };
+    expect(getStoredReaderSettings().zoomScale).toBe(1.0);
+    (global as any).__testReaderSettings = {
+      'vega-komix-reader-settings': {zoomScale: 1.0},
+    };
+    expect(getStoredReaderSettings().zoomScale).toBe(1.0);
   });
 });

@@ -934,20 +934,19 @@ export class SettingsStorage {
     } catch {}
   }
 
-  getPageFit(): 'fit_width' | 'fit_screen' | 'fit_height' | 'original' {
+  getPageFit(): 'fit_width' | 'fit_screen' | 'fit_height' | 'full_screen' | 'original' {
     const stored = mainStorage.getString(SettingsKeys.PAGE_FIT) as any;
-    // 'fit_width' (Full Bleed) was removed: old stored values resolve to fit-screen.
-    if (!stored || stored === 'fit_width') return 'fit_screen';
+    if (!stored) return 'fit_screen';
     return stored;
   }
 
-  setPageFit(fit: 'fit_width' | 'fit_screen' | 'fit_height' | 'original'): void {
+  setPageFit(fit: 'fit_width' | 'fit_screen' | 'fit_height' | 'full_screen' | 'original'): void {
     mainStorage.setString(SettingsKeys.PAGE_FIT, fit);
     try {
       const curr = mainStorage.getObject<any>('vega-komix-reader-settings') || {};
       mainStorage.setObject('vega-komix-reader-settings', {
         ...curr,
-        imageScale: fit === 'fit_width' ? 'fit_screen' : fit,
+        imageScale: fit,
       });
     } catch {}
   }
@@ -1025,7 +1024,11 @@ export class SettingsStorage {
   }
 
   isAutoAdvanceChapter(): boolean {
-    return mainStorage.getBool(SettingsKeys.AUTO_ADVANCE_CHAPTER, true);
+    // Default OFF: reaching the last page must never jump to the next
+    // chapter on its own — the reader moves on only when the user taps
+    // "Read Next Chapter". Anyone who wants the old behaviour can turn it
+    // back on in Player Settings; a stored value always wins over this.
+    return mainStorage.getBool(SettingsKeys.AUTO_ADVANCE_CHAPTER, false);
   }
 
   setAutoAdvanceChapter(enabled: boolean): void {

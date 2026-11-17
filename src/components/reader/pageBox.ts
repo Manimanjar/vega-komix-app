@@ -4,8 +4,11 @@ import type {ImageScale} from './types';
  * Layout box of one page for the given fit mode, from known dimensions.
  * Single source of truth: the initial size, the loaded size, jump offsets
  * and the rendered view all derive from it, so they can never disagree.
- * Every mode stays inside the display frame: widths never exceed the screen
- * width, and a too-wide page in fit-height falls back to fitting the screen.
+ * Every mode stays inside the display frame EXCEPT 'full_screen', which
+ * deliberately fills the whole frame (the image then cover-crops to it).
+ * Note: in landscape, 'fit_height', 'fit_screen' and 'original' all compute
+ * the same height-limited box — 'fit_width' and 'full_screen' are the two
+ * modes that visibly differ there, which is why both are offered.
  */
 export const computePageBox = (
   dims: {width: number; height: number} | undefined,
@@ -20,6 +23,12 @@ export const computePageBox = (
   const maxWidth = Math.round(screenWidth * zoom);
   const maxHeight = Math.round(screenHeight * zoom);
   switch (scaleMode) {
+    case 'full_screen': {
+      // Fill the whole physical display edge to edge. The image is rendered
+      // with contentFit="cover", so it stretches/zooms/crops to fill the
+      // frame instead of letterboxing inside it.
+      return {width: maxWidth, height: maxHeight};
+    }
     case 'fit_height': {
       const width = Math.round(maxHeight / ratio);
       if (width > maxWidth) {

@@ -1,5 +1,6 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -7,10 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import AppText from '../ui/Text';
+import {PressScale} from './readerMotion';
 import type {EpisodeLink} from '../../lib/providers/types';
 import type {
   InteractionMode,
@@ -94,7 +97,56 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   // Translated title in the top bar (cache is usually warm from Detail).
   const {translated: translatedTitle} = useTranslatedTitle(title);
 
-  if (!visible) return null;
+  // Video-player style in/out: the bars melt in (fade + slide from the
+  // screen edge) instead of popping, and melt out the same way before the
+  // HUD unmounts. A single toggle can never flash them on and off, because
+  // the hide is a 200ms animation, not an instant unmount.
+  const [mounted, setMounted] = useState(visible);
+  const hudAnim = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  useEffect(() => {
+    hudAnim.stopAnimation();
+    if (visible) {
+      setMounted(true);
+      Animated.timing(hudAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(hudAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(({finished}) => {
+        if (finished) setMounted(false);
+      });
+    }
+  }, [visible, hudAnim]);
+
+  const topBarStyle = {
+    opacity: hudAnim,
+    transform: [
+      {
+        translateY: hudAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-16, 0],
+        }),
+      },
+    ],
+  };
+  const bottomBarStyle = {
+    opacity: hudAnim,
+    transform: [
+      {
+        translateY: hudAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [16, 0],
+        }),
+      },
+    ],
+  };
+
+  if (!mounted) return null;
 
   const isWebtoon = readingMode === 'webtoon';
   const isLandscape = orientationMode === 'landscape';
@@ -124,19 +176,22 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   return (
     <View
       style={StyleSheet.absoluteFill}
-      pointerEvents="box-none"
+      pointerEvents={visible ? 'box-none' : 'none'}
       onTouchStart={onTouchActivity}>
-      {/* Top HUD: Sleek dark glassmorphic bar */}
-      <View
+      {/* Top HUD: frosted glass bar — a real blur over the page beneath,
+          plus a translucent tint, so the art stays faintly visible through it */}
+      <Animated.View
         style={[
           styles.topHud,
+          topBarStyle,
           {
             paddingTop: Math.max(insets.top, 14),
           },
         ]}>
+        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.topHudRow}>
           {/* Left: Back button + Comic Title & Chapter X ▾ */}
-          <TouchableOpacity
+          <PressScale
             onPress={onBack}
             style={styles.iconButton}
             accessibilityLabel="Go back">
@@ -145,7 +200,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
               size={24}
               color="#FFFFFF"
             />
-          </TouchableOpacity>
+          </PressScale>
 
           <TouchableOpacity
             onPress={() => setChapterModalVisible(true)}
@@ -173,11 +228,11 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
 
           {/* Right: 1-Tap Reading Mode Pill + [A/文] Translate Pill */}
           <View style={styles.topRightActions}>
-            {/* 1-Tap Reading Mode Button: Continuous <-> Page by Page */}
-            <TouchableOpacity
+            {/* 1-Tap Reading Mode Button: cycles Continuous -> Page by Page (LTR) -> Manga RTL */}
+            <PressScale
               onPress={onToggleReadingMode}
               style={styles.readingModePill}
-              accessibilityLabel={`Reading mode: ${isWebtoon ? 'Continuous' : 'Page by Page'}`}>
+              accessibilityLabel={`Reading mode: ${isWebtoon ? 'Continuous' : readingMode === 'manga' ? 'Manga RTL' : 'Page by Page'}`}>
               <MaterialCommunityIcons
                 name={isWebtoon ? 'view-headline' : 'book-open-page-variant'}
                 size={16}
@@ -190,13 +245,19 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                   fontWeight: '700',
                   fontSize: 11,
                 }}>
-                {isWebtoon ? 'Continuous' : 'Page by Page'}
+                {isWebtoon
+                  ? 'Continuous'
+                  : readingMode === 'manga'
+                  ? 'Manga RTL'
+                  : readingMode === 'double_spread'
+                  ? 'Double Page'
+                  : 'Page by Page'}
               </AppText>
-            </TouchableOpacity>
+            </PressScale>
 
             {/* Live Translate [A/文] Pill */}
             {onToggleTranslate && (
-              <TouchableOpacity
+              <PressScale
                 onPress={onToggleTranslate}
                 style={[
                   styles.translatePill,
@@ -232,12 +293,12 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                   }}>
                   {translationStatus === 'translating' ? 'A/文...' : 'A/文'}
                 </AppText>
-              </TouchableOpacity>
+              </PressScale>
             )}
 
             {/* 1-Tap Incognito / Ghost Reading Mode Toggle */}
             {onToggleIncognito && (
-              <TouchableOpacity
+              <PressScale
                 onPress={onToggleIncognito}
                 style={[
                   styles.incognitoPill,
@@ -256,20 +317,22 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                     Incognito
                   </AppText>
                 )}
-              </TouchableOpacity>
+              </PressScale>
             )}
           </View>
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Bottom HUD: Sleek dark glassmorphic bar */}
-      <View
+      {/* Bottom HUD: frosted glass bar (same blur + translucent tint) */}
+      <Animated.View
         style={[
           styles.bottomHud,
+          bottomBarStyle,
           {
             paddingBottom: Math.max(insets.bottom, 14),
           },
         ]}>
+        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
         {/* Upper row: Clean page scrubber slider */}
         {(() => {
           const displayedPage =
@@ -332,7 +395,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             const canGoPrev =
               hasPrevChapter !== undefined ? hasPrevChapter : currentChapterIndex > 0;
             return (
-              <TouchableOpacity
+              <PressScale
                 onPress={onPrevChapter}
                 disabled={!canGoPrev}
                 style={[
@@ -347,13 +410,13 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 <AppText role="labelSmall" style={styles.controlButtonLabel}>
                   Prev Ch
                 </AppText>
-              </TouchableOpacity>
+              </PressScale>
             );
           })()}
 
           {/* 2. 1-Tap Scrolling / Navigation Mode Button */}
           {onToggleInteractionMode && (
-            <TouchableOpacity
+            <PressScale
               onPress={onToggleInteractionMode}
               style={[styles.controlButton, styles.navModeBadge]}>
               <MaterialCommunityIcons
@@ -366,11 +429,11 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 style={[styles.controlButtonLabel, {color: '#00E5FF', fontWeight: '800'}]}>
                 {navModeLabel}
               </AppText>
-            </TouchableOpacity>
+            </PressScale>
           )}
 
           {/* 3. 1-Tap Orientation Button (Portrait / Landscape) */}
-          <TouchableOpacity
+          <PressScale
             onPress={onToggleOrientation}
             style={styles.controlButton}>
             <MaterialCommunityIcons
@@ -386,7 +449,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
               ]}>
               {isLandscape ? 'Landscape' : 'Portrait'}
             </AppText>
-          </TouchableOpacity>
+          </PressScale>
 
           {/* 4. Next Ch */}
           {(() => {
@@ -395,7 +458,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 ? hasNextChapter
                 : currentChapterIndex < allChapters.length - 1;
             return (
-              <TouchableOpacity
+              <PressScale
                 onPress={onNextChapter}
                 disabled={!canGoNext}
                 style={[
@@ -410,12 +473,12 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
                 <AppText role="labelSmall" style={styles.controlButtonLabel}>
                   Next Ch
                 </AppText>
-              </TouchableOpacity>
+              </PressScale>
             );
           })()}
 
           {/* 5. Settings */}
-          <TouchableOpacity
+          <PressScale
             onPress={onOpenSettings}
             style={styles.controlButton}>
             <MaterialCommunityIcons
@@ -426,9 +489,9 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             <AppText role="labelSmall" style={styles.controlButtonLabel}>
               Settings
             </AppText>
-          </TouchableOpacity>
+          </PressScale>
         </View>
-      </View>
+      </Animated.View>
 
       {/* Chapter Switcher Modal */}
       <Modal
@@ -516,7 +579,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(10, 10, 14, 0.92)',
+    // Translucent on purpose: the BlurView above the page blurs the art
+    // beneath, and this tint keeps the text readable without hiding it.
+    backgroundColor: 'rgba(10, 10, 14, 0.55)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,
@@ -594,7 +659,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(10, 10, 14, 0.92)',
+    // Same frosted glass as the top bar.
+    backgroundColor: 'rgba(10, 10, 14, 0.55)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 16,

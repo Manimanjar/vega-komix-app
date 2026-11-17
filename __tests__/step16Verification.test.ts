@@ -133,8 +133,13 @@ describe('Step 16: Front-End Verification Suite', () => {
     expect(content).not.toContain('Keep Screen Awake');
     expect(content).not.toContain('Volume Key Page Turn');
     expect(content).not.toContain('Floating Page Indicator');
-    expect(content).toContain('Live Zoom Level');
+    // Live Zoom buttons were removed at the user's request (useless — zoom
+    // is double-tap / pinch now); the sheet is fit modes + eye care + tools.
+    expect(content).not.toContain('Live Zoom Level');
+    expect(content).not.toContain('ZOOM_LEVELS');
     expect(content).toContain('Image Fit & Scaling');
+    expect(content).toContain('Full Screen');
+    expect(content).toContain('Fit Width');
     // Auto-Scroll and Eye Brightness were removed at the user's request;
     // the Warm Night Filter in the same section was kept.
     expect(content).not.toContain('Hands-Free Auto-Scroll');
