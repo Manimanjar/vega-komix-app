@@ -104,10 +104,18 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
   // Soft fade-in when the image decodes: the page melts in instead of
   // popping, which makes continuous scrolling feel fluid rather than jumpy.
-  const fade = useSharedValue(0);
+  // But a page that already loaded once (its natural size is cached) must
+  // NOT start black: on rotation / remount (removeClippedSubviews) every
+  // visible page remounts, and if they all start at opacity 0 the whole
+  // screen flashes black until they fade in (user, 2026-11-18). So a
+  // cached image starts fully visible; only a genuinely new image fades in.
+  const fade = useSharedValue(measuredNaturalSizeCache.has(item.imageUrl) ? 1 : 0);
   useEffect(() => {
-    fade.value = 0;
-  }, [currentUrl, retryKey, fade]);
+    // The cache is keyed by the original item URL (not the cleaned one).
+    if (!measuredNaturalSizeCache.has(item.imageUrl)) {
+      fade.value = 0;
+    }
+  }, [currentUrl, retryKey, fade, item.imageUrl]);
 
   const resetZoom = useCallback(() => {
     scale.value = withTiming(1, {duration: 200});
@@ -461,54 +469,100 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const isJumpingRef = useRef<boolean>(false);
   const isInternalPageChange = useRef<boolean>(false);
   const jumpTimerRef = useRef<any>(null);
+  const rotateTimerRef = useRef<any>(null);
   const lastReportedIndex = useRef<number>(currentPageIndex);
   const pageHeights = useRef<Record<number, number>>({});
   // Rotation guard (see the effect below): re-anchor to the same page when
   // the window size changes, instead of keeping the old pixel offset.
   const prevDimsRef = useRef<{width: number; height: number} | null>(null);
+  // While a rotation is settling, user scrolling and every automatic jump
+  // are locked out: if the user drags mid-transition, or the viewability
+  // handler fires on a half-laid-out list, the list fights the re-anchor
+  // and the scroll runs away (user, 2026-11-18). Set by the rotation
+  // effect, cleared once the re-anchor has landed and the layout settled.
+  const isRotatingRef = useRef<boolean>(false);
+  const [isRotating, setIsRotating] = useState<boolean>(false);
+  // Bumps every time a page reports a real measured height, so the
+  // prefix-sum below (and getItemLayout) recompute from true heights
+  // instead of the fallback ratio.
+  const [measuredVersion, setMeasuredVersion] = useState<number>(0);
   // In ONE_TAP mode the edge/centre overlay owns every tap, so the page's
   // own tap gesture must stay silent — otherwise one centre tap toggles the
   // HUD twice and the bars flash on and off instantly.
   const overlayActive = interactionMode === 'one_tap' && !disableTapZones;
 
   const handlePageMeasured = useCallback((idx: number, height: number) => {
-    pageHeights.current[idx] = height;
+    if (pageHeights.current[idx] !== height) {
+      pageHeights.current[idx] = height;
+      setMeasuredVersion(v => v + 1);
+    }
   }, []);
+
+  // One height per page, from the same box math as the rendered pages.
+  // Measured heights win; otherwise the cached natural size / provider dims
+  // feed computePageBox; otherwise the 1.45 fallback ratio. This is the
+  // single source of truth for both the rendered height and the list's
+  // layout, so they can never disagree.
+  const pageHeightAt = useCallback(
+    (index: number): number => {
+      const measured = pageHeights.current[index];
+      if (measured && measured > 0) return measured;
+      const page = pages[index];
+      const cached = page?.imageUrl
+        ? measuredNaturalSizeCache.get(page.imageUrl)
+        : undefined;
+      const dims =
+        cached ??
+        (page?.width && page?.height && page.width > 0
+          ? {width: page.width, height: page.height}
+          : undefined);
+      return computePageBox(dims, windowWidth, windowHeight, scaleMode, zoomScale).height;
+    },
+    [pages, windowWidth, windowHeight, scaleMode, zoomScale],
+  );
+
+  // Prefix sum of page heights: pageOffsets[i] is the exact pixel offset of
+  // the top of page i. Recomputed whenever the window, fit mode or any
+  // measured height changes. This is what makes getItemLayout exact and
+  // the rotation re-anchor land on the right page instead of a random one.
+  const pageOffsets = useMemo(() => {
+    const offsets: number[] = new Array(pages.length + 1);
+    offsets[0] = 0;
+    for (let i = 0; i < pages.length; i++) {
+      offsets[i + 1] = offsets[i] + pageHeightAt(i);
+    }
+    return offsets;
+  }, [pages.length, pageHeightAt, measuredVersion]);
+
+  const getItemLayout = useCallback(
+    (_data: any, index: number) => ({
+      length: pageHeightAt(index),
+      offset: pageOffsets[index] ?? 0,
+      index,
+    }),
+    [pageHeightAt, pageOffsets],
+  );
 
   const onPageChangeRef = useRef(onPageChange);
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
   }, [onPageChange]);
 
-  // Jump offsets use the same box math as the rendered pages (and the
-  // measured-size cache), so a far jump lands on the right page instead of
-  // overshooting to the end of the list.
+  // Jump offsets come from the prefix sum, so a jump lands on the exact
+  // top of the target page — the same heights the list lays out with.
   const calculatePageOffset = useCallback(
     (targetIndex: number): number => {
-      let offset = 0;
-      for (let i = 0; i < targetIndex && i < pages.length; i++) {
-        const measured = pageHeights.current[i];
-        if (measured && measured > 0) {
-          offset += measured;
-          continue;
-        }
-        const page = pages[i];
-        const cached = page?.imageUrl
-          ? measuredNaturalSizeCache.get(page.imageUrl)
-          : undefined;
-        const dims =
-          cached ??
-          (page?.width && page?.height && page.width > 0
-            ? {width: page.width, height: page.height}
-            : undefined);
-        offset += computePageBox(dims, windowWidth, windowHeight, scaleMode, zoomScale).height;
-      }
-      return offset;
+      const clamped = Math.min(Math.max(targetIndex, 0), pages.length);
+      return pageOffsets[clamped] ?? 0;
     },
-    [pages, windowWidth, windowHeight, scaleMode, zoomScale],
+    [pages.length, pageOffsets],
   );
 
-  // Jump directly with animated: false and lock scroll listener for 400ms to eliminate jitter
+  // Jump directly with animated: false and lock scroll listener for 400ms to eliminate jitter.
+  // Uses scrollToIndex (precise with getItemLayout) instead of a raw pixel
+  // offset, so the jump lands on the target page even while the list is
+  // still laying out — a pixel offset computed from heights the list has
+  // not rendered yet is what used to land on a random page (user, 2026-11-18).
   const jumpToPage = useCallback(
     (targetIndex: number) => {
       if (pages.length === 0) return;
@@ -529,14 +583,14 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       currentScrollY.current = offset;
 
       try {
-        listRef.current?.scrollToOffset({
-          offset,
+        listRef.current?.scrollToIndex({
+          index: clampedIndex,
           animated: false,
         });
       } catch {
         try {
-          listRef.current?.scrollToIndex({
-            index: clampedIndex,
+          listRef.current?.scrollToOffset({
+            offset,
             animated: false,
           });
         } catch {}
@@ -552,7 +606,10 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     }
   }, [sliderJumpTarget, jumpToPage]);
 
-  // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change or resume)
+  // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change or resume).
+  // Never during a rotation: the re-anchor owns the scroll position until
+  // the layout settles, and an external jump mid-transition is what used
+  // to send the list to a random page.
   useEffect(() => {
     if (isInternalPageChange.current) {
       isInternalPageChange.current = false;
@@ -561,6 +618,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     if (
       !isUserScrolling.current &&
       !isJumpingRef.current &&
+      !isRotatingRef.current &&
       Math.abs(currentPageIndex - lastReportedIndex.current) > 0
     ) {
       lastReportedIndex.current = currentPageIndex;
@@ -575,42 +633,74 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // the last reported page, without animation, once the new layout settles.
   // The jump lock keeps the viewability handler from fighting it.
   //
-  // Rotation fix (user, 2026-11-18): the measured-height cache held the
-  // OLD orientation's heights, so the first re-anchor jumped to an offset
-  // computed from stale heights; then as pages re-measured at the new
-  // width the layout drifted, the viewability handler reported a different
-  // top page, and the page-change effect jumped again — a feedback loop
-  // that kept shaking until the reader was reopened. So on rotation we
-  // (a) clear the stale height cache so offsets are computed fresh from
-  // the new window size, (b) hold the jump lock longer while the layout
-  // settles, and (c) re-anchor a second time after the pages have
-  // re-measured, to correct any residual drift.
+  // Rotation fix, deep pass (user, 2026-11-18): the old fix cleared the
+  // measured-height cache and jumped to a PIXEL offset at fixed 60ms /
+  // 500ms timers — but the list was still laying out with the new sizes,
+  // so the offset (computed from heights the list had not rendered yet)
+  // landed on a random page (7 -> 17), the screen went black while pages
+  // remounted, and then the viewability handler + the external page-sync
+  // effect fired on the wrong page and jumped again while the user was
+  // trying to scroll — the runaway fast scrolling. Now:
+  // (a) the re-anchor uses scrollToIndex with getItemLayout, which lands
+  // on the exact page because the list knows every item's offset;
+  // (b) a rotation lock freezes user scrolling, the viewability handler
+  // and the external sync effect until the re-anchor has landed and the
+  // layout settled, so nothing fights the jump and nothing reports a
+  // wrong page mid-transition;
+  // (c) the measured-height cache IS cleared (a height measured at the
+  // old width is wrong at the new width) and the prefix sum recomputes
+  // from computePageBox; real measured heights replace the fallback as
+  // pages re-measure at the new width.
   useEffect(() => {
     const prev = prevDimsRef.current;
     prevDimsRef.current = {width: windowWidth, height: windowHeight};
     if (!prev) return;
     if (prev.width === windowWidth && prev.height === windowHeight) return;
-    // (a) Drop the old orientation's measured heights.
+    // Drop the old orientation's measured heights: a height measured at
+    // the old width is wrong at the new width, and the prefix sum must
+    // fall back to computePageBox (correct for the new window) until the
+    // pages re-measure. Keeping stale heights is what made the old
+    // pixel-offset jump land on a random page. Bump the measured version
+    // so the prefix sum recomputes from the cleared cache (a ref mutation
+    // alone would not invalidate the memo).
     pageHeights.current = {};
+    setMeasuredVersion(v => v + 1);
+    // (b) Lock everything that can move or report the page.
+    isRotatingRef.current = true;
+    setIsRotating(true);
     isJumpingRef.current = true;
     if (jumpTimerRef.current) {
       clearTimeout(jumpTimerRef.current);
     }
-    // (b) Hold the lock while the new layout settles.
-    jumpTimerRef.current = setTimeout(() => {
-      isJumpingRef.current = false;
-    }, 1000);
-    const timer = setTimeout(() => {
+    // (a) Re-anchor once the new layout is committed. A short 100ms delay
+    // (not requestAnimationFrame) gives React time to re-render with the
+    // cleared height cache, so getItemLayout uses the recomputed prefix
+    // sum; the second anchor at 500ms corrects any residual drift after
+    // pages re-measure.
+    let cancelled = false;
+    const timer1 = setTimeout(() => {
+      if (cancelled) return;
       jumpToPage(lastReportedIndex.current);
-    }, 60);
-    // (c) Second re-anchor once the pages have re-measured at the new
-    // width, correcting any drift from the first jump.
+    }, 100);
     const timer2 = setTimeout(() => {
+      if (cancelled) return;
       jumpToPage(lastReportedIndex.current);
     }, 500);
+    // Release the lock after the layout has settled. Uses its own timer
+    // ref — jumpToPage reuses jumpTimerRef for its 400ms lock, so sharing
+    // it here would let a re-anchor cancel the release and leave the
+    // rotation lock stuck on forever.
+    const release = setTimeout(() => {
+      isRotatingRef.current = false;
+      setIsRotating(false);
+      isJumpingRef.current = false;
+    }, 900);
+    rotateTimerRef.current = release;
     return () => {
-      clearTimeout(timer);
+      cancelled = true;
+      clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(release);
     };
   }, [windowWidth, windowHeight, jumpToPage]);
 
@@ -619,6 +709,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     return () => {
       if (jumpTimerRef.current) {
         clearTimeout(jumpTimerRef.current);
+      }
+      if (rotateTimerRef.current) {
+        clearTimeout(rotateTimerRef.current);
       }
     };
   }, []);
@@ -635,6 +728,12 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
       if (isJumpingRef.current) return;
+      // During a rotation the list is half-laid-out: the "top" item is
+      // whatever happens to be visible mid-transition, not the page the
+      // user is on. Reporting it would move lastReportedIndex (and the
+      // parent's currentPageIndex) to a random page and the sync effect
+      // would jump there — the 7 -> 17 jump (user, 2026-11-18).
+      if (isRotatingRef.current) return;
       if (viewableItems && viewableItems.length > 0) {
         const topItem = viewableItems[0];
         if (typeof topItem.index === 'number') {
@@ -723,12 +822,18 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}-${scaleMode}`}
         horizontal={false}
         pagingEnabled={false}
-        scrollEnabled={true}
+        // Locked during a rotation so a drag mid-transition cannot fight
+        // the re-anchor and send the list running away.
+        scrollEnabled={!isRotating}
         nestedScrollEnabled={true}
         removeClippedSubviews={true}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={32}
         ItemSeparatorComponent={null}
+        // Exact item layout: the list knows every page's height and offset
+        // without rendering, so scrollToIndex lands on the target page and
+        // the scroll position survives the rotation resize.
+        getItemLayout={getItemLayout}
         ListFooterComponent={
           hasNextChapter ? (
             <EndOfChapterCard
@@ -771,7 +876,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           const offset =
             typeof info.offset === 'number'
               ? info.offset
-              : info.index * (windowHeight * 0.8);
+              : calculatePageOffset(info.index ?? 0);
           setTimeout(() => {
             try {
               listRef.current?.scrollToOffset({offset, animated: false});
