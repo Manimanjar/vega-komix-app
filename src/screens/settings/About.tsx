@@ -126,7 +126,7 @@ export const getResolvedVersion = (): string => {
   if (pkgVer && nativeVer) {
     return compareVersions(nativeVer, pkgVer) ? pkgVer : nativeVer;
   }
-  return pkgVer || nativeVer || expoVer || '6.2.2';
+  return pkgVer || nativeVer || expoVer || '6.2.3';
 };
 
 export const CURRENT_VERSION = getResolvedVersion();
@@ -141,30 +141,34 @@ export const getResolvedBuildNumber = (): string => {
     Number(appBuild) || 0,
     Number(nativeBuild) || 0,
     Number(expoBuild) || 0,
-    322,
+    323,
   );
   return String(resolved);
 };
 
 export const BUILD_NUMBER = getResolvedBuildNumber();
 
-export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.2 Release Notes (Nov 18, 2026)
+export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.3 Release Notes (Nov 18, 2026)
 
-**Build:** 322 | **Target:** Android 6.0+ (ARM64 & Universal)
+**Build:** 323 | **Target:** Android 6.0+ (ARM64 & Universal)
 
-#### 📖 Streamlined 2-State Reading Mode (Continuous <-> Page by Page)
-- **Unified Western Reading Flow:** Standardized all comics, manhwas, and mangas to follow the familiar Western reading direction: right-to-left swipe (drag finger left) or tap right edge to turn to the next page; left-to-right swipe (drag finger right) or tap left edge to turn to the previous page.
-- **Removed Redundant Manga Mode:** Replaced the 3-mode cycle with an intuitive 2-state toggle between **Continuous** (vertical scroll up-to-down) and **Page by Page** (horizontal swipe).
-- **Settings Screen Alignment:** Cleaned up Reader Settings dropdown to offer **Continuous (Vertical Scroll)** and **Page by Page (Standard Swipe)**.
+#### 🔄 Orientation Switch Scroll Freeze Fix
+- **Permanent Scroll Freedom:** Completely eliminated the stuck scroll freeze when rotating between portrait and landscape in Continuous (Webtoon) mode. Removed brittle list scroll locking and decoupled rotation effects from dynamic dependency invalidation.
+- **Orientation Layout Stabilization:** Re-anchoring to the current page now occurs smoothly using stable indexed references without cancelling release timers or locking the native scroll responder.
 
-#### 🪟 Floating Page Number Pill Overlap Fix
-- **Drawer Occlusion:** Automatically hide the floating page indicator pill whenever the Reader Settings sheet or bottom drawer is opened, preventing the pill from floating over or obscuring settings controls while scrolling.
+#### 📄 PDF-Style Continuous Full-Document Zoom
+- **Smooth Real-Time Scaling:** Pinch-to-zoom now scales the entire continuous comic canvas smoothly as one flat document (just like a PDF reader), replacing the jarring single-image swelling and snapping.
+- **Two-Finger Pan Across Borders:** Drag with two fingers to inspect wide or magnified pages horizontally from edge to edge with resistance past borders.
+- **Single-Finger Native Vertical Scroll:** Reserving two fingers for zoom/pan guarantees that 1-finger vertical dragging scrolls natively and smoothly through the chapter with zero gesture contention or hesitation.
+- **1-Tap & Double-Tap Ergonomics:** Single tap cleanly toggles the HUD; double-tap smoothly toggles between 1.0x and 2.0x global zoom.
 
-#### 🔍 Global PDF-Style Zoom & Gallery-Style Border Swipe Navigation
-- **Uniform Continuous Zoom:** Pinch-to-zoom in Continuous mode scales all chapter pages simultaneously (PDF-reader style) with horizontal panning across wide pages.
-- **Persistent Page-by-Page Zoom:** Pinch-to-zoom on any page automatically carries forward and backward across all pages in the chapter.
-- **Phone Gallery Border Swiping:** When zoomed in, users can pan to inspect all corners; continuing a swipe past the image border smoothly navigates to the next or previous page.
-- **Direct Manual Zoom Buttons:** Added zoom controls directly in the bottom HUD and in Quick Settings under Image Fit & Scaling.`;
+#### 🛡️ Page-by-Page Superimposition Elimination
+- **Strict Viewport Clipping:** Fixed page container boundaries and applied strict overflow clipping to ensure magnified pages never leak, bleed, or superimpose over adjacent pages in horizontal paged mode.
+- **Two-Finger Magnification Navigation:** Panning across magnified pages uses 2 fingers; single-finger swipe strictly turns pages, with gallery-style boundary advance when panning past the outer border.
+
+#### 🪟 Floating Page Pill Smart Visibility
+- **Automatic HUD Occlusion:** The floating page indicator pill automatically fades out when the top and bottom function bars (or settings drawer) are visible.
+- **Persistent Reading Visibility:** Once the function bars hide into immersive reading, the pill smoothly transitions in and stays visible to show reading progress without getting in the way.`;
 
 // handle check for update
 export const checkForUpdate = async (

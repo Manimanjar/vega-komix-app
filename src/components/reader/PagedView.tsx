@@ -299,6 +299,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
   // to the group that holds the current page, without animation, once the
   // new layout has settled. The jump lock keeps the momentum handler from
   // fighting it.
+  const goToGroupIndexRef = useRef(goToGroupIndex);
+  goToGroupIndexRef.current = goToGroupIndex;
+
   useEffect(() => {
     const prev = prevDimsRef.current;
     prevDimsRef.current = {width: windowWidth, height: windowHeight};
@@ -311,12 +314,13 @@ export const PagedView: React.FC<PagedViewProps> = ({
     jumpTimerRef.current = setTimeout(() => {
       isJumpingRef.current = false;
     }, 400);
+    const targetGroup = activeGroupIndex;
     const timer = setTimeout(() => {
-      lastTargetIndex.current = activeGroupIndex;
-      goToGroupIndex(activeGroupIndex, false);
-    }, 60);
+      lastTargetIndex.current = targetGroup;
+      goToGroupIndexRef.current(targetGroup, false);
+    }, 80);
     return () => clearTimeout(timer);
-  }, [windowWidth, windowHeight, activeGroupIndex, goToGroupIndex]);
+  }, [windowWidth, windowHeight, activeGroupIndex]);
 
   // Clean up jump timer on unmount
   useEffect(() => {
@@ -430,9 +434,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
           <View
             style={[
               styles.pageContainer,
-              {width: windowWidth, height: windowHeight, flexDirection: 'row', backgroundColor: themeColors.background},
+              {width: windowWidth, height: windowHeight, flexDirection: 'row', backgroundColor: themeColors.background, overflow: 'hidden'},
             ]}>
-            <View style={{width: windowWidth / 2, height: windowHeight}}>
+            <View style={{width: windowWidth / 2, height: windowHeight, overflow: 'hidden'}}>
               <ReaderImage
                 imageUrl={leftPage.imageUrl}
                 index={leftIndex}
@@ -458,7 +462,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onSwipePrevPage={handleLeftTap}
               />
             </View>
-            <View style={{width: windowWidth / 2, height: windowHeight}}>
+            <View style={{width: windowWidth / 2, height: windowHeight, overflow: 'hidden'}}>
               <ReaderImage
                 imageUrl={rightPage.imageUrl}
                 index={rightIndex}
@@ -552,7 +556,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       // Single page view
       if (!item.pageA) return null;
       return (
-        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: themeColors.background}]}>
+        <View style={[styles.pageContainer, {width: windowWidth, height: windowHeight, backgroundColor: themeColors.background, overflow: 'hidden'}]}>
           <ReaderImage
             imageUrl={item.pageA.imageUrl}
             index={item.indexA}
@@ -693,6 +697,7 @@ const styles = StyleSheet.create({
   pageContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   leftTapZone: {
     position: 'absolute',

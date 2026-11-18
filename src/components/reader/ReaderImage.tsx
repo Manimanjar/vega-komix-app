@@ -316,10 +316,11 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Pan Gesture (panning across magnified image; enabled when magnified or zoomScale > 1)
+  // Pan Gesture: requires 2 fingers to scroll/pan towards borders,
+  // reserving 1-finger swipe strictly for page-turning in PagedView without gesture conflict.
   const panGesture = Gesture.Pan()
     .runOnJS(true)
-    .minPointers(1)
+    .minPointers(2)
     .maxPointers(2)
     .enabled(isMagnified)
     .onStart(() => {
@@ -431,14 +432,17 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
 
   const themeColors = THEME_COLORS[theme];
 
+  const viewportWidth = isWebtoon ? containerDimensions.width : frameWidth;
+  const viewportHeight = isWebtoon ? containerDimensions.height : windowHeight;
+
   if (!activeBitmap) {
     return (
       <View
         style={[
           styles.container,
           {
-            width: containerDimensions.width,
-            height: containerDimensions.height,
+            width: viewportWidth,
+            height: viewportHeight,
             backgroundColor: themeColors.background,
           },
         ]}
@@ -451,8 +455,8 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       style={[
         styles.container,
         {
-          width: containerDimensions.width,
-          height: containerDimensions.height,
+          width: viewportWidth,
+          height: viewportHeight,
           backgroundColor: themeColors.background,
         },
       ]}>
@@ -617,6 +621,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   imageWrapper: {
     alignItems: 'center',

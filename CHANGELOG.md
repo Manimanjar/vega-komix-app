@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.3] - 2026-11-18
+
+### 🚀 Orientation Scroll Stabilization, PDF-Style Document Zoom & Superimposition Elimination
+- **Version:** `6.2.3`
+- **Version Code:** `323`
+- **Release Date:** November 18, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Fixed & Enhanced
+
+#### 🔄 Orientation Switch Scroll Freeze Elimination
+- **Permanent Native Scroll Freedom:** Completely solved the recurring bug where switching between portrait and landscape in Continuous (Webtoon) mode caused the list to freeze indefinitely until toggling to page-by-page and back. Removed brittle `scrollEnabled` toggling on native FlatList, eliminated cascading dependency timer cancellations during re-render, and stabilized re-anchoring to the current page.
+
+#### 📄 PDF-Style Continuous Full-Document Zoom & Strict 2-Finger / 1-Finger Gesture Separation
+- **Uniform Smooth Document Zoom:** Pinching to zoom in Continuous mode now scales the entire continuous comic canvas uniformly in real-time (identical to an Acrobat/Drive PDF reader), rather than zooming only a single image and jarringly snapping the rest on release.
+- **2-Finger Pan Across Borders:** Dedicated 2-finger horizontal drag allows exploring wide or zoomed pages from border to border with smooth boundary resistance.
+- **1-Finger Uninhibited Vertical Scroll:** Reserving two fingers for zoom and horizontal pan ensures that standard 1-finger vertical dragging always scrolls natively and smoothly through the chapter without gesture contention or lockups.
+- **Double-Tap 1.0x <-> 2.0x Toggle:** Double-tapping anywhere on the continuous comic smoothly toggles between normal (1.0x) and magnified (2.0x) zoom.
+
+#### 🛡️ Page-by-Page Superimposition Elimination
+- **Strict Viewport Clipping:** Fixed layout container dimensions in horizontal paged mode (`PagedView`) and added strict `overflow: 'hidden'` clipping so magnified images never bleed or superimpose across previous/next pages.
+- **Consistent Zoom Ratio:** Zoom ratio adjustments carry forward and backward seamlessly across all pages without visual overlap.
+- **Phone Gallery Border Swiping:** Magnified pages pan cleanly with 2 fingers to inspect every corner, with swipe-past-border advancing or retreating pages like a native photo gallery app.
+
+#### 🪟 Floating Page Indicator Pill Smart HUD Visibility
+- **Automatic Occlusion:** The floating page indicator pill automatically fades out whenever the reader HUD function bars (top/bottom) or settings drawer appear, preventing it from floating over or obscuring controls.
+- **Immersive Reading Transition:** As soon as the function bars hide into immersive reading, the pill smoothly transitions in and stays visible as an unobtrusive reading progress indicator.
+
+---
+
 ## [6.2.2] - 2026-11-18
 
 ### 🚀 Reader Ergonomics, Unified Western Reading Flow & UI Polish

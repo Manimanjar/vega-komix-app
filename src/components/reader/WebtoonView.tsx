@@ -96,14 +96,6 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<boolean>(false);
 
-  // Reanimated values for double tap zoom and pinch/pan
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-  const translationX = useSharedValue(0);
-  const savedTranslationX = useSharedValue(0);
-  const translationY = useSharedValue(0);
-  const savedTranslationY = useSharedValue(0);
-  const [isZoomed, setIsZoomed] = useState<boolean>(false);
   // Soft fade-in when the image decodes: the page melts in instead of
   // popping, which makes continuous scrolling feel fluid rather than jumpy.
   // But a page that already loaded once (its natural size is cached) must
@@ -118,16 +110,6 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       fade.value = 0;
     }
   }, [currentUrl, retryKey, fade, item.imageUrl]);
-
-  const resetZoom = useCallback(() => {
-    scale.value = withTiming(1, {duration: 200});
-    translationX.value = withTiming(0, {duration: 200});
-    translationY.value = withTiming(0, {duration: 200});
-    savedScale.value = 1;
-    savedTranslationX.value = 0;
-    savedTranslationY.value = 0;
-    setIsZoomed(false);
-  }, [savedScale, savedTranslationX, savedTranslationY, scale, translationX, translationY]);
 
   // Natural size measured on load (from the cache when this page loaded
   // before). Known dimensions — cached, then provider-supplied — feed the box
@@ -220,188 +202,95 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       .catch(() => {});
   }, [index, currentUrl, resolvedHeaders]);
 
-  // Layout boundaries for horizontal panning when page is wider than screen
-  const totalW = box.width * scale.value;
-  const maxTransX = Math.max(0, (totalW - screenWidth) / 2);
-  const isMagnified = maxTransX > 6 || (zoomScale && zoomScale > 1.05) || scale.value > 1.05 || isZoomed;
-
-  // Two-Finger Pinch-to-Zoom Gesture (PDF-style continuous smooth zoom)
-  const pinchGesture = Gesture.Pinch()
-    .runOnJS(true)
-    .onStart(() => {
-      savedScale.value = scale.value;
-    })
-    .onUpdate(e => {
-      const target = Math.max(0.6, Math.min(4.0, savedScale.value * e.scale));
-      scale.value = target;
-      if (target > 1.05 && !isZoomed) {
-        setIsZoomed(true);
-      }
-    })
-    .onEnd(() => {
-      const base = zoomScale || 1.0;
-      const committed = Math.round(Math.max(0.6, Math.min(3.5, base * scale.value)) * 100) / 100;
-      scale.value = withTiming(1, {duration: 150});
-      savedScale.value = 1;
-      if (Math.abs(committed - base) > 0.05) {
-        onZoomChange?.(committed);
-      } else if (committed <= 1.05) {
-        resetZoom();
-      }
-    });
-
-  // Pan Gesture (panning across wide/magnified continuous page)
-  const panGesture = Gesture.Pan()
-    .runOnJS(true)
-    .minPointers(1)
-    .maxPointers(2)
-    .enabled(isMagnified && maxTransX > 0)
-    .onStart(() => {
-      savedTranslationX.value = translationX.value;
-    })
-    .onUpdate(e => {
-      const nextX = savedTranslationX.value + e.translationX;
-      if (nextX < -maxTransX) {
-        translationX.value = -maxTransX + (nextX - (-maxTransX)) * 0.25;
-      } else if (nextX > maxTransX) {
-        translationX.value = maxTransX + (nextX - maxTransX) * 0.25;
-      } else {
-        translationX.value = nextX;
-      }
-    })
-    .onEnd(() => {
-      const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
-      translationX.value = withTiming(boundedX, {duration: 150});
-      savedTranslationX.value = boundedX;
-    });
-
-  // Single Tap Gesture (triggers HUD toggle)
-  const singleTapGesture = Gesture.Tap()
-    .numberOfTaps(1)
-    .maxDuration(250)
-    .runOnJS(true)
-    .onEnd(() => {
-      if (onToggleHUD) {
-        onToggleHUD();
-      }
-    });
-
-  // Double Tap Gesture (1x <-> 2.0x global zoom)
-  const doubleTapGesture = Gesture.Tap()
-    .numberOfTaps(2)
-    .maxDuration(300)
-    .runOnJS(true)
-    .onEnd(() => {
-      const base = zoomScale || 1.0;
-      if (base > 1.2 || scale.value > 1.2) {
-        resetZoom();
-        onZoomChange?.(1.0);
-      } else {
-        onZoomChange?.(2.0);
-      }
-    });
-
-  const zoomGestures = Gesture.Simultaneous(pinchGesture, panGesture);
-  const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
-  const gesture = Gesture.Simultaneous(zoomGestures, tapGestures);
-
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: fade.value,
-    transform: [
-      {translateX: translationX.value},
-      {translateY: translationY.value},
-      {scale: scale.value},
-    ],
   }));
 
   const themeColors = THEME_COLORS[theme];
 
   return (
-    <GestureDetector gesture={gesture}>
-      <View
-        style={{
-          width: '100%',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: themeColors.background,
-          marginTop: index > 0 ? -0.5 : 0,
-          zIndex: isZoomed ? 999 : 1,
-        }}>
-        <Animated.View
-          style={[
-            {
-              width: box.width,
-              height: Math.ceil(pageHeight),
-              backgroundColor: themeColors.background,
-            },
-            animatedStyle,
-          ]}>
-          <ExpoImage
-            key={`${currentUrl}-${retryKey}`}
-            source={{
-              uri: currentUrl,
-              headers: resolvedHeaders,
+    <View
+      style={{
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: themeColors.background,
+        marginTop: index > 0 ? -0.5 : 0,
+      }}>
+      <Animated.View
+        style={[
+          {
+            width: box.width,
+            height: Math.ceil(pageHeight),
+            backgroundColor: themeColors.background,
+          },
+          animatedStyle,
+        ]}>
+        <ExpoImage
+          key={`${currentUrl}-${retryKey}`}
+          source={{
+            uri: currentUrl,
+            headers: resolvedHeaders,
+          }}
+          style={{width: '100%', height: '100%'}}
+          // Full Screen fills the frame edge to edge, so the image must
+          // cover-crop; every other mode contains the whole page.
+          contentFit={scaleMode === 'full_screen' ? 'cover' : 'contain'}
+          priority={highQualityRendering ? 'high' : 'normal'}
+          recyclingKey={item.imageUrl}
+          enableLiveTextInteraction={false}
+          // High-quality ON (default): full original resolution, 32-bit
+          // ARGB, no downscaling. OFF: the decoder may downscale to the
+          // view size and uses 16-bit RGB — roughly half the bitmap memory
+          // per page, which is what makes big chapters scroll smoothly.
+          allowDownscaling={!highQualityRendering}
+          decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
+          cachePolicy="memory-disk"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      </Animated.View>
+
+      {/* Loading state indicator: only show if not already in natural size cache, non-blocking */}
+      {loading && !loadError && !measuredNaturalSizeCache.has(item.imageUrl) && (
+        <View pointerEvents="none" style={styles.centerOverlay}>
+          <ActivityIndicator size="small" color="#7C4DFF" />
+        </View>
+      )}
+
+      {/* Error state with retry */}
+      {loadError && (
+        <View style={styles.centerOverlay}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#FF5252" />
+          <AppText role="labelSmall" style={{color: '#FF5252', marginTop: 4}}>
+            Failed to load page {index + 1}
+          </AppText>
+          <Pressable
+            onPress={() => {
+              setLoading(true);
+              setLoadError(false);
+              setRetryKey(k => k + 1);
+              onRetryTranslation?.(index);
             }}
-            style={{width: '100%', height: '100%'}}
-            // Full Screen fills the frame edge to edge, so the image must
-            // cover-crop; every other mode contains the whole page.
-            contentFit={scaleMode === 'full_screen' ? 'cover' : 'contain'}
-            priority={highQualityRendering ? 'high' : 'normal'}
-            recyclingKey={item.imageUrl}
-            enableLiveTextInteraction={false}
-            // High-quality ON (default): full original resolution, 32-bit
-            // ARGB, no downscaling. OFF: the decoder may downscale to the
-            // view size and uses 16-bit RGB — roughly half the bitmap memory
-            // per page, which is what makes big chapters scroll smoothly.
-            allowDownscaling={!highQualityRendering}
-            decodeFormat={highQualityRendering ? 'argb' : 'rgb'}
-            cachePolicy="memory-disk"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
-        </Animated.View>
-
-        {/* Loading state indicator: only show if not already in natural size cache, non-blocking */}
-        {loading && !loadError && !measuredNaturalSizeCache.has(item.imageUrl) && (
-          <View pointerEvents="none" style={styles.centerOverlay}>
-            <ActivityIndicator size="small" color="#7C4DFF" />
-          </View>
-        )}
-
-        {/* Error state with retry */}
-        {loadError && (
-          <View style={styles.centerOverlay}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#FF5252" />
-            <AppText role="labelSmall" style={{color: '#FF5252', marginTop: 4}}>
-              Failed to load page {index + 1}
+            style={styles.retryButton}>
+            <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
+            <AppText role="labelSmall" style={{color: '#FFFFFF', fontWeight: '700'}}>
+              Retry
             </AppText>
-            <Pressable
-              onPress={() => {
-                setLoading(true);
-                setLoadError(false);
-                setRetryKey(k => k + 1);
-                onRetryTranslation?.(index);
-              }}
-              style={styles.retryButton}>
-              <MaterialCommunityIcons name="reload" size={14} color="#FFFFFF" />
-              <AppText role="labelSmall" style={{color: '#FFFFFF', fontWeight: '700'}}>
-                Retry
-              </AppText>
-            </Pressable>
-          </View>
-        )}
+          </Pressable>
+        </View>
+      )}
 
-        {/* Translation Bubbles Overlay */}
-        {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
-          <TranslatedBubbleOverlay
-            bubbles={translationBubbles}
-            renderedWidth={box.width}
-            renderedHeight={pageHeight}
-            visible={true}
-          />
-        )}
-      </View>
-    </GestureDetector>
+      {/* Translation Bubbles Overlay */}
+      {translateEnabled && translationBubbles && translationBubbles.length > 0 && (
+        <TranslatedBubbleOverlay
+          bubbles={translationBubbles}
+          renderedWidth={box.width}
+          renderedHeight={pageHeight}
+          visible={true}
+        />
+      )}
+    </View>
   );
 });
 
@@ -469,13 +358,18 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // Rotation guard (see the effect below): re-anchor to the same page when
   // the window size changes, instead of keeping the old pixel offset.
   const prevDimsRef = useRef<{width: number; height: number} | null>(null);
-  // While a rotation is settling, user scrolling and every automatic jump
-  // are locked out: if the user drags mid-transition, or the viewability
-  // handler fires on a half-laid-out list, the list fights the re-anchor
-  // and the scroll runs away (user, 2026-11-18). Set by the rotation
-  // effect, cleared once the re-anchor has landed and the layout settled.
+
+  // Document-level PDF-style zoom & pan for continuous scroll
+  const docScale = useSharedValue(1.0);
+  const savedDocScale = useSharedValue(1.0);
+  const docTransX = useSharedValue(0);
+  const savedDocTransX = useSharedValue(0);
+
+  // While a rotation is settling, automatic jumps and viewability handlers
+  // are locked out: if the viewability handler fires on a half-laid-out list,
+  // the list fights the re-anchor and the scroll runs away (user, 2026-11-18).
+  // Set by the rotation effect, cleared once the re-anchor has landed and layout settled.
   const isRotatingRef = useRef<boolean>(false);
-  const [isRotating, setIsRotating] = useState<boolean>(false);
   // Bumps every time a page reports a real measured height, so the
   // prefix-sum below (and getItemLayout) recompute from true heights
   // instead of the fallback ratio.
@@ -593,6 +487,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     [pages.length, calculatePageOffset],
   );
 
+  const jumpToPageRef = useRef(jumpToPage);
+  jumpToPageRef.current = jumpToPage;
+
   // Direct jump triggered by slider commit
   useEffect(() => {
     if (sliderJumpTarget) {
@@ -625,78 +522,54 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // so the old pixel offset lands on a different page — or on a gap while
   // heights settle, which is the shaking / disappearing image. Re-anchor to
   // the last reported page, without animation, once the new layout settles.
-  // The jump lock keeps the viewability handler from fighting it.
-  //
-  // Rotation fix, deep pass (user, 2026-11-18): the old fix cleared the
-  // measured-height cache and jumped to a PIXEL offset at fixed 60ms /
-  // 500ms timers — but the list was still laying out with the new sizes,
-  // so the offset (computed from heights the list had not rendered yet)
-  // landed on a random page (7 -> 17), the screen went black while pages
-  // remounted, and then the viewability handler + the external page-sync
-  // effect fired on the wrong page and jumped again while the user was
-  // trying to scroll — the runaway fast scrolling. Now:
-  // (a) the re-anchor uses scrollToIndex with getItemLayout, which lands
-  // on the exact page because the list knows every item's offset;
-  // (b) a rotation lock freezes user scrolling, the viewability handler
-  // and the external sync effect until the re-anchor has landed and the
-  // layout settled, so nothing fights the jump and nothing reports a
-  // wrong page mid-transition;
-  // (c) the measured-height cache IS cleared (a height measured at the
-  // old width is wrong at the new width) and the prefix sum recomputes
-  // from computePageBox; real measured heights replace the fallback as
-  // pages re-measure at the new width.
   useEffect(() => {
     const prev = prevDimsRef.current;
     prevDimsRef.current = {width: windowWidth, height: windowHeight};
     if (!prev) return;
     if (prev.width === windowWidth && prev.height === windowHeight) return;
+
+    // Reset doc zoom and pan on orientation switch so layout starts clean
+    docScale.value = 1.0;
+    savedDocScale.value = 1.0;
+    docTransX.value = 0;
+    savedDocTransX.value = 0;
+
     // Drop the old orientation's measured heights: a height measured at
     // the old width is wrong at the new width, and the prefix sum must
     // fall back to computePageBox (correct for the new window) until the
-    // pages re-measure. Keeping stale heights is what made the old
-    // pixel-offset jump land on a random page. Bump the measured version
-    // so the prefix sum recomputes from the cleared cache (a ref mutation
-    // alone would not invalidate the memo).
+    // pages re-measure.
     pageHeights.current = {};
     setMeasuredVersion(v => v + 1);
-    // (b) Lock everything that can move or report the page.
+
+    // Lock automatic jumps and scroll runaway mid-transition
     isRotatingRef.current = true;
-    setIsRotating(true);
     isJumpingRef.current = true;
     if (jumpTimerRef.current) {
       clearTimeout(jumpTimerRef.current);
     }
-    // (a) Re-anchor once the new layout is committed. A short 100ms delay
-    // (not requestAnimationFrame) gives React time to re-render with the
-    // cleared height cache, so getItemLayout uses the recomputed prefix
-    // sum; the second anchor at 500ms corrects any residual drift after
-    // pages re-measure.
-    let cancelled = false;
+
+    const targetIndex = lastReportedIndex.current;
     const timer1 = setTimeout(() => {
-      if (cancelled) return;
-      jumpToPage(lastReportedIndex.current);
+      jumpToPageRef.current(targetIndex);
     }, 100);
     const timer2 = setTimeout(() => {
-      if (cancelled) return;
-      jumpToPage(lastReportedIndex.current);
-    }, 500);
-    // Release the lock after the layout has settled. Uses its own timer
-    // ref — jumpToPage reuses jumpTimerRef for its 400ms lock, so sharing
-    // it here would let a re-anchor cancel the release and leave the
-    // rotation lock stuck on forever.
+      jumpToPageRef.current(targetIndex);
+    }, 400);
+
     const release = setTimeout(() => {
       isRotatingRef.current = false;
-      setIsRotating(false);
       isJumpingRef.current = false;
-    }, 900);
+    }, 600);
     rotateTimerRef.current = release;
+
     return () => {
-      cancelled = true;
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(release);
+      isRotatingRef.current = false;
+      isJumpingRef.current = false;
     };
-  }, [windowWidth, windowHeight, jumpToPage]);
+  }, [windowWidth, windowHeight]);
 
   // Clear jump timer on unmount
   useEffect(() => {
@@ -808,81 +681,175 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
 
   const themeColors = THEME_COLORS[theme];
 
+  // Two-Finger Pinch-to-Zoom Gesture (PDF-style continuous smooth zoom of entire comic)
+  const pinchGesture = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      savedDocScale.value = docScale.value;
+    })
+    .onUpdate(e => {
+      const next = Math.max(1.0, Math.min(3.5, savedDocScale.value * e.scale));
+      docScale.value = next;
+    })
+    .onEnd(() => {
+      if (docScale.value <= 1.05) {
+        docScale.value = withTiming(1.0, {duration: 150});
+        docTransX.value = withTiming(0, {duration: 150});
+        savedDocScale.value = 1.0;
+        savedDocTransX.value = 0;
+      } else {
+        savedDocScale.value = docScale.value;
+      }
+    });
+
+  // Pan Gesture: requires 2 fingers to scroll/pan horizontally towards borders,
+  // reserving 1-finger drag strictly for native vertical FlatList scrolling.
+  const panGesture = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(2)
+    .maxPointers(2)
+    .onStart(() => {
+      savedDocTransX.value = docTransX.value;
+    })
+    .onUpdate(e => {
+      const maxPanX = Math.max(0, (windowWidth * (docScale.value - 1)) / 2);
+      if (maxPanX > 0) {
+        const nextX = savedDocTransX.value + e.translationX;
+        if (nextX < -maxPanX) {
+          docTransX.value = -maxPanX + (nextX - (-maxPanX)) * 0.25;
+        } else if (nextX > maxPanX) {
+          docTransX.value = maxPanX + (nextX - maxPanX) * 0.25;
+        } else {
+          docTransX.value = nextX;
+        }
+      }
+    })
+    .onEnd(() => {
+      const maxPanX = Math.max(0, (windowWidth * (docScale.value - 1)) / 2);
+      const boundedX = Math.max(-maxPanX, Math.min(maxPanX, docTransX.value));
+      docTransX.value = withTiming(boundedX, {duration: 150});
+      savedDocTransX.value = boundedX;
+    });
+
+  // Single Tap Gesture (triggers HUD toggle)
+  const singleTapGesture = Gesture.Tap()
+    .numberOfTaps(1)
+    .maxDuration(250)
+    .runOnJS(true)
+    .onEnd(() => {
+      if (!overlayActive) {
+        onToggleHUD?.();
+      }
+    });
+
+  // Double Tap Gesture (1x <-> 2.0x global continuous zoom)
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDuration(300)
+    .runOnJS(true)
+    .onEnd(() => {
+      if (docScale.value > 1.15) {
+        docScale.value = withTiming(1.0, {duration: 200});
+        docTransX.value = withTiming(0, {duration: 200});
+        savedDocScale.value = 1.0;
+        savedDocTransX.value = 0;
+      } else {
+        docScale.value = withTiming(2.0, {duration: 200});
+        savedDocScale.value = 2.0;
+      }
+    });
+
+  const zoomGestures = Gesture.Simultaneous(pinchGesture, panGesture);
+  const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  const continuousGestures = Gesture.Simultaneous(zoomGestures, tapGestures);
+
+  const docAnimatedStyle = useAnimatedStyle(() => ({
+    flex: 1,
+    transform: [
+      {translateX: docTransX.value},
+      {scale: docScale.value},
+    ],
+  }));
+
   return (
     <View style={[styles.container, {backgroundColor: themeColors.background}]}>
-      <FlatList
-        ref={listRef}
-        data={pages}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}-${scaleMode}`}
-        horizontal={false}
-        pagingEnabled={false}
-        // Locked during a rotation so a drag mid-transition cannot fight
-        // the re-anchor and send the list running away.
-        scrollEnabled={!isRotating}
-        nestedScrollEnabled={true}
-        removeClippedSubviews={true}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={32}
-        ItemSeparatorComponent={null}
-        // Exact item layout: the list knows every page's height and offset
-        // without rendering, so scrollToIndex lands on the target page and
-        // the scroll position survives the rotation resize.
-        getItemLayout={getItemLayout}
-        ListFooterComponent={
-          hasNextChapter ? (
-            <EndOfChapterCard
-              hasNextChapter={!!hasNextChapter}
-              nextChapterTitle={nextChapterTitle}
-              onNextChapter={onNextChapter}
-              theme={theme}
-              isPaged={false}
-            />
-          ) : null
-        }
-        onEndReachedThreshold={0.05}
-        onEndReached={() => {
-          if (onReachEnd) {
-            onReachEnd();
-          }
-        }}
-        style={{backgroundColor: themeColors.background}}
-        contentContainerStyle={{backgroundColor: themeColors.background}}
-        onScroll={handleScroll}
-        onScrollBeginDrag={() => {
-          isUserScrolling.current = true;
-          onDismissHUD?.();
-        }}
-        onMomentumScrollBegin={() => {
-          isUserScrolling.current = true;
-        }}
-        onScrollEndDrag={(e: any) => {
-          const vy = Math.abs(e?.nativeEvent?.velocity?.y || 0);
-          if (vy < 0.1) {
-            isUserScrolling.current = false;
-          }
-        }}
-        onMomentumScrollEnd={() => {
-          isUserScrolling.current = false;
-        }}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        onScrollToIndexFailed={(info: any) => {
-          const offset =
-            typeof info.offset === 'number'
-              ? info.offset
-              : calculatePageOffset(info.index ?? 0);
-          setTimeout(() => {
-            try {
-              listRef.current?.scrollToOffset({offset, animated: false});
-            } catch {}
-          }, 50);
-        }}
-        windowSize={highQualityRendering ? 5 : 3}
-        maxToRenderPerBatch={highQualityRendering ? 3 : 2}
-        initialNumToRender={3}
-      />
+      <GestureDetector gesture={continuousGestures}>
+        <Animated.View style={[{flex: 1, overflow: 'hidden'}, docAnimatedStyle]}>
+          <FlatList
+            ref={listRef}
+            data={pages}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            extraData={`${zoomScale}-${reloadKey}-${theme}-${highQualityRendering}-${scaleMode}`}
+            horizontal={false}
+            pagingEnabled={false}
+            scrollEnabled={true}
+            nestedScrollEnabled={true}
+            removeClippedSubviews={true}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={32}
+            ItemSeparatorComponent={null}
+            // Exact item layout: the list knows every page's height and offset
+            // without rendering, so scrollToIndex lands on the target page and
+            // the scroll position survives the rotation resize.
+            getItemLayout={getItemLayout}
+            ListFooterComponent={
+              hasNextChapter ? (
+                <EndOfChapterCard
+                  hasNextChapter={!!hasNextChapter}
+                  nextChapterTitle={nextChapterTitle}
+                  onNextChapter={onNextChapter}
+                  theme={theme}
+                  isPaged={false}
+                />
+              ) : null
+            }
+            onEndReachedThreshold={0.05}
+            onEndReached={() => {
+              if (onReachEnd) {
+                onReachEnd();
+              }
+            }}
+            style={{backgroundColor: themeColors.background}}
+            contentContainerStyle={{backgroundColor: themeColors.background}}
+            onScroll={handleScroll}
+            onScrollBeginDrag={() => {
+              if (isRotatingRef.current) return;
+              isUserScrolling.current = true;
+              onDismissHUD?.();
+            }}
+            onMomentumScrollBegin={() => {
+              if (isRotatingRef.current) return;
+              isUserScrolling.current = true;
+            }}
+            onScrollEndDrag={(e: any) => {
+              const vy = Math.abs(e?.nativeEvent?.velocity?.y || 0);
+              if (vy < 0.1) {
+                isUserScrolling.current = false;
+              }
+            }}
+            onMomentumScrollEnd={() => {
+              isUserScrolling.current = false;
+            }}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            onScrollToIndexFailed={(info: any) => {
+              const offset =
+                typeof info.offset === 'number'
+                  ? info.offset
+                  : calculatePageOffset(info.index ?? 0);
+              setTimeout(() => {
+                try {
+                  listRef.current?.scrollToOffset({offset, animated: false});
+                } catch {}
+              }, 50);
+            }}
+            windowSize={highQualityRendering ? 5 : 3}
+            maxToRenderPerBatch={highQualityRendering ? 3 : 2}
+            initialNumToRender={3}
+          />
+        </Animated.View>
+      </GestureDetector>
 
       {/* In ONE_TAP mode: 3-Zone Edge Tap & HUD Toggle Overlay (Left 28%, Center 44%, Right 28%) */}
       {/* In SCROLL mode: NO overlay is rendered so FlatList has 100% unrestricted native touch scroll */}

@@ -388,63 +388,42 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     setHudVisible(prev => !prev);
   }, []);
 
-  // Floating Page Indicator auto-fade timer (2 seconds of inactivity)
-  const pageIndicatorOpacity = useRef(new Animated.Value(hudVisible ? 1 : 0)).current;
-  const pageIndicatorTimer = useRef<any>(null);
+  // Floating Page Indicator: automatically hides when upper/bottom function bars (HUD)
+  // or settings drawer are visible; smoothly pops up with animated transition when HUD hides
+  // and stays visible while in reading mode.
+  const pageIndicatorOpacity = useRef(new Animated.Value(0)).current;
 
   const showPageIndicator = useCallback(() => {
-    Animated.timing(pageIndicatorOpacity, {
-      toValue: 1,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-
-    if (pageIndicatorTimer.current) {
-      clearTimeout(pageIndicatorTimer.current);
-    }
-
-    if (!hudVisible) {
-      pageIndicatorTimer.current = setTimeout(() => {
-        Animated.timing(pageIndicatorOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      }, 2000);
-    }
-  }, [hudVisible, pageIndicatorOpacity]);
-
-  // Sync indicator visibility with hudVisible
-  useEffect(() => {
-    if (hudVisible) {
-      if (pageIndicatorTimer.current) {
-        clearTimeout(pageIndicatorTimer.current);
-      }
+    if (!hudVisible && !settingsSheetVisible) {
       Animated.timing(pageIndicatorOpacity, {
         toValue: 1,
-        duration: 150,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [hudVisible, settingsSheetVisible, pageIndicatorOpacity]);
+
+  useEffect(() => {
+    if (hudVisible || settingsSheetVisible) {
+      Animated.timing(pageIndicatorOpacity, {
+        toValue: 0,
+        duration: 200,
         useNativeDriver: true,
       }).start();
     } else {
-      showPageIndicator();
+      Animated.timing(pageIndicatorOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [hudVisible, showPageIndicator, pageIndicatorOpacity]);
-
-  // Clear page indicator timer on unmount
-  useEffect(() => {
-    return () => {
-      if (pageIndicatorTimer.current) {
-        clearTimeout(pageIndicatorTimer.current);
-      }
-    };
-  }, []);
+  }, [hudVisible, settingsSheetVisible, pageIndicatorOpacity]);
 
   // Dismiss HUD on comic scroll
   const handleDismissHUD = useCallback(() => {
     clearAutoHideTimer();
     setHudVisible(false);
-    showPageIndicator();
-  }, [clearAutoHideTimer, showPageIndicator]);
+  }, [clearAutoHideTimer]);
 
   // Handle hardware back button
   useFocusEffect(
@@ -1213,8 +1192,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         />
       )}
 
-      {/* Floating Page Number indicator (hidden when Settings sheet is open so it never hovers over the menu) */}
-      {settings.showFloatingPageNumber && pages.length > 0 && !settingsSheetVisible && (
+      {/* Floating Page Number indicator (smoothly fades out when HUD or Settings sheet are visible) */}
+      {settings.showFloatingPageNumber && pages.length > 0 && (
         <Animated.View
           pointerEvents="none"
           style={[
