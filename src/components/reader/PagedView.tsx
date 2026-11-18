@@ -371,6 +371,27 @@ export const PagedView: React.FC<PagedViewProps> = ({
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {
+      const handleImageSingleTap = (tapX: number) => {
+        if (interactionMode === 'one_tap') {
+          const leftB = windowWidth * 0.28;
+          const rightB = windowWidth * 0.72;
+          if (tapX >= leftB && tapX <= rightB) {
+            onToggleHUD?.();
+          } else if (tapX < leftB) {
+            handleLeftTap();
+          } else {
+            handleRightTap();
+          }
+        } else {
+          // In swipe mode: center 44% toggles HUD; edges do not block
+          const leftB = windowWidth * 0.28;
+          const rightB = windowWidth * 0.72;
+          if (tapX >= leftB && tapX <= rightB) {
+            onToggleHUD?.();
+          }
+        }
+      };
+
       if (item.isEndOfChapter) {
         return (
           <View
@@ -429,6 +450,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(leftIndex) : undefined}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
+                onSingleTap={handleImageSingleTap}
               />
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
@@ -451,6 +473,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onRetryTranslation={onRetryTranslation ? () => onRetryTranslation(rightIndex) : undefined}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
+                onSingleTap={tapX => handleImageSingleTap(tapX + windowWidth / 2)}
               />
             </View>
           </View>
@@ -501,6 +524,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
+                onSingleTap={handleImageSingleTap}
               />
             </View>
 
@@ -537,26 +561,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
             onPageLoaded={onPageLoaded}
             highQualityRendering={highQualityRendering}
-            onSingleTap={(tapX) => {
-              if (interactionMode === 'one_tap') {
-                const leftB = windowWidth * 0.28;
-                const rightB = windowWidth * 0.72;
-                if (tapX >= leftB && tapX <= rightB) {
-                  onToggleHUD?.();
-                } else if (tapX < leftB) {
-                  handleLeftTap();
-                } else {
-                  handleRightTap();
-                }
-              } else {
-                // In swipe mode: center 44% toggles HUD; edges do not block
-                const leftB = windowWidth * 0.28;
-                const rightB = windowWidth * 0.72;
-                if (tapX >= leftB && tapX <= rightB) {
-                  onToggleHUD?.();
-                }
-              }
-            }}
+            onSingleTap={handleImageSingleTap}
           />
         </View>
       );
@@ -578,6 +583,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
       onPageLoaded,
       handleRatioMeasured,
       highQualityRendering,
+      interactionMode,
+      handleLeftTap,
+      handleRightTap,
     ],
   );
 

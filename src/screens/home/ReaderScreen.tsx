@@ -1119,14 +1119,24 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
             }}>
             {pageError}
           </AppText>
-          <TouchableOpacity
-            onPress={handleOpenWafBypass}
-            style={styles.wafRetryButton}>
-            <MaterialCommunityIcons name="shield-check" size={18} color="#FFFFFF" />
-            <AppText role="labelLargeEmphasized" style={{color: '#FFFFFF'}}>
-              Open in WAF WebView
-            </AppText>
-          </TouchableOpacity>
+          <View style={{flexDirection: 'row', gap: 12, marginTop: 20}}>
+            <TouchableOpacity
+              onPress={() => setReloadKey(k => k + 1)}
+              style={styles.retryButton}>
+              <MaterialCommunityIcons name="reload" size={18} color="#FFFFFF" />
+              <AppText role="labelLargeEmphasized" style={{color: '#FFFFFF'}}>
+                Retry
+              </AppText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOpenWafBypass}
+              style={styles.wafRetryButton}>
+              <MaterialCommunityIcons name="shield-check" size={18} color="#FFFFFF" />
+              <AppText role="labelLargeEmphasized" style={{color: '#FFFFFF'}}>
+                WAF WebView
+              </AppText>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : settings.readingMode === 'webtoon' ? (
         <WebtoonContinuousReader
@@ -1302,11 +1312,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#00E676',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
   wafRetryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 20,
     backgroundColor: '#7C4DFF',
     paddingHorizontal: 20,
     paddingVertical: 10,
