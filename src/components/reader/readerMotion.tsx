@@ -1,6 +1,33 @@
 import React, {useCallback} from 'react';
-import {Pressable} from 'react-native';
+import {Pressable, StyleSheet} from 'react-native';
 import Animated, {useAnimatedStyle, useSharedValue, withSpring} from 'react-native-reanimated';
+
+// Layout props that must live on the direct flex child (the Pressable)
+// for the parent to size it. Before this fix the whole `style` went only
+// to the inner Animated.View, so a `width: '48%'` card inside a wrapping
+// row measured its parent (the Pressable, which had no width) and came
+// out narrow — the Reader Settings fit buttons wrapped letter by letter
+// and the Quick Tools cards became tall empty bars (user, 2026-11-18).
+const LAYOUT_PROPS = new Set([
+  'width',
+  'height',
+  'minWidth',
+  'maxWidth',
+  'minHeight',
+  'maxHeight',
+  'flex',
+  'flexGrow',
+  'flexShrink',
+  'flexBasis',
+  'alignSelf',
+  'margin',
+  'marginHorizontal',
+  'marginVertical',
+  'marginTop',
+  'marginBottom',
+  'marginLeft',
+  'marginRight',
+]);
 
 /**
  * A pressable that gives a soft fluid "squish" when touched: it shrinks to
@@ -30,13 +57,23 @@ export const PressScale: React.FC<{
     scale.value = withSpring(1, {damping: 14, stiffness: 300});
   }, [scale]);
 
+  // Flatten (style may be an array) and split off the layout props for
+  // the outer Pressable; the inner view keeps the full style so the
+  // appearance and the press-scale transform still cover the whole card.
+  const flatStyle = StyleSheet.flatten(style) || {};
+  const pressableStyle: Record<string, any> = {};
+  for (const key of Object.keys(flatStyle)) {
+    if (LAYOUT_PROPS.has(key)) pressableStyle[key] = (flatStyle as any)[key];
+  }
+
   return (
     <Pressable
       onPress={onPress}
       onPressIn={pressIn}
       onPressOut={pressOut}
       disabled={disabled}
-      accessibilityLabel={accessibilityLabel}>
+      accessibilityLabel={accessibilityLabel}
+      style={pressableStyle}>
       <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
     </Pressable>
   );
