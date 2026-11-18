@@ -80,6 +80,16 @@ const SliderPosterItem = memo(
         providerBadge={item.provider || providerValue}
         comicLink={item.link}
         isNew={item.tag === 'NEW' || item.cornerTag === 'NEW' || (item as any).isNew}
+        // Total chapter count watermark (user, 2026-11-18): shown as
+        // the top-left badge on the thumbnail while scrolling.
+        badge={
+          typeof (item as any).chapterCount === 'number' &&
+          (item as any).chapterCount > 0
+            ? (item as any).chapterCount === 1
+              ? '1 Ch'
+              : `${(item as any).chapterCount} Ch`
+            : undefined
+        }
         onPress={handlePress}
         onPressIn={handlePressIn}
         onLongPress={handleLongPress}

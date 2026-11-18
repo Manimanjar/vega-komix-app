@@ -1,5 +1,6 @@
 import ScreenSafeArea from '../components/ui/ScreenSafeArea';
 import { View, Pressable, useWindowDimensions } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList, SearchStackParamList } from '../App';
@@ -38,6 +39,50 @@ const LIST_POSTER_HEIGHT = 100;
 const GRID_SCREEN_PADDING = 16;
 const GRID_ITEM_MARGIN = 12;
 const GRID_POSTER_ASPECT_RATIO = GRID_POSTER_HEIGHT / GRID_POSTER_WIDTH;
+
+// Sort modes for the category sort chips (user, 2026-11-18): rating and
+// views, each high-to-low and low-to-high. Sorting is client-side over
+// the posts loaded so far and re-applies as more pages arrive.
+type SortMode =
+  | 'default'
+  | 'rating-desc'
+  | 'rating-asc'
+  | 'views-desc'
+  | 'views-asc';
+
+function numericRating(post: Post): number | undefined {
+  const r = (post as any)?.rating;
+  const n = typeof r === 'number' ? r : parseFloat(String(r ?? ''));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function numericViews(post: Post): number | undefined {
+  const v = (post as any)?.views;
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+// Posts with no rating/views are "unknown" and always sort last, in
+// both directions, so the top of the list is never an unrated item.
+function compareSort(a: Post, b: Post, mode: SortMode): number {
+  if (mode === 'rating-desc' || mode === 'rating-asc') {
+    const ra = numericRating(a);
+    const rb = numericRating(b);
+    if (ra == null && rb == null) return 0;
+    if (ra == null) return 1;
+    if (rb == null) return -1;
+    return mode === 'rating-desc' ? rb - ra : ra - rb;
+  }
+  if (mode === 'views-desc' || mode === 'views-asc') {
+    const va = numericViews(a);
+    const vb = numericViews(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return mode === 'views-desc' ? vb - va : va - vb;
+  }
+  return 0;
+}
 
 const ScrollListCard = memo(({
   item,
@@ -104,6 +149,14 @@ const ScrollListCard = memo(({
     (item as any).badge ??
     (item as any).rating;
   const activeTag = rawTag != null ? String(rawTag).trim() : '';
+  // Total chapter count for the thumbnail watermark (user, 2026-11-18).
+  // Shown as a small pill at the bottom-left of the cover so it never
+  // clashes with the tag at the top-right.
+  const chapterCount =
+    typeof (item as any).chapterCount === 'number' &&
+    (item as any).chapterCount > 0
+      ? (item as any).chapterCount
+      : undefined;
 
   const listWidth = itemRatio > 1.2 ? 110 : LIST_POSTER_WIDTH;
   const listHeight = Math.round(listWidth / itemRatio);
@@ -196,6 +249,52 @@ const ScrollListCard = memo(({
             </BlurView>
           </View>
         ) : null}
+        {chapterCount != null ? (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 5,
+              left: 5,
+              borderRadius: 5,
+              overflow: 'hidden',
+              zIndex: 10,
+              elevation: 6,
+              backgroundColor: 'rgba(0, 0, 0, 0.65)',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.35,
+              shadowRadius: 4,
+            }}>
+            <View
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.20)',
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+              }}>
+              <MaterialCommunityIcons
+                name="book-open-page-variant"
+                size={10}
+                color="#FFFFFF"
+              />
+              <AppText
+                role="labelSmallEmphasized"
+                style={{
+                  color: '#FFFFFF',
+                  fontWeight: '800',
+                  fontSize: 9.5,
+                  letterSpacing: 0.5,
+                  textShadowColor: 'rgba(0, 0, 0, 0.85)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 3,
+                }}>
+                {chapterCount === 1 ? '1 Ch' : `${chapterCount} Ch`}
+              </AppText>
+            </View>
+          </View>
+        ) : null}
       </View>
       <AppText
         role={viewType === 1 ? 'bodySmall' : 'bodyLargeEmphasized'}
@@ -226,6 +325,9 @@ const ScrollList = ({ route }: Props): React.ReactElement => {
   const [page, setPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isEnd, setIsEnd] = useState<boolean>(false);
+  // Sort mode for the category sort chips (user, 2026-11-18). 'default'
+  // is the site's own order. Reset when the category/search changes.
+  const [sort, setSort] = useState<SortMode>('default');
   const provider = useContentStore(state => state.provider);
   const [viewType, setViewType] = useState<number>(
     settingsStorage.getListViewType(),
@@ -265,6 +367,12 @@ const ScrollList = ({ route }: Props): React.ReactElement => {
 
   const isSearch = Boolean(route.params?.isSearch);
   const activeProviderValue = providerValue || provider?.value || '';
+
+  // Reset the sort when the category or search changes so a previous
+  // category's sort does not leak into the new list.
+  useEffect(() => {
+    setSort('default');
+  }, [filter, activeProviderValue, isSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,8 +447,26 @@ const ScrollList = ({ route }: Props): React.ReactElement => {
   const skeletons: ListItem[] = Array.from({
     length: viewType === 1 ? gridColumns * 3 : 6,
   }).map((_, i) => ({ id: `skeleton-${i}`, isSkeleton: true }));
+
+  // Sorted view of the loaded posts. The sort re-applies whenever more
+  // pages arrive, so scrolling keeps the chosen order. Only offer the
+  // chips when at least one loaded post actually has a rating or views
+  // — a provider whose site shows neither has nothing to sort by.
+  const sortedPosts = useMemo(() => {
+    if (sort === 'default') return posts;
+    return [...posts].sort((a, b) => compareSort(a, b, sort));
+  }, [posts, sort]);
+
+  const hasSortableData = useMemo(
+    () =>
+      posts.some(
+        post => numericRating(post) != null || numericViews(post) != null,
+      ),
+    [posts],
+  );
+
   const listData: ListItem[] =
-    posts.length === 0 && isLoading ? skeletons : posts;
+    posts.length === 0 && isLoading ? skeletons : sortedPosts;
 
   const renderSkeletonItem = () => {
     const defaultSkeletonHeight = Math.round(gridPosterWidth / dominantRatio);
@@ -405,6 +531,65 @@ const ScrollList = ({ route }: Props): React.ReactElement => {
           }}
         />
       </View>
+      {/* Sort chips (user, 2026-11-18): Rating and Views, each in both
+          orders. Tapping the active chip again returns to the site's
+          own order. Only shown when the loaded posts have rating or
+          views data to sort by. */}
+      {hasSortableData ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            paddingHorizontal: 4,
+            paddingBottom: 12,
+          }}>
+          {(
+            [
+              { mode: 'rating-desc', label: 'Rating: High to Low' },
+              { mode: 'rating-asc', label: 'Rating: Low to High' },
+              { mode: 'views-desc', label: 'Views: High to Low' },
+              { mode: 'views-asc', label: 'Views: Low to High' },
+            ] as const
+          ).map(chip => {
+            const active = sort === chip.mode;
+            return (
+              <Pressable
+                key={chip.mode}
+                onPress={() =>
+                  setSort(active ? 'default' : (chip.mode as SortMode))
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Sort by ${chip.label}`}
+                style={{
+                  backgroundColor: active
+                    ? colors.primaryContainer
+                    : colors.surfaceContainerHigh,
+                  borderColor: active
+                    ? colors.primary
+                    : colors.outlineVariant,
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                }}>
+                <AppText
+                  role="labelSmallEmphasized"
+                  style={{
+                    color: active
+                      ? colors.onPrimaryContainer
+                      : colors.onSurface,
+                    fontWeight: active ? '800' : '600',
+                    fontSize: 12,
+                  }}>
+                  {chip.label}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
       <View className="flex-1 w-full">
         <FlashList
           ListFooterComponent={
