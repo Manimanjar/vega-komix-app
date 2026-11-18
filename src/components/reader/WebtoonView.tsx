@@ -184,6 +184,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       const src = e?.source || (e.nativeEvent as any)?.source;
       const naturalWidth = src?.width || item.width;
       const naturalHeight = src?.height || item.height;
+      onPageLoaded?.(index);
       if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
         const dims = {width: naturalWidth, height: naturalHeight};
         setNaturalSize(dims);
@@ -191,7 +192,6 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
         const boxHeight = computePageBox(dims, screenWidth, screenHeight, scaleMode, zoomScale).height;
         setPageHeight(prev => (Math.abs(prev - boxHeight) > 1 ? boxHeight : prev));
         onPageMeasured?.(index, boxHeight);
-        onPageLoaded?.(index);
       }
     },
     [screenWidth, screenHeight, scaleMode, zoomScale, item.width, item.height, item.imageUrl, index, onPageMeasured, onPageLoaded],
@@ -369,9 +369,9 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
           />
         </Animated.View>
 
-        {/* Loading state indicator */}
-        {loading && !loadError && (
-          <View style={styles.centerOverlay}>
+        {/* Loading state indicator: only show if not already in natural size cache, non-blocking */}
+        {loading && !loadError && !measuredNaturalSizeCache.has(item.imageUrl) && (
+          <View pointerEvents="none" style={styles.centerOverlay}>
             <ActivityIndicator size="small" color="#7C4DFF" />
           </View>
         )}

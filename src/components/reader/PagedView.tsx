@@ -537,6 +537,26 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onRatioMeasured={ratio => handleRatioMeasured(item.indexA, ratio)}
             onPageLoaded={onPageLoaded}
             highQualityRendering={highQualityRendering}
+            onSingleTap={(tapX) => {
+              if (interactionMode === 'one_tap') {
+                const leftB = windowWidth * 0.28;
+                const rightB = windowWidth * 0.72;
+                if (tapX >= leftB && tapX <= rightB) {
+                  onToggleHUD?.();
+                } else if (tapX < leftB) {
+                  handleLeftTap();
+                } else {
+                  handleRightTap();
+                }
+              } else {
+                // In swipe mode: center 44% toggles HUD; edges do not block
+                const leftB = windowWidth * 0.28;
+                const rightB = windowWidth * 0.72;
+                if (tapX >= leftB && tapX <= rightB) {
+                  onToggleHUD?.();
+                }
+              }
+            }}
           />
         </View>
       );
@@ -617,8 +637,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
         removeClippedSubviews={true}
       />
 
-      {/* Tap & HUD Toggle Overlay */}
-      {interactionMode === 'one_tap' ? (
+      {/* Tap & HUD Toggle Overlay: rendered only in one_tap mode; swipe mode delegates single-tap to ReaderImage so pinch/zoom are 100% unrestricted */}
+      {interactionMode === 'one_tap' && (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
           {/* Left Edge: 28% width */}
           <Pressable
@@ -636,14 +656,6 @@ export const PagedView: React.FC<PagedViewProps> = ({
           <Pressable
             style={styles.rightTapZone}
             onPress={handleRightTap}
-          />
-        </View>
-      ) : (
-        /* In SWIPE mode: Center 44% tap toggles HUD; edges are 100% free for natural swiping */
-        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          <Pressable
-            style={styles.centerTapZone}
-            onPress={onToggleHUD}
           />
         </View>
       )}
