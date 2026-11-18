@@ -37,6 +37,10 @@ interface ContentOverviewProps {
   onToggleSynopsis: () => void;
   providerName: string;
   rating?: string;
+  // Real view count from the provider site (user, 2026-11-18). Shown
+  // as an eye badge next to the rating; hidden when the site does not
+  // show views.
+  views?: number;
   readMore: boolean;
   synopsis: string;
   synopsisLoading: boolean;
@@ -163,6 +167,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   onToggleSynopsis,
   providerName,
   rating,
+  views,
   readMore,
   synopsis,
   synopsisLoading,
@@ -443,6 +448,36 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
                   role="labelSmallEmphasized"
                   style={{color: '#FFB300', fontWeight: '800', fontSize: 11}}>
                   {normalizedRating}
+                </AppText>
+              </View>
+            ) : null}
+
+            {typeof views === 'number' && views > 0 ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  borderColor: 'rgba(255, 255, 255, 0.16)',
+                  borderWidth: 1,
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 3,
+                  gap: 4,
+                }}>
+                <MaterialCommunityIcons
+                  name="eye"
+                  size={13}
+                  color={colors.onSurfaceVariant}
+                />
+                <AppText
+                  role="labelSmallEmphasized"
+                  style={{
+                    color: colors.onSurface,
+                    fontWeight: '800',
+                    fontSize: 11,
+                  }}>
+                  {views.toLocaleString()}
                 </AppText>
               </View>
             ) : null}

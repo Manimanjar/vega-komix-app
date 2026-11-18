@@ -537,6 +537,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}
                   rating={meta?.imdbRating || info?.rating}
+                  views={info?.views}
                   readMore={readMore}
                   synopsis={synopsis}
                   synopsisLoading={isSynopsisLoading}
