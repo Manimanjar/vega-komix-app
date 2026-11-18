@@ -574,22 +574,44 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // heights settle, which is the shaking / disappearing image. Re-anchor to
   // the last reported page, without animation, once the new layout settles.
   // The jump lock keeps the viewability handler from fighting it.
+  //
+  // Rotation fix (user, 2026-11-18): the measured-height cache held the
+  // OLD orientation's heights, so the first re-anchor jumped to an offset
+  // computed from stale heights; then as pages re-measured at the new
+  // width the layout drifted, the viewability handler reported a different
+  // top page, and the page-change effect jumped again — a feedback loop
+  // that kept shaking until the reader was reopened. So on rotation we
+  // (a) clear the stale height cache so offsets are computed fresh from
+  // the new window size, (b) hold the jump lock longer while the layout
+  // settles, and (c) re-anchor a second time after the pages have
+  // re-measured, to correct any residual drift.
   useEffect(() => {
     const prev = prevDimsRef.current;
     prevDimsRef.current = {width: windowWidth, height: windowHeight};
     if (!prev) return;
     if (prev.width === windowWidth && prev.height === windowHeight) return;
+    // (a) Drop the old orientation's measured heights.
+    pageHeights.current = {};
     isJumpingRef.current = true;
     if (jumpTimerRef.current) {
       clearTimeout(jumpTimerRef.current);
     }
+    // (b) Hold the lock while the new layout settles.
     jumpTimerRef.current = setTimeout(() => {
       isJumpingRef.current = false;
-    }, 400);
+    }, 1000);
     const timer = setTimeout(() => {
       jumpToPage(lastReportedIndex.current);
     }, 60);
-    return () => clearTimeout(timer);
+    // (c) Second re-anchor once the pages have re-measured at the new
+    // width, correcting any drift from the first jump.
+    const timer2 = setTimeout(() => {
+      jumpToPage(lastReportedIndex.current);
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
   }, [windowWidth, windowHeight, jumpToPage]);
 
   // Clear jump timer on unmount
