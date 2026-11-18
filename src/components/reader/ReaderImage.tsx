@@ -50,6 +50,9 @@ interface ReaderImageProps {
   /** Width the image may occupy in paged mode (full window by default;
       half the window for double-spread pairs). */
   maxWidth?: number;
+  onZoomChange?: (newScale: number) => void;
+  onSwipeNextPage?: () => void;
+  onSwipePrevPage?: () => void;
 }
 
 const CircularProgress = ({
@@ -126,6 +129,9 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   highQualityRendering = true,
   onPageLoaded,
   maxWidth,
+  onZoomChange,
+  onSwipeNextPage,
+  onSwipePrevPage,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
@@ -264,6 +270,17 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
 
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
 
+  // Layout boundaries: available frame width vs scaled content
+  const frameWidth = maxWidth ?? windowWidth;
+  const totalWidth = containerDimensions.width * scale.value;
+  const totalHeight = containerDimensions.height * scale.value;
+  const maxTransX = Math.max(0, (totalWidth - frameWidth) / 2);
+  const maxTransY = Math.max(0, (totalHeight - windowHeight) / 2);
+  const isMagnified = maxTransX > 6 || maxTransY > 6 || (zoomScale ?? 1.0) > 1.05 || scale.value > 1.05 || isZoomed;
+
+  const atRightBorder = useSharedValue<boolean>(false);
+  const atLeftBorder = useSharedValue<boolean>(false);
+
   const resetZoom = useCallback(() => {
     scale.value = withTiming(1, {duration: 200});
     translationX.value = withTiming(0, {duration: 200});
@@ -281,50 +298,81 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       savedScale.value = scale.value;
     })
     .onUpdate(e => {
-      const target = Math.max(0.75, Math.min(4.5, savedScale.value * e.scale));
+      const target = Math.max(0.6, Math.min(4.0, savedScale.value * e.scale));
       scale.value = target;
       if (target > 1.05 && !isZoomed) {
         setIsZoomed(true);
       }
     })
     .onEnd(() => {
-      if (scale.value < 1.05) {
+      const base = zoomScale || 1.0;
+      const committed = Math.round(Math.max(0.6, Math.min(3.5, base * scale.value)) * 100) / 100;
+      scale.value = withTiming(1, {duration: 150});
+      savedScale.value = 1;
+      if (Math.abs(committed - base) > 0.05) {
+        onZoomChange?.(committed);
+      } else if (committed <= 1.05) {
         resetZoom();
-      } else {
-        savedScale.value = scale.value;
       }
     });
 
-  // Pan Gesture (panning across magnified image; enabled ONLY when zoomed in)
+  // Pan Gesture (panning across magnified image; enabled when magnified or zoomScale > 1)
   const panGesture = Gesture.Pan()
     .runOnJS(true)
     .minPointers(1)
     .maxPointers(2)
-    .enabled(isZoomed)
+    .enabled(isMagnified)
     .onStart(() => {
       savedTranslationX.value = translationX.value;
       savedTranslationY.value = translationY.value;
+      // Record if we are already resting at or near the image border
+      atRightBorder.value = maxTransX > 0 && translationX.value <= -maxTransX + 10;
+      atLeftBorder.value = maxTransX > 0 && translationX.value >= maxTransX - 10;
     })
     .onUpdate(e => {
-      if (scale.value > 1.05) {
-        const maxTransX = (containerDimensions.width * (scale.value - 1)) / 2;
-        const maxTransY = (containerDimensions.height * (scale.value - 1)) / 2;
-        const nextX = savedTranslationX.value + e.translationX;
-        const nextY = savedTranslationY.value + e.translationY;
-        translationX.value = Math.max(-maxTransX - 30, Math.min(maxTransX + 30, nextX));
-        translationY.value = Math.max(-maxTransY - 30, Math.min(maxTransY + 30, nextY));
+      const nextX = savedTranslationX.value + e.translationX;
+      const nextY = savedTranslationY.value + e.translationY;
+
+      // Horizontal panning with resistance past image boundaries
+      if (maxTransX > 0) {
+        if (nextX < -maxTransX) {
+          translationX.value = -maxTransX + (nextX - (-maxTransX)) * 0.25;
+        } else if (nextX > maxTransX) {
+          translationX.value = maxTransX + (nextX - maxTransX) * 0.25;
+        } else {
+          translationX.value = nextX;
+        }
+      } else {
+        translationX.value = e.translationX * 0.25;
+      }
+
+      // Vertical panning with resistance past image boundaries
+      if (maxTransY > 0) {
+        if (nextY < -maxTransY) {
+          translationY.value = -maxTransY + (nextY - (-maxTransY)) * 0.25;
+        } else if (nextY > maxTransY) {
+          translationY.value = maxTransY + (nextY - maxTransY) * 0.25;
+        } else {
+          translationY.value = nextY;
+        }
       }
     })
-    .onEnd(() => {
-      if (scale.value > 1.05) {
-        const maxTransX = (containerDimensions.width * (scale.value - 1)) / 2;
-        const maxTransY = (containerDimensions.height * (scale.value - 1)) / 2;
-        const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
-        const boundedY = Math.max(-maxTransY, Math.min(maxTransY, translationY.value));
-        translationX.value = withTiming(boundedX, {duration: 150});
-        translationY.value = withTiming(boundedY, {duration: 150});
-        savedTranslationX.value = boundedX;
-        savedTranslationY.value = boundedY;
+    .onEnd(e => {
+      const boundedX = maxTransX > 0 ? Math.max(-maxTransX, Math.min(maxTransX, translationX.value)) : 0;
+      const boundedY = maxTransY > 0 ? Math.max(-maxTransY, Math.min(maxTransY, translationY.value)) : 0;
+      translationX.value = withTiming(boundedX, {duration: 150});
+      translationY.value = withTiming(boundedY, {duration: 150});
+      savedTranslationX.value = boundedX;
+      savedTranslationY.value = boundedY;
+
+      // Phone Gallery Style: If swiping past border, advance/retreat page
+      const swipedLeft = e.translationX < -40 || e.velocityX < -350;
+      const swipedRight = e.translationX > 40 || e.velocityX > 350;
+
+      if (swipedLeft && (atRightBorder.value || maxTransX === 0)) {
+        onSwipeNextPage?.();
+      } else if (swipedRight && (atLeftBorder.value || maxTransX === 0)) {
+        onSwipePrevPage?.();
       }
     });
 
@@ -340,22 +388,22 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
       }
     });
 
-  // Double Tap Gesture (1x <-> 2.5x anchored)
+  // Double Tap Gesture (1x <-> 2.0x anchored)
   // CRITICAL: runOnJS(true) ensures zoom animation executes safely without worklet crash
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .maxDuration(300)
     .runOnJS(true)
     .onEnd(e => {
-      if (scale.value > 1.2) {
+      const base = zoomScale || 1.0;
+      if (base > 1.2 || scale.value > 1.2) {
         resetZoom();
+        onZoomChange?.(1.0);
       } else {
-        const targetScale = 2.5;
+        const targetScale = 2.0;
         scale.value = withTiming(targetScale, {duration: 250});
         const centerX = windowWidth / 2;
         const centerY = windowHeight / 2;
-        const maxTransX = (containerDimensions.width * (targetScale - 1)) / 2;
-        const maxTransY = (containerDimensions.height * (targetScale - 1)) / 2;
         const targetX = Math.max(-maxTransX, Math.min(maxTransX, (centerX - e.x) * 1.5));
         const targetY = Math.max(-maxTransY, Math.min(maxTransY, (centerY - e.y) * 1.5));
         translationX.value = withTiming(targetX, {duration: 250});
@@ -364,6 +412,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
         savedTranslationX.value = targetX;
         savedTranslationY.value = targetY;
         setIsZoomed(true);
+        onZoomChange?.(targetScale);
       }
     });
 

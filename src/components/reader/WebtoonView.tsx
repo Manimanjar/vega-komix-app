@@ -61,6 +61,7 @@ export interface AutoHeightComicPageProps {
   onPageLoaded?: (index: number) => void;
   onToggleHUD?: () => void;
   highQualityRendering?: boolean;
+  onZoomChange?: (newScale: number) => void;
 }
 
 export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
@@ -79,6 +80,7 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
   onPageLoaded,
   onToggleHUD,
   highQualityRendering = true,
+  onZoomChange,
 }) => {
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
     cleanHighResImageUrl(autoDomainResolver.rewriteUrlWithResolvedDomain(item.imageUrl)),
@@ -218,58 +220,59 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       .catch(() => {});
   }, [index, currentUrl, resolvedHeaders]);
 
-  // Two-Finger Pinch-to-Zoom Gesture (website-grade smooth zoom)
+  // Layout boundaries for horizontal panning when page is wider than screen
+  const totalW = box.width * scale.value;
+  const maxTransX = Math.max(0, (totalW - screenWidth) / 2);
+  const isMagnified = maxTransX > 6 || (zoomScale && zoomScale > 1.05) || scale.value > 1.05 || isZoomed;
+
+  // Two-Finger Pinch-to-Zoom Gesture (PDF-style continuous smooth zoom)
   const pinchGesture = Gesture.Pinch()
     .runOnJS(true)
     .onStart(() => {
       savedScale.value = scale.value;
     })
     .onUpdate(e => {
-      const target = Math.max(0.75, Math.min(4.5, savedScale.value * e.scale));
+      const target = Math.max(0.6, Math.min(4.0, savedScale.value * e.scale));
       scale.value = target;
       if (target > 1.05 && !isZoomed) {
         setIsZoomed(true);
       }
     })
     .onEnd(() => {
-      if (scale.value < 1.05) {
+      const base = zoomScale || 1.0;
+      const committed = Math.round(Math.max(0.6, Math.min(3.5, base * scale.value)) * 100) / 100;
+      scale.value = withTiming(1, {duration: 150});
+      savedScale.value = 1;
+      if (Math.abs(committed - base) > 0.05) {
+        onZoomChange?.(committed);
+      } else if (committed <= 1.05) {
         resetZoom();
-      } else {
-        savedScale.value = scale.value;
       }
     });
 
-  // Pan Gesture (panning across magnified image; enabled ONLY when zoomed in)
+  // Pan Gesture (panning across wide/magnified continuous page)
   const panGesture = Gesture.Pan()
     .runOnJS(true)
     .minPointers(1)
     .maxPointers(2)
-    .enabled(isZoomed)
+    .enabled(isMagnified && maxTransX > 0)
     .onStart(() => {
       savedTranslationX.value = translationX.value;
-      savedTranslationY.value = translationY.value;
     })
     .onUpdate(e => {
-      if (scale.value > 1.05) {
-        const maxTransX = (box.width * (scale.value - 1)) / 2;
-        const maxTransY = (pageHeight * (scale.value - 1)) / 2;
-        const nextX = savedTranslationX.value + e.translationX;
-        const nextY = savedTranslationY.value + e.translationY;
-        translationX.value = Math.max(-maxTransX - 30, Math.min(maxTransX + 30, nextX));
-        translationY.value = Math.max(-maxTransY - 30, Math.min(maxTransY + 30, nextY));
+      const nextX = savedTranslationX.value + e.translationX;
+      if (nextX < -maxTransX) {
+        translationX.value = -maxTransX + (nextX - (-maxTransX)) * 0.25;
+      } else if (nextX > maxTransX) {
+        translationX.value = maxTransX + (nextX - maxTransX) * 0.25;
+      } else {
+        translationX.value = nextX;
       }
     })
     .onEnd(() => {
-      if (scale.value > 1.05) {
-        const maxTransX = (box.width * (scale.value - 1)) / 2;
-        const maxTransY = (pageHeight * (scale.value - 1)) / 2;
-        const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
-        const boundedY = Math.max(-maxTransY, Math.min(maxTransY, translationY.value));
-        translationX.value = withTiming(boundedX, {duration: 150});
-        translationY.value = withTiming(boundedY, {duration: 150});
-        savedTranslationX.value = boundedX;
-        savedTranslationY.value = boundedY;
-      }
+      const boundedX = Math.max(-maxTransX, Math.min(maxTransX, translationX.value));
+      translationX.value = withTiming(boundedX, {duration: 150});
+      savedTranslationX.value = boundedX;
     });
 
   // Single Tap Gesture (triggers HUD toggle)
@@ -283,29 +286,18 @@ export const AutoHeightComicPage = React.memo<AutoHeightComicPageProps>(({
       }
     });
 
-  // Double Tap Gesture (1x <-> 2.5x anchored)
+  // Double Tap Gesture (1x <-> 2.0x global zoom)
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .maxDuration(300)
     .runOnJS(true)
-    .onEnd(e => {
-      if (scale.value > 1.2) {
+    .onEnd(() => {
+      const base = zoomScale || 1.0;
+      if (base > 1.2 || scale.value > 1.2) {
         resetZoom();
+        onZoomChange?.(1.0);
       } else {
-        const targetScale = 2.5;
-        scale.value = withTiming(targetScale, {duration: 250});
-        const centerX = screenWidth / 2;
-        const centerY = pageHeight / 2;
-        const maxTransX = (box.width * (targetScale - 1)) / 2;
-        const maxTransY = (pageHeight * (targetScale - 1)) / 2;
-        const targetX = Math.max(-maxTransX, Math.min(maxTransX, (centerX - e.x) * 1.5));
-        const targetY = Math.max(-maxTransY, Math.min(maxTransY, (centerY - e.y) * 1.5));
-        translationX.value = withTiming(targetX, {duration: 250});
-        translationY.value = withTiming(targetY, {duration: 250});
-        savedScale.value = targetScale;
-        savedTranslationX.value = targetX;
-        savedTranslationY.value = targetY;
-        setIsZoomed(true);
+        onZoomChange?.(2.0);
       }
     });
 
@@ -436,6 +428,7 @@ export interface WebtoonViewProps {
   pageTranslations?: Record<number, PageTranslationResult>;
   onRetryTranslation?: (pageIndex: number) => void;
   highQualityRendering?: boolean;
+  onZoomChange?: (newScale: number) => void;
 }
 
 export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
@@ -461,6 +454,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   pageTranslations,
   onRetryTranslation,
   highQualityRendering = true,
+  onZoomChange,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const listRef = useRef<FlatList<ReaderPageItem>>(null);
@@ -783,6 +777,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
           onPageLoaded={onPageLoaded}
           onToggleHUD={overlayActive ? undefined : onToggleHUD}
           highQualityRendering={highQualityRendering}
+          onZoomChange={onZoomChange}
         />
       );
     },
@@ -802,6 +797,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       onToggleHUD,
       overlayActive,
       highQualityRendering,
+      onZoomChange,
     ],
   );
 

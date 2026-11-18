@@ -41,6 +41,7 @@ interface PagedViewProps {
   onRetryTranslation?: (pageIndex: number) => void;
   splitDoubleSpreads?: boolean;
   highQualityRendering?: boolean;
+  onZoomChange?: (newScale: number) => void;
 }
 
 interface SpreadPageGroup {
@@ -79,6 +80,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   onRetryTranslation,
   splitDoubleSpreads = true,
   highQualityRendering = true,
+  onZoomChange,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -451,6 +453,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
                 onSingleTap={handleImageSingleTap}
+                onZoomChange={onZoomChange}
+                onSwipeNextPage={handleRightTap}
+                onSwipePrevPage={handleLeftTap}
               />
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight}}>
@@ -474,6 +479,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
                 onSingleTap={tapX => handleImageSingleTap(tapX + windowWidth / 2)}
+                onZoomChange={onZoomChange}
+                onSwipeNextPage={handleRightTap}
+                onSwipePrevPage={handleLeftTap}
               />
             </View>
           </View>
@@ -525,6 +533,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onPageLoaded={onPageLoaded}
                 highQualityRendering={highQualityRendering}
                 onSingleTap={handleImageSingleTap}
+                onZoomChange={onZoomChange}
+                onSwipeNextPage={handleRightTap}
+                onSwipePrevPage={handleLeftTap}
               />
             </View>
 
@@ -562,6 +573,9 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onPageLoaded={onPageLoaded}
             highQualityRendering={highQualityRendering}
             onSingleTap={handleImageSingleTap}
+            onZoomChange={onZoomChange}
+            onSwipeNextPage={handleRightTap}
+            onSwipePrevPage={handleLeftTap}
           />
         </View>
       );
@@ -586,6 +600,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       interactionMode,
       handleLeftTap,
       handleRightTap,
+      onZoomChange,
     ],
   );
 

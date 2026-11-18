@@ -1076,6 +1076,14 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [infoUrl, chapterLink]);
 
+  const handleZoomChange = useCallback(
+    (newZoom: number) => {
+      const clamped = Math.round(Math.max(0.6, Math.min(3.5, newZoom)) * 100) / 100;
+      handleUpdateSettings({zoomScale: clamped});
+    },
+    [handleUpdateSettings],
+  );
+
   const themeColors = THEME_COLORS[settings.theme];
 
   return (
@@ -1153,6 +1161,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           onNextChapter={handleNextChapter}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
+          onZoomChange={handleZoomChange}
           reloadKey={reloadKey}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
@@ -1179,6 +1188,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           readingMode={settings.readingMode}
           scaleMode={settings.imageScale}
           zoomScale={settings.zoomScale}
+          onZoomChange={handleZoomChange}
           reloadKey={reloadKey}
           cropWhiteBorders={settings.cropWhiteBorders}
           theme={settings.theme}
@@ -1256,6 +1266,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         turboBadgeText={turboStats.statusText}
         translateEnabled={translateEnabled}
         translationStatus={translationStatus}
+        zoomScale={settings.zoomScale}
+        onZoomChange={handleZoomChange}
         onToggleTranslate={settingsStorage.isLiveTranslatorButtonEnabled() ? handleToggleTranslate : undefined}
         onBack={navigation.goBack}
         onSelectChapter={handleSelectChapter}

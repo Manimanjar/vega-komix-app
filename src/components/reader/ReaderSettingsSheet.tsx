@@ -158,6 +158,54 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     );
                   })}
                 </View>
+
+                {/* Manual Zoom Ratio adjustment row */}
+                <View style={styles.zoomSectionRow}>
+                  <View style={{flex: 1}}>
+                    <AppText role="titleSmall" style={{color: '#FFFFFF'}}>
+                      Manual Zoom Ratio
+                    </AppText>
+                    <AppText role="bodySmall" style={{color: '#71717A'}}>
+                      Smooth magnification for all pages & fit modes
+                    </AppText>
+                  </View>
+                  <View style={styles.sheetZoomPill}>
+                    <PressScale
+                      onPress={() =>
+                        onUpdateSettings({
+                          zoomScale: Math.max(0.6, Math.round(((settings.zoomScale ?? 1.0) - 0.15) * 100) / 100),
+                        })
+                      }
+                      style={styles.sheetZoomBtn}
+                      accessibilityLabel="Zoom out">
+                      <MaterialCommunityIcons name="minus" size={18} color="#FFFFFF" />
+                    </PressScale>
+                    <PressScale
+                      onPress={() => onUpdateSettings({zoomScale: 1.0})}
+                      style={styles.sheetZoomResetBtn}
+                      accessibilityLabel="Reset zoom to 100%">
+                      <AppText
+                        role="labelSmallEmphasized"
+                        style={{
+                          color: (settings.zoomScale ?? 1.0) !== 1.0 ? '#00E5FF' : '#FFFFFF',
+                          fontWeight: '700',
+                          fontSize: 12,
+                        }}>
+                        {Math.round((settings.zoomScale ?? 1.0) * 100)}%
+                      </AppText>
+                    </PressScale>
+                    <PressScale
+                      onPress={() =>
+                        onUpdateSettings({
+                          zoomScale: Math.min(3.5, Math.round(((settings.zoomScale ?? 1.0) + 0.15) * 100) / 100),
+                        })
+                      }
+                      style={styles.sheetZoomBtn}
+                      accessibilityLabel="Zoom in">
+                      <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+                    </PressScale>
+                  </View>
+                </View>
               </View>
 
               {/* 2. DISPLAY & EYE CARE (Warm Night Filter kept — see fix list) */}
@@ -420,6 +468,41 @@ const styles = StyleSheet.create({
   scaleCardActive: {
     backgroundColor: 'rgba(124, 77, 255, 0.15)',
     borderColor: '#7C4DFF',
+  },
+  zoomSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  sheetZoomPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#27272A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  sheetZoomBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetZoomResetBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   warmFilterRow: {
     flexDirection: 'row',

@@ -58,6 +58,8 @@ interface ReaderHUDProps {
   onOpenWafBypass?: () => void;
   onOpenSettings: () => void;
   onTouchActivity?: () => void;
+  zoomScale?: number;
+  onZoomChange?: (newScale: number) => void;
 }
 
 export const ReaderHUD: React.FC<ReaderHUDProps> = ({
@@ -89,6 +91,8 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   onToggleInteractionMode,
   onOpenSettings,
   onTouchActivity,
+  zoomScale = 1.0,
+  onZoomChange,
 }) => {
   const insets = useSafeAreaInsets();
   const [chapterModalVisible, setChapterModalVisible] = useState(false);
@@ -332,7 +336,49 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
             paddingBottom: Math.max(insets.bottom, 14),
           },
         ]}>
-        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+        {/* Zoom Adjustment Control Row */}
+        {onZoomChange && (
+          <View style={styles.zoomRow}>
+            <View style={styles.zoomPill}>
+              <PressScale
+                onPress={() => {
+                  onTouchActivity?.();
+                  onZoomChange?.(Math.max(0.6, Math.round(((zoomScale ?? 1.0) - 0.15) * 100) / 100));
+                }}
+                style={styles.zoomBtn}
+                accessibilityLabel="Zoom out">
+                <MaterialCommunityIcons name="magnify-minus-outline" size={17} color="#FFFFFF" />
+              </PressScale>
+              <PressScale
+                onPress={() => {
+                  onTouchActivity?.();
+                  onZoomChange?.(1.0);
+                }}
+                style={styles.zoomResetBtn}
+                accessibilityLabel="Reset zoom to 100%">
+                <AppText
+                  role="labelSmallEmphasized"
+                  style={{
+                    color: (zoomScale ?? 1.0) !== 1.0 ? '#00E5FF' : '#FFFFFF',
+                    fontWeight: '700',
+                    fontSize: 11,
+                  }}>
+                  {Math.round((zoomScale ?? 1.0) * 100)}%
+                </AppText>
+              </PressScale>
+              <PressScale
+                onPress={() => {
+                  onTouchActivity?.();
+                  onZoomChange?.(Math.min(3.5, Math.round(((zoomScale ?? 1.0) + 0.15) * 100) / 100));
+                }}
+                style={styles.zoomBtn}
+                accessibilityLabel="Zoom in">
+                <MaterialCommunityIcons name="magnify-plus-outline" size={17} color="#FFFFFF" />
+              </PressScale>
+            </View>
+          </View>
+        )}
+
         {/* Upper row: Clean page scrubber slider */}
         {(() => {
           const displayedPage =
@@ -666,6 +712,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     zIndex: 20,
+  },
+  zoomRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  zoomPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  zoomBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomResetBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sliderRow: {
     flexDirection: 'row',
