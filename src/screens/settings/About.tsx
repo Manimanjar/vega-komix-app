@@ -24,6 +24,7 @@ import {
   shareLogs,
   clearLogs,
 } from '../../lib/logging/vegaLog';
+import {bugSentinel} from '../../lib/telemetry/bugSentinel';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 
 const deletePartialFile = async (filePath: string) => {
@@ -306,6 +307,75 @@ const About = ({navigation}: any) => {
     }
   };
 
+  const [autoUploadWeekly, setAutoUploadWeekly] = useState(
+    bugSentinel.isAutoUploadEnabled(),
+  );
+  const [uploadingBugs, setUploadingBugs] = useState(false);
+  const [activeBugsCount, setActiveBugsCount] = useState(
+    bugSentinel.getActiveBugs().length,
+  );
+  const [lastBugSyncStatus, setLastBugSyncStatus] = useState(
+    bugSentinel.getLastUploadStatus(),
+  );
+
+  const handleUploadBugReport = async () => {
+    setUploadingBugs(true);
+    try {
+      const result = await bugSentinel.uploadBugReportToGitHub(true);
+      setActiveBugsCount(result.bugCount);
+      setLastBugSyncStatus(bugSentinel.getLastUploadStatus());
+      if (result.success) {
+        ToastAndroid.show(
+          `Bug report uploaded to GitHub (${result.bugCount} active bugs)`,
+          ToastAndroid.LONG,
+        );
+      } else {
+        ToastAndroid.show(
+          `Upload note: ${result.error || 'Network error'}`,
+          ToastAndroid.LONG,
+        );
+      }
+    } catch (err: any) {
+      ToastAndroid.show(
+        err?.message || 'Failed to upload bug report',
+        ToastAndroid.SHORT,
+      );
+    } finally {
+      setUploadingBugs(false);
+    }
+  };
+
+  const handleViewBugReport = () => {
+    const bugs = bugSentinel.getActiveBugs();
+    if (bugs.length === 0) {
+      showAppDialog({
+        title: 'Bug Sentinel — Clean Health',
+        message:
+          'Zero bugs, crashes, or severe UI lag incidents have been detected.\n\nAll app systems are running normally. Zero personal data or watch history is stored.',
+        actions: [{label: 'OK', variant: 'primary'}],
+      });
+      return;
+    }
+    showAppDialog({
+      title: `Bug Sentinel (${bugs.length} Active Bugs)`,
+      message: `Latest Captured Issues:\n\n${bugs
+        .slice(0, 5)
+        .map(
+          (b, i) =>
+            `${i + 1}. [${b.severity}] ${b.title}\n   Hits: ${b.count} | Seen: ${b.lastSeen.substring(11, 19)}`,
+        )
+        .join('\n\n')}\n\nNote: All sensitive data, history, and titles are 100% stripped.`,
+      actions: [{label: 'OK', variant: 'primary'}],
+    });
+  };
+
+  const handleClearBugSentinel = () => {
+    bugSentinel.clearAllBugs();
+    setActiveBugsCount(0);
+    setLastBugSyncStatus('Cleared');
+    ToastAndroid.show('Bug telemetry cleared', ToastAndroid.SHORT);
+  };
+
   // Register only while this screen is focused. A hidden screen in a
   // mounted tab or stack must not swallow back presses.
   useFocusEffect(
@@ -473,8 +543,8 @@ const About = ({navigation}: any) => {
             icon="translate"
           />
           <SettingsRow
-            title="4-Mode Turbo Reader"
-            description="Vertical Webtoon, RTL Manga, LTR Comic, and Landscape Double-Page Spread"
+            title="Turbo Reader"
+            description="Continuous Webtoon & Page by Page with Western Reading Flow & Smart Zoom"
             icon="book-open-page-variant"
           />
           <SettingsRow
@@ -496,7 +566,7 @@ const About = ({navigation}: any) => {
         </SettingsSection>
 
         {!isTV && (
-          <SettingsSection title="Troubleshooting">
+          <SettingsSection title="Troubleshooting & Telemetry">
             <SettingsSwitchRow
               title="Detailed logging"
               description="Records more detail for bug reports. Keeps up to 2 MB of logs. Turns off after 24 hours."
@@ -507,7 +577,7 @@ const About = ({navigation}: any) => {
               }}
             />
             <SettingsRow
-              title="Export logs"
+              title="Export raw logs"
               description="Share recent app logs with the developer. Links and sign-in data are removed."
               icon="file-document-outline"
               trailing={
@@ -516,12 +586,40 @@ const About = ({navigation}: any) => {
               onPress={exportingLogs || clearingLogs ? undefined : exportLogs}
             />
             <SettingsRow
-              title="Clear logs"
+              title="Clear raw logs"
               description="Clear old logs before reproducing a problem."
               icon="delete-outline"
-              divider={false}
               trailing={clearingLogs ? <LoadingIndicator size={14} /> : undefined}
               onPress={clearingLogs || exportingLogs ? undefined : handleClearLogs}
+            />
+            <SettingsSwitchRow
+              title="Weekly auto-upload to GitHub"
+              description="Automatically uploads sanitized error and lag diagnostics to GitHub weekly."
+              value={autoUploadWeekly}
+              onValueChange={next => {
+                setAutoUploadWeekly(next);
+                bugSentinel.setAutoUploadEnabled(next);
+              }}
+            />
+            <SettingsRow
+              title="Upload bug report to GitHub now"
+              description={lastBugSyncStatus || `${activeBugsCount} active bug(s) recorded`}
+              icon="github"
+              trailing={uploadingBugs ? <LoadingIndicator size={14} /> : undefined}
+              onPress={uploadingBugs ? undefined : handleUploadBugReport}
+            />
+            <SettingsRow
+              title="View captured bug report"
+              description={`${activeBugsCount} active bug(s) recorded • Zero private data`}
+              icon="bug-outline"
+              onPress={handleViewBugReport}
+            />
+            <SettingsRow
+              title="Clear bug telemetry"
+              description="Reset local bug registry and counters."
+              icon="trash-can-outline"
+              divider={false}
+              onPress={handleClearBugSentinel}
             />
           </SettingsSection>
         )}

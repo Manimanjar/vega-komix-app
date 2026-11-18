@@ -54,6 +54,11 @@ export default class GlobalErrorBoundary extends React.Component<
     console.error(' Global Error Boundary caught an error:', error);
     console.error('Error Info:', errorInfo);
 
+    try {
+      const {bugSentinel} = require('../lib/telemetry/bugSentinel');
+      bugSentinel.recordReactError(error, errorInfo, 'GlobalErrorBoundary');
+    } catch {}
+
     this.setState({
       errorInfo,
     });

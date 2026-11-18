@@ -172,11 +172,22 @@ export const installVegaLog = (isDev: boolean): void => {
   console.debug = wrap(DEBUG, isDev ? original.debug : null, true);
   console.info = wrap(INFO, isDev ? original.info : null);
   console.warn = wrap(WARN, isDev ? original.warn : null);
-  console.error = wrap(ERROR, isDev ? original.error : null);
+  console.error = wrap(ERROR, (...args: unknown[]) => {
+    original.error?.(...args);
+    try {
+      // Lazy import or call bugSentinel to avoid cyclic dependency
+      const {bugSentinel} = require('../telemetry/bugSentinel');
+      bugSentinel.recordConsoleError(args);
+    } catch {}
+  });
 
   const errorUtils = (global as any).ErrorUtils;
   const previousHandler = errorUtils?.getGlobalHandler?.();
   errorUtils?.setGlobalHandler?.((error: unknown, isFatal?: boolean) => {
+    try {
+      const {bugSentinel} = require('../telemetry/bugSentinel');
+      bugSentinel.recordFatalCrash(error, isFatal);
+    } catch {}
     record(ERROR, [`${isFatal ? 'Fatal' : 'Unhandled'} JS error:`, error]);
     flush();
     previousHandler?.(error, isFatal);

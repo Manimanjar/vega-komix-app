@@ -5,6 +5,7 @@
 import {AppRegistry} from 'react-native';
 import App from './src/App';
 import {installVegaLog} from './src/lib/logging/vegaLog';
+import {bugSentinel} from './src/lib/telemetry/bugSentinel';
 import notifee from '@notifee/react-native';
 // import notificationService from './src/lib/services/Notification';
 
@@ -17,6 +18,20 @@ if (!__DEV__) {
   console.trace = () => {};
 }
 installVegaLog(__DEV__);
+bugSentinel.init();
+
+// Track unhandled promise rejections globally
+if (typeof globalThis !== 'undefined') {
+  const previousRejectionHandler = globalThis.onunhandledrejection;
+  globalThis.onunhandledrejection = function (event) {
+    bugSentinel.recordUnhandledPromise(
+      event && event.reason ? event.reason : event,
+    );
+    if (typeof previousRejectionHandler === 'function') {
+      previousRejectionHandler(event);
+    }
+  };
+}
 
 // Enable react-native-firebase debug mode for Analytics DebugView in dev
 if (__DEV__) {

@@ -309,6 +309,10 @@ const logScreenView = async () => {
   try {
     const route = navigationRef.getCurrentRoute();
     if (route?.name) {
+      try {
+        const {bugSentinel} = require('./lib/telemetry/bugSentinel');
+        bugSentinel.setCurrentScreen(route.name);
+      } catch {}
       const analytics = getAnalytics();
       analytics &&
         (await analytics().logScreenView({
@@ -735,6 +739,13 @@ const App = () => {
   }, [hasFirebase]);
 
   const handleNavigationStateChange = useCallback(async () => {
+    try {
+      const route = navigationRef.getCurrentRoute();
+      if (route?.name) {
+        const {bugSentinel} = require('./lib/telemetry/bugSentinel');
+        bugSentinel.setCurrentScreen(route.name);
+      }
+    } catch {}
     if (hasFirebase) {
       await logScreenView();
     }

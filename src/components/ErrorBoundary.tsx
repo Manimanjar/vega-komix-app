@@ -57,6 +57,10 @@ export class QueryErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('QueryErrorBoundary caught an error:', error, errorInfo);
+    try {
+      const {bugSentinel} = require('../lib/telemetry/bugSentinel');
+      bugSentinel.recordReactError(error, errorInfo, 'QueryErrorBoundary');
+    } catch {}
   }
 
   resetError = () => {
