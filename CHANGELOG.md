@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.2] - 2026-11-18
+
+### 🚀 Reader Ergonomics, Unified Western Reading Flow & UI Polish
+- **Version:** `6.2.2`
+- **Version Code:** `322`
+- **Release Date:** November 18, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+---
+
+### Fixed & Enhanced
+
+#### 📖 Streamlined 2-State Reading Mode (Continuous <-> Page by Page)
+- **Unified Western Reading Flow:** Standardized all comics, manhwas, and mangas to follow the familiar Western reading direction: right-to-left swipe (drag finger left) or tap right edge to turn to the next page; left-to-right swipe (drag finger right) or tap left edge to turn to the previous page.
+- **Removed Redundant Manga Mode:** Replaced the 3-mode cycle with an intuitive 2-state toggle between **Continuous** (vertical scroll up-to-down) and **Page by Page** (horizontal swipe).
+- **Settings Screen Alignment:** Cleaned up Reader Settings dropdown to offer **Continuous (Vertical Scroll)** and **Page by Page (Standard Swipe)**.
+
+#### 🪟 Floating Page Number Pill Overlap Fix
+- **Drawer Occlusion:** Automatically hide the floating page indicator pill whenever the Reader Settings sheet or bottom drawer is opened, preventing the pill from floating over or obscuring settings controls while scrolling.
+
+#### 🔍 Global PDF-Style Zoom & Gallery-Style Border Swipe Navigation
+- **Uniform Continuous Zoom:** Pinch-to-zoom in Continuous mode scales all chapter pages simultaneously (PDF-reader style) with horizontal panning across wide pages.
+- **Persistent Page-by-Page Zoom:** Pinch-to-zoom on any page automatically carries forward and backward across all pages in the chapter.
+- **Phone Gallery Border Swiping:** When zoomed in, users can pan to inspect all corners; continuing a swipe past the image border smoothly navigates to the next or previous page.
+- **Direct Manual Zoom Buttons:** Added `[-] [ 100% ] [+]` zoom controls directly in the bottom HUD and in Quick Settings under *Image Fit & Scaling*.
+
+---
+
 ## [6.2.1] - 2026-11-16
 
 ### 🛠️ Version Synchronization & In-App Updater Hotfix: Vega Komix v6.2.1

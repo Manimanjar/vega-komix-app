@@ -4,16 +4,13 @@ import {describe, expect, it} from '@jest/globals';
 import {nextReadingMode} from '../src/components/reader/readerMotion';
 
 describe('nextReadingMode — HUD pill cycle', () => {
-  it('goes Continuous -> Page by Page first, never straight to manga', () => {
+  it('toggles cleanly between Continuous and Page by Page', () => {
     expect(nextReadingMode('webtoon')).toBe('comic');
+    expect(nextReadingMode('comic')).toBe('webtoon');
   });
 
-  it('goes Page by Page -> Manga -> Continuous', () => {
-    expect(nextReadingMode('comic')).toBe('manga');
+  it('any legacy manga or double-spread session returns to Continuous', () => {
     expect(nextReadingMode('manga')).toBe('webtoon');
-  });
-
-  it('a double-spread session returns to Continuous', () => {
     expect(nextReadingMode('double_spread')).toBe('webtoon');
   });
 });

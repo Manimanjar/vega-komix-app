@@ -43,14 +43,14 @@ describe('Version & In-App Update Engine', () => {
 
   describe('Application metadata consistency', () => {
     it('synchronizes version between package.json, app.json, and CURRENT_VERSION', () => {
-      expect(pkg.version).toBe('6.2.1');
-      expect(appConfig.expo.version).toBe('6.2.1');
-      expect(CURRENT_VERSION).toBe('6.2.1');
+      expect(pkg.version).toBe('6.2.2');
+      expect(appConfig.expo.version).toBe('6.2.2');
+      expect(CURRENT_VERSION).toBe('6.2.2');
     });
 
     it('synchronizes versionCode between app.json and BUILD_NUMBER', () => {
-      expect(appConfig.expo.android.versionCode).toBe(321);
-      expect(BUILD_NUMBER).toBe('321');
+      expect(appConfig.expo.android.versionCode).toBe(322);
+      expect(BUILD_NUMBER).toBe('322');
     });
   });
 });

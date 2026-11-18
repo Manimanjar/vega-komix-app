@@ -20,10 +20,8 @@ import DropdownField from '../../components/ui/DropdownField';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'PlayerSettings'>;
 
 const READING_MODE_OPTIONS = [
-  {key: 'webtoon', label: 'Vertical Webtoon (Continuous)'},
-  {key: 'manga', label: 'Right-to-Left (Manga Paged)'},
-  {key: 'comic', label: 'Left-to-Right (Comic Paged)'},
-  {key: 'double_spread', label: 'Landscape 2-Page Spread'},
+  {key: 'webtoon', label: 'Continuous (Vertical Scroll)'},
+  {key: 'comic', label: 'Page by Page (Standard Swipe)'},
 ] as const;
 
 const PAGE_FIT_OPTIONS = [

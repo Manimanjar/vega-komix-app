@@ -125,11 +125,11 @@ export const getResolvedVersion = (): string => {
   if (pkgVer && nativeVer) {
     return compareVersions(nativeVer, pkgVer) ? pkgVer : nativeVer;
   }
-  return pkgVer || nativeVer || expoVer || '6.2.1';
+  return pkgVer || nativeVer || expoVer || '6.2.2';
 };
 
 export const CURRENT_VERSION = getResolvedVersion();
-export const RELEASE_DATE = 'November 16, 2026';
+export const RELEASE_DATE = 'November 18, 2026';
 
 export const getResolvedBuildNumber = (): string => {
   const appBuild = (appConfig as any)?.expo?.android?.versionCode;
@@ -140,41 +140,30 @@ export const getResolvedBuildNumber = (): string => {
     Number(appBuild) || 0,
     Number(nativeBuild) || 0,
     Number(expoBuild) || 0,
-    321,
+    322,
   );
   return String(resolved);
 };
 
 export const BUILD_NUMBER = getResolvedBuildNumber();
 
-export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.1 Release Notes (Nov 16, 2026)
+export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.2 Release Notes (Nov 18, 2026)
 
-**Build:** 321 | **Target:** Android 6.0+ (ARM64 & Universal)
+**Build:** 322 | **Target:** Android 6.0+ (ARM64 & Universal)
 
-#### 🛠️ Version Synchronization & In-App Updater Engine
-- **Native Version Sync:** Synchronized native Android build configuration dynamically with package.json and app.json, ensuring the installed version always matches the release tag.
-- **Automated Update Accuracy:** Upgraded update comparison engine to eliminate stale version mismatches, guaranteeing clean in-app update prompts for actual upcoming releases.
+#### 📖 Streamlined 2-State Reading Mode (Continuous <-> Page by Page)
+- **Unified Western Reading Flow:** Standardized all comics, manhwas, and mangas to follow the familiar Western reading direction: right-to-left swipe (drag finger left) or tap right edge to turn to the next page; left-to-right swipe (drag finger right) or tap left edge to turn to the previous page.
+- **Removed Redundant Manga Mode:** Replaced the 3-mode cycle with an intuitive 2-state toggle between **Continuous** (vertical scroll up-to-down) and **Page by Page** (horizontal swipe).
+- **Settings Screen Alignment:** Cleaned up Reader Settings dropdown to offer **Continuous (Vertical Scroll)** and **Page by Page (Standard Swipe)**.
 
-#### 🔍 Search Engine Overhaul & 15-Genre Exploration
-- **15 Curated Comic Genres:** Direct 1-tap discovery for Action, Romance, Isekai, Fantasy, Slice of Life, Sci-Fi, Martial Arts, Comedy, Drama, Horror, Mystery, Psychological, Supernatural, Historical, and Sports.
-- **Search History Chips & 1-Tap Recall:** Fast chip-based history recall with instant search execution and 1-tap clear all option.
-- **Unified Series Room Clustering:** Automatically detects and clusters multiple provider editions and scattered chapter uploads under a unified series card with clear edition badges.
+#### 🪟 Floating Page Number Pill Overlap Fix
+- **Drawer Occlusion:** Automatically hide the floating page indicator pill whenever the Reader Settings sheet or bottom drawer is opened, preventing the pill from floating over or obscuring settings controls while scrolling.
 
-#### 🛡️ Privacy & Security Suite
-- **Biometric App Lock:** Hardware-backed biometric authentication (Fingerprint, Face Unlock, or PIN fallback) on app launch and resume with configurable timeouts (Immediately, 1m, 5m).
-- **Android FLAG_SECURE App Masking:** Blank task switcher previews in recent apps and screenshot protection during sensitive reading.
-- **Ghost / Incognito Mode:** 1-tap toggle completely isolates reading sessions without writing to history or progress storage.
-
-#### 🟢 Dynamic Library Live Update Tracker & Green Badges
-- **Unread Chapter Tracking:** Real-time diff calculation with emerald green +X pill badges.
-- **Fresh Bookmarks:** "NEW" badge for newly added comics with 0 read progress.
-- **Non-Blocking Background Refresh:** Scraper queries batched in groups of 3 and scheduled via scheduleWhenIdle.
-
-#### 📖 Reader Experience & Physics Optimization
-- **Double-Spread Auto-Splitter:** Automatic portrait splitting for wide landscape scans (RTL for Manga, LTR for Comics).
-- **Zero-Lag Virtualization:** Calibrated FlatList windowing for fluid 60/120fps scrolling on 100+ page vertical manhwas.
-- **True-Color ARGB_8888 Quality Guarantee:** Original uncompressed resolution preserved across continuous and paged modes.
-- **Story-Chronological Navigation:** Smooth forward chapter advancement regardless of raw scraper ordering.`;
+#### 🔍 Global PDF-Style Zoom & Gallery-Style Border Swipe Navigation
+- **Uniform Continuous Zoom:** Pinch-to-zoom in Continuous mode scales all chapter pages simultaneously (PDF-reader style) with horizontal panning across wide pages.
+- **Persistent Page-by-Page Zoom:** Pinch-to-zoom on any page automatically carries forward and backward across all pages in the chapter.
+- **Phone Gallery Border Swiping:** When zoomed in, users can pan to inspect all corners; continuing a swipe past the image border smoothly navigates to the next or previous page.
+- **Direct Manual Zoom Buttons:** Added zoom controls directly in the bottom HUD and in Quick Settings under Image Fit & Scaling.`;
 
 // handle check for update
 export const checkForUpdate = async (

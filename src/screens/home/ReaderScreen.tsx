@@ -917,8 +917,6 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     ToastAndroid.show(
       nextMode === 'webtoon'
         ? 'Reading Mode: Continuous Webtoon'
-        : nextMode === 'manga'
-        ? 'Reading Mode: Page by Page (Manga)'
         : 'Reading Mode: Page by Page',
       ToastAndroid.SHORT,
     );
@@ -1215,8 +1213,8 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
         />
       )}
 
-      {/* Floating Page Number indicator (stays visible with HUD; fades out smoothly after 2s inactivity when HUD hidden) */}
-      {settings.showFloatingPageNumber && pages.length > 0 && (
+      {/* Floating Page Number indicator (hidden when Settings sheet is open so it never hovers over the menu) */}
+      {settings.showFloatingPageNumber && pages.length > 0 && !settingsSheetVisible && (
         <Animated.View
           pointerEvents="none"
           style={[
