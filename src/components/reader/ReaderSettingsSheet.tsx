@@ -114,12 +114,14 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                 </PressScale>
               </View>
 
-              {/* 1. IMAGE FIT & SCALING — every mode works in portrait and
-                  landscape, continuous and paged. Full Screen fills the
-                  display edge to edge (cover-crops); Fit Width fills the
-                  width. In landscape, Fit Height / Fit Screen / Original all
-                  compute the same height-limited box, so Fit Width and Full
-                  Screen are the two that visibly change the picture there. */}
+              {/* 1. IMAGE FIT & SCALING — one straight horizontal row of five
+                  equal buttons (user, 2026-11-18). The old 2-column wrapping
+                  grid (48% each) made the buttons huge and stacked in three
+                  rows. Now each button is flex:1, so all five sit in one
+                  line in portrait AND landscape; only the gap between them
+                  grows in landscape, so the row always looks filled and
+                  the alignment never changes. Labels are short and centred
+                  under the icon so they fit the narrow buttons. */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
                   Image Fit & Scaling
@@ -137,16 +139,18 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                         ]}>
                         <MaterialCommunityIcons
                           name={opt.icon as any}
-                          size={22}
+                          size={20}
                           color={isSelected ? '#7C4DFF' : '#A1A1AA'}
                         />
                         <AppText
                           role="labelSmallEmphasized"
+                          numberOfLines={2}
                           style={{
                             color: isSelected ? '#FFFFFF' : '#A1A1AA',
-                            marginTop: 6,
+                            marginTop: 5,
                             textAlign: 'center',
-                            fontSize: 11,
+                            fontSize: 10,
+                            lineHeight: 12,
                           }}>
                           {opt.label}
                         </AppText>
@@ -269,7 +273,12 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                 </View>
               </View>
 
-              {/* 3. QUICK PAGE & CHAPTER TOOLS */}
+              {/* 3. QUICK PAGE & CHAPTER TOOLS — same one-row treatment as the
+                  fit buttons (user, 2026-11-18): four equal buttons in a
+                  single horizontal line, icon above a short centred label,
+                  flex:1 so the row stays aligned in portrait and landscape
+                  and only the spacing grows. Labels are shortened to fit the
+                  narrow buttons ("First Page", "Reload", "Download"). */}
               <View style={styles.section}>
                 <AppText role="labelLargeEmphasized" style={styles.sectionLabel}>
                   Quick Page & Chapter Tools
@@ -284,13 +293,14 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     style={styles.toolCard}>
                     <MaterialCommunityIcons
                       name="skip-backward-outline"
-                      size={22}
+                      size={20}
                       color="#7C4DFF"
                     />
                     <AppText
                       role="labelMediumEmphasized"
+                      numberOfLines={2}
                       style={styles.toolCardLabel}>
-                      Jump to First Page
+                      First Page
                     </AppText>
                   </PressScale>
 
@@ -302,13 +312,14 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     style={styles.toolCard}>
                     <MaterialCommunityIcons
                       name="refresh"
-                      size={22}
+                      size={20}
                       color="#00E5FF"
                     />
                     <AppText
                       role="labelMediumEmphasized"
+                      numberOfLines={2}
                       style={styles.toolCardLabel}>
-                      Reload Page
+                      Reload
                     </AppText>
                   </PressScale>
 
@@ -320,11 +331,12 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     style={styles.toolCard}>
                     <MaterialCommunityIcons
                       name={quality === 'original' ? 'high-definition' : 'tune'}
-                      size={22}
+                      size={20}
                       color="#00E676"
                     />
                     <AppText
                       role="labelMediumEmphasized"
+                      numberOfLines={2}
                       style={styles.toolCardLabel}>
                       {quality === 'original' ? 'Quality: HD' : 'Quality: Saver'}
                     </AppText>
@@ -338,13 +350,14 @@ export const ReaderSettingsSheet: React.FC<ReaderSettingsSheetProps> = ({
                     style={styles.toolCard}>
                     <MaterialCommunityIcons
                       name="download-outline"
-                      size={22}
+                      size={20}
                       color="#FFB300"
                     />
                     <AppText
                       role="labelMediumEmphasized"
+                      numberOfLines={2}
                       style={styles.toolCardLabel}>
-                      Download Chapter
+                      Download
                     </AppText>
                   </PressScale>
                 </View>
@@ -390,13 +403,13 @@ const styles = StyleSheet.create({
   },
   scaleGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 8,
   },
   scaleCard: {
-    width: '48%',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
     borderRadius: 12,
     backgroundColor: '#18181B',
     alignItems: 'center',
@@ -422,16 +435,16 @@ const styles = StyleSheet.create({
   },
   toolsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 8,
   },
   toolCard: {
-    width: '48%',
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
     borderRadius: 12,
     backgroundColor: '#18181B',
     borderWidth: 1,
@@ -439,7 +452,8 @@ const styles = StyleSheet.create({
   },
   toolCardLabel: {
     color: '#FFFFFF',
-    fontSize: 12,
-    flex: 1,
+    fontSize: 10,
+    lineHeight: 12,
+    textAlign: 'center',
   },
 });
