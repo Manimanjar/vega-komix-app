@@ -126,11 +126,11 @@ export const getResolvedVersion = (): string => {
   if (pkgVer && nativeVer) {
     return compareVersions(nativeVer, pkgVer) ? pkgVer : nativeVer;
   }
-  return pkgVer || nativeVer || expoVer || '6.2.3';
+  return pkgVer || nativeVer || expoVer || '6.2.4';
 };
 
 export const CURRENT_VERSION = getResolvedVersion();
-export const RELEASE_DATE = 'November 18, 2026';
+export const RELEASE_DATE = 'November 26, 2026';
 
 export const getResolvedBuildNumber = (): string => {
   const appBuild = (appConfig as any)?.expo?.android?.versionCode;
@@ -141,16 +141,16 @@ export const getResolvedBuildNumber = (): string => {
     Number(appBuild) || 0,
     Number(nativeBuild) || 0,
     Number(expoBuild) || 0,
-    323,
+    324,
   );
   return String(resolved);
 };
 
 export const BUILD_NUMBER = getResolvedBuildNumber();
 
-export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.3 Release Notes (Nov 18, 2026)
+export const CHANGELOG_CONTENT = `### 🌟 Vega Komix v6.2.4 Release Notes (Nov 26, 2026)
 
-**Build:** 323 | **Target:** Android 6.0+ (ARM64 & Universal)
+**Build:** 324 | **Target:** Android 6.0+ (ARM64 & Universal)
 
 #### 🔄 Orientation Switch Scroll Freeze Fix
 - **Permanent Scroll Freedom:** Completely eliminated the stuck scroll freeze when rotating between portrait and landscape in Continuous (Webtoon) mode. Removed brittle list scroll locking and decoupled rotation effects from dynamic dependency invalidation.
