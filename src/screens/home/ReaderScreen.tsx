@@ -10,11 +10,12 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect, useIsFocused} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import Orientation from 'react-native-orientation-locker';
 import {activateKeepAwakeAsync, deactivateKeepAwake} from 'expo-keep-awake';
 import * as ScreenCapture from 'expo-screen-capture';
+import {SystemBars} from 'react-native-edge-to-edge';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type {RootStackParamList} from '../../App';
 import type {EpisodeLink} from '../../lib/providers/types';
@@ -1087,12 +1088,17 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     [handleUpdateSettings],
   );
 
+  const isFocused = useIsFocused();
   const themeColors = THEME_COLORS[settings.theme];
 
   return (
     <View style={[styles.root, {backgroundColor: themeColors.background}]}>
+      <SystemBars
+        hidden={isFocused ? {statusBar: true, navigationBar: true} : false}
+        style="light"
+      />
       <StatusBar
-        hidden={true}
+        hidden={isFocused}
         translucent={true}
         barStyle="light-content"
         backgroundColor="transparent"
