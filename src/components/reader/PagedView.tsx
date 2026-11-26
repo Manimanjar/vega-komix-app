@@ -21,6 +21,7 @@ interface PagedViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
   sliderJumpTarget?: {index: number; timestamp: number} | null;
+  hudVisible?: boolean;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
   onDismissHUD?: () => void;
@@ -60,6 +61,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
   pages,
   currentPageIndex,
   sliderJumpTarget,
+  hudVisible = false,
   onPageChange,
   onToggleHUD,
   onDismissHUD,
@@ -483,6 +485,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onZoomChange={onZoomChange}
                 onSwipeNextPage={handleRightTap}
                 onSwipePrevPage={handleLeftTap}
+                hudVisible={hudVisible}
               />
             </View>
             <View style={{width: windowWidth / 2, height: windowHeight, overflow: 'hidden'}}>
@@ -509,6 +512,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onZoomChange={onZoomChange}
                 onSwipeNextPage={handleRightTap}
                 onSwipePrevPage={handleLeftTap}
+                hudVisible={hudVisible}
               />
             </View>
           </View>
@@ -563,6 +567,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
                 onZoomChange={onZoomChange}
                 onSwipeNextPage={handleRightTap}
                 onSwipePrevPage={handleLeftTap}
+                hudVisible={hudVisible}
               />
             </View>
 
@@ -603,6 +608,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
             onZoomChange={onZoomChange}
             onSwipeNextPage={handleRightTap}
             onSwipePrevPage={handleLeftTap}
+            hudVisible={hudVisible}
           />
         </View>
       );
@@ -628,6 +634,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
       handleLeftTap,
       handleRightTap,
       onZoomChange,
+      hudVisible,
     ],
   );
 
@@ -647,7 +654,7 @@ export const PagedView: React.FC<PagedViewProps> = ({
         data={spreadGroups}
         renderItem={renderSpreadGroup}
         keyExtractor={item => item.id}
-        extraData={`${activeGroupIndex}-${zoomScale}-${reloadKey}-${highQualityRendering}`}
+        extraData={`${activeGroupIndex}-${zoomScale}-${reloadKey}-${highQualityRendering}-${hudVisible}`}
         horizontal
         // Snap instead of pagingEnabled: the snap interval is identical in
         // both directions, so a swipe feels equally fast and smooth whether

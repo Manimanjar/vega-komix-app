@@ -53,6 +53,7 @@ interface ReaderImageProps {
   onZoomChange?: (newScale: number) => void;
   onSwipeNextPage?: () => void;
   onSwipePrevPage?: () => void;
+  hudVisible?: boolean;
 }
 
 const CircularProgress = ({
@@ -132,6 +133,7 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
   onZoomChange,
   onSwipeNextPage,
   onSwipePrevPage,
+  hudVisible = false,
 }) => {
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const [currentUrl, setCurrentUrl] = useState<string>(() =>
@@ -390,12 +392,18 @@ export const ReaderImage: React.FC<ReaderImageProps> = ({
     });
 
   // Double Tap Gesture (1x <-> 2.0x anchored)
+  // Disabled while HUD is showing so quick taps to hide HUD never reset zoom.
   // CRITICAL: runOnJS(true) ensures zoom animation executes safely without worklet crash
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .maxDuration(300)
+    .maxDuration(250)
+    .enabled(!hudVisible)
     .runOnJS(true)
     .onEnd(e => {
+      if (hudVisible) {
+        onSingleTap?.(e.x, e.y);
+        return;
+      }
       const base = zoomScale || 1.0;
       if (base > 1.2 || scale.value > 1.2) {
         resetZoom();

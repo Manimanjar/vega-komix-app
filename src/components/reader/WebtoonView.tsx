@@ -298,6 +298,7 @@ export interface WebtoonViewProps {
   pages: ReaderPageItem[];
   currentPageIndex: number;
   sliderJumpTarget?: {index: number; timestamp: number} | null;
+  hudVisible?: boolean;
   onPageChange: (index: number) => void;
   onToggleHUD: () => void;
   onPageLoaded?: (index: number) => void;
@@ -324,6 +325,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   pages,
   currentPageIndex,
   sliderJumpTarget,
+  hudVisible = false,
   onPageChange,
   onToggleHUD,
   onDismissHUD,
@@ -353,6 +355,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const isInternalPageChange = useRef<boolean>(false);
   const jumpTimerRef = useRef<any>(null);
   const rotateTimerRef = useRef<any>(null);
+  const activeSliderAnchorRef = useRef<{index: number; timer: any} | null>(null);
   const lastReportedIndex = useRef<number>(currentPageIndex);
   const pageHeights = useRef<Record<number, number>>({});
   // Rotation guard (see the effect below): re-anchor to the same page when
@@ -418,10 +421,21 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       if (prevHeight !== height) {
         const estimatedBefore = prevHeight && prevHeight > 0 ? prevHeight : pageHeightAt(idx, getFallbackDims());
         pageHeights.current[idx] = height;
-        // Anchor viewport: if a page above the currently read page finishes
-        // measuring and changes height, shift scroll offset by the delta so
-        // the active page stays pinned in place without jumping.
-        if (
+        const anchor = activeSliderAnchorRef.current;
+        if (anchor && idx <= anchor.index && !isUserScrolling.current && !isRotatingRef.current) {
+          // While a far slider jump is settling and nearby pages are still loading,
+          // keep the jumped-to target page pinned after FlatList receives the updated layout.
+          requestAnimationFrame(() => {
+            if (activeSliderAnchorRef.current?.index === anchor.index && !isUserScrolling.current) {
+              try {
+                listRef.current?.scrollToIndex({
+                  index: anchor.index,
+                  animated: false,
+                });
+              } catch {}
+            }
+          });
+        } else if (
           idx < lastReportedIndex.current &&
           !isJumpingRef.current &&
           !isRotatingRef.current &&
@@ -534,6 +548,16 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       sliderJumpTarget.timestamp !== lastSliderTimestampRef.current
     ) {
       lastSliderTimestampRef.current = sliderJumpTarget.timestamp;
+      if (activeSliderAnchorRef.current?.timer) {
+        clearTimeout(activeSliderAnchorRef.current.timer);
+      }
+      const timer = setTimeout(() => {
+        activeSliderAnchorRef.current = null;
+      }, 2500);
+      activeSliderAnchorRef.current = {
+        index: sliderJumpTarget.index,
+        timer,
+      };
       jumpToPageRef.current(sliderJumpTarget.index);
     }
   }, [sliderJumpTarget]);
@@ -621,6 +645,9 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       if (rotateTimerRef.current) {
         clearTimeout(rotateTimerRef.current);
       }
+      if (activeSliderAnchorRef.current?.timer) {
+        clearTimeout(activeSliderAnchorRef.current.timer);
+      }
     };
   }, []);
 
@@ -635,7 +662,7 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
 
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
-      if (isJumpingRef.current) return;
+      if (isJumpingRef.current || activeSliderAnchorRef.current) return;
       // During a rotation the list is half-laid-out: the "top" item is
       // whatever happens to be visible mid-transition, not the page the
       // user is on. Reporting it would move lastReportedIndex (and the
@@ -787,11 +814,17 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
     });
 
   // Double Tap Gesture (1x <-> 2.0x global continuous zoom)
+  // Disabled while HUD is showing so quick taps to hide HUD never reset zoom.
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .maxDuration(300)
+    .maxDuration(250)
+    .enabled(!overlayActive && !hudVisible)
     .runOnJS(true)
     .onEnd(() => {
+      if (hudVisible) {
+        onToggleHUD?.();
+        return;
+      }
       if (docScale.value > 1.15) {
         docScale.value = withTiming(1.0, {duration: 200});
         docTransX.value = withTiming(0, {duration: 200});
@@ -863,6 +896,10 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
                 clearTimeout(jumpTimerRef.current);
                 jumpTimerRef.current = null;
               }
+              if (activeSliderAnchorRef.current?.timer) {
+                clearTimeout(activeSliderAnchorRef.current.timer);
+              }
+              activeSliderAnchorRef.current = null;
               isJumpingRef.current = false;
               isUserScrolling.current = true;
               onDismissHUD?.();

@@ -1154,6 +1154,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           pages={pages}
           currentPageIndex={currentPageIndex}
           sliderJumpTarget={sliderJumpTarget}
+          hudVisible={hudVisible}
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
@@ -1180,6 +1181,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           pages={pages}
           currentPageIndex={currentPageIndex}
           sliderJumpTarget={sliderJumpTarget}
+          hudVisible={hudVisible}
           onPageChange={handlePageChange}
           onToggleHUD={handleToggleHUD}
           onDismissHUD={handleDismissHUD}
@@ -1246,7 +1248,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           />
           <AppText
             role="labelSmall"
-            style={{color: '#FFFFFF', fontWeight: '700', fontSize: 11}}>
+            style={{color: '#FFFFFF', fontWeight: '700', fontSize: 10}}>
             {currentPageIndex + 1}/{pages.length}
           </AppText>
         </Animated.View>
@@ -1348,10 +1350,10 @@ const styles = StyleSheet.create({
   floatingPagePill: {
     position: 'absolute',
     bottom: 24,
-    left: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    right: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 11,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 10,
