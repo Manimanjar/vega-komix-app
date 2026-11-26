@@ -623,7 +623,7 @@ const Extensions = ({navigation, route}: Props) => {
   return (
     <TVFocusGuide autoFocus={true} trapFocusRight={true} trapFocusDown={true} style={{flex: 1}}>
       <View style={{flex: 1, height: '100%', width: '100%', backgroundColor: colors.background, paddingTop: isTV ? 40 : 20}}>
-        <StatusBar backgroundColor={colors.background} barStyle="light-content" />
+        <StatusBar translucent={true} backgroundColor="transparent" barStyle="light-content" />
         <View className="flex-row items-center justify-between px-4 pb-4 pt-2">
           <TVFocusable
             ref={backButtonRef}

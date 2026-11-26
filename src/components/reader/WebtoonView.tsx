@@ -379,20 +379,23 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // HUD twice and the bars flash on and off instantly.
   const overlayActive = interactionMode === 'one_tap' && !disableTapZones;
 
-  const handlePageMeasured = useCallback((idx: number, height: number) => {
-    if (pageHeights.current[idx] !== height) {
-      pageHeights.current[idx] = height;
-      setMeasuredVersion(v => v + 1);
-    }
-  }, []);
+  const getFallbackDims = useCallback((): {width: number; height: number} | undefined => {
+    const measuredValues = Object.values(pageHeights.current).filter(h => h > 0);
+    if (measuredValues.length === 0 || windowWidth <= 0) return undefined;
+    const zoom = zoomScale || 1.0;
+    const avgHeight =
+      measuredValues.reduce((sum, h) => sum + h, 0) / measuredValues.length;
+    const avgRatio = Math.max(0.4, Math.min(6.0, avgHeight / (windowWidth * zoom)));
+    return {width: 1000, height: Math.round(1000 * avgRatio)};
+  }, [windowWidth, zoomScale]);
 
   // One height per page, from the same box math as the rendered pages.
   // Measured heights win; otherwise the cached natural size / provider dims
-  // feed computePageBox; otherwise the 1.45 fallback ratio. This is the
-  // single source of truth for both the rendered height and the list's
-  // layout, so they can never disagree.
+  // feed computePageBox; otherwise the chapter's running-average ratio (or
+  // 1.45 before any page is measured). This is the single source of truth
+  // for both the rendered height and the list's layout, so they can never disagree.
   const pageHeightAt = useCallback(
-    (index: number): number => {
+    (index: number, fallbackDims?: {width: number; height: number}): number => {
       const measured = pageHeights.current[index];
       if (measured && measured > 0) return measured;
       const page = pages[index];
@@ -403,10 +406,40 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
         cached ??
         (page?.width && page?.height && page.width > 0
           ? {width: page.width, height: page.height}
-          : undefined);
+          : fallbackDims);
       return computePageBox(dims, windowWidth, windowHeight, scaleMode, zoomScale).height;
     },
     [pages, windowWidth, windowHeight, scaleMode, zoomScale],
+  );
+
+  const handlePageMeasured = useCallback(
+    (idx: number, height: number) => {
+      const prevHeight = pageHeights.current[idx];
+      if (prevHeight !== height) {
+        const estimatedBefore = prevHeight && prevHeight > 0 ? prevHeight : pageHeightAt(idx, getFallbackDims());
+        pageHeights.current[idx] = height;
+        // Anchor viewport: if a page above the currently read page finishes
+        // measuring and changes height, shift scroll offset by the delta so
+        // the active page stays pinned in place without jumping.
+        if (
+          idx < lastReportedIndex.current &&
+          !isJumpingRef.current &&
+          !isRotatingRef.current &&
+          currentScrollY.current > 0
+        ) {
+          const delta = height - estimatedBefore;
+          if (Math.abs(delta) > 1) {
+            const nextY = Math.max(0, currentScrollY.current + delta);
+            currentScrollY.current = nextY;
+            try {
+              listRef.current?.scrollToOffset({offset: nextY, animated: false});
+            } catch {}
+          }
+        }
+        setMeasuredVersion(v => v + 1);
+      }
+    },
+    [pageHeightAt, getFallbackDims],
   );
 
   // Prefix sum of page heights: pageOffsets[i] is the exact pixel offset of
@@ -414,13 +447,14 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   // measured height changes. This is what makes getItemLayout exact and
   // the rotation re-anchor land on the right page instead of a random one.
   const pageOffsets = useMemo(() => {
+    const fallbackDims = getFallbackDims();
     const offsets: number[] = new Array(pages.length + 1);
     offsets[0] = 0;
     for (let i = 0; i < pages.length; i++) {
-      offsets[i + 1] = offsets[i] + pageHeightAt(i);
+      offsets[i + 1] = offsets[i] + pageHeightAt(i, fallbackDims);
     }
     return offsets;
-  }, [pages.length, pageHeightAt, measuredVersion]);
+  }, [pages.length, pageHeightAt, getFallbackDims, measuredVersion]);
 
   const getItemLayout = useCallback(
     (_data: any, index: number) => ({
@@ -490,12 +524,19 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
   const jumpToPageRef = useRef(jumpToPage);
   jumpToPageRef.current = jumpToPage;
 
-  // Direct jump triggered by slider commit
+  // Direct jump triggered by slider commit (consume each timestamp once so
+  // subsequent page height measurements / jumpToPage re-memoizations never
+  // snap the user back to the slider target while they scroll away).
+  const lastSliderTimestampRef = useRef<number>(0);
   useEffect(() => {
-    if (sliderJumpTarget) {
-      jumpToPage(sliderJumpTarget.index);
+    if (
+      sliderJumpTarget &&
+      sliderJumpTarget.timestamp !== lastSliderTimestampRef.current
+    ) {
+      lastSliderTimestampRef.current = sliderJumpTarget.timestamp;
+      jumpToPageRef.current(sliderJumpTarget.index);
     }
-  }, [sliderJumpTarget, jumpToPage]);
+  }, [sliderJumpTarget]);
 
   // Sync scroll to index when currentPageIndex is changed externally (e.g. from chapter change or resume).
   // Never during a rotation: the re-anchor owns the scroll position until
@@ -603,7 +644,10 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
       if (isRotatingRef.current) return;
       if (viewableItems && viewableItems.length > 0) {
         const topItem = viewableItems[0];
-        if (typeof topItem.index === 'number') {
+        if (
+          typeof topItem.index === 'number' &&
+          topItem.index !== lastReportedIndex.current
+        ) {
           isInternalPageChange.current = true;
           lastReportedIndex.current = topItem.index;
           onPageChangeRef.current(topItem.index);
@@ -815,6 +859,11 @@ export const WebtoonContinuousReader: React.FC<WebtoonViewProps> = ({
             onScroll={handleScroll}
             onScrollBeginDrag={() => {
               if (isRotatingRef.current) return;
+              if (jumpTimerRef.current) {
+                clearTimeout(jumpTimerRef.current);
+                jumpTimerRef.current = null;
+              }
+              isJumpingRef.current = false;
               isUserScrolling.current = true;
               onDismissHUD?.();
             }}

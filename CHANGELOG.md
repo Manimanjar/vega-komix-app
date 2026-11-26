@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.4] - 2026-11-26
+
+### 🛠️ Reader HUD Stability, Auto-Hiding Page Pill, Slider Jump Fix & Edge-to-Edge Polish
+- **Version:** `6.2.4`
+- **Version Code:** `324`
+- **Release Date:** November 26, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+### Fixed & Enhanced
+
+#### 🎯 Fullscreen Reader HUD & Status Bar Stability
+- **Eliminated Status Bar Jump & Top Bar Flicker:** Kept the Android system `StatusBar` consistently hidden inside `ReaderScreen` instead of toggling it on HUD taps under `Theme.EdgeToEdge`, preventing the mobile notification/status bar from popping in and shifting `topHud` safe-area insets mid-animation.
+- **Clean HUD Fade-In:** Reset `hudAnim` to `0` before mounting `ReaderHUD` so the top and bottom bars always fade in smoothly without a 1-frame flash.
+
+#### 📄 Bottom-Left Auto-Hiding Page Counter Pill
+- **Bottom-Left Placement & Clean Format:** Moved the floating page counter pill to the bottom-left (`left: 20`) and removed the `"Page "` prefix across both the floating pill and the HUD scrubber slider (`current/total`).
+- **Auto-Hide on Same Page:** The pill now appears smoothly for `1.8s` whenever you scroll/swipe to a new page or dismiss the HUD, then auto-hides while reading on the same page.
+
+#### 🎚️ Page Slider Jump-Back Fix & Continuous Scroll Smoothing
+- **Single-Consume Slider Jump:** Added `lastSliderTimestampRef` in both `WebtoonView` and `PagedView` so re-memoizing layout offsets as new pages load never re-triggers the slider jump and snaps you back. Also cleared the jump lock immediately on `onScrollBeginDrag`.
+- **Viewport Scroll-Delta Anchoring & Smart Height Estimation:** Added running-average aspect ratio fallback for unmeasured pages and automatic scroll-offset delta anchoring when pages above the current viewport finish measuring, keeping your active page pinned even in chapters with varied page sizes.
+- **Paged One-Tap & Rotation Fixes:** Fixed `one_tap` edge navigation in `PagedView` to update `onPageChange` and saved progress, and removed a rotation timer race condition.
+
+#### 🎨 Global Edge-to-Edge StatusBar Consistency
+- **Unified Light StatusBar:** Standardized `StatusBar` styling across `Library`, `Downloads`, and `Extensions` for consistent translucent light icons under `Theme.EdgeToEdge`.
+
+---
+
 ## [6.2.3] - 2026-11-18
 
 ### 🚀 Orientation Scroll Stabilization, PDF-Style Document Zoom & Superimposition Elimination

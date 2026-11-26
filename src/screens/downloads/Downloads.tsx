@@ -380,7 +380,7 @@ const Downloads = () => {
         ? [currentDownloadActionRef]
         : hasCards ? [firstCardRef] : [exploreButtonRef]}
       style={{flex: 1, backgroundColor: colors.background, paddingTop: isTV ? 0 : insets.top}}>
-      <StatusBar />
+      <StatusBar style="light" />
 
       {isSelectionMode ? (
         <DownloadsSelectionHeader

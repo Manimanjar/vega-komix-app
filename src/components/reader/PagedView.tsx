@@ -274,12 +274,21 @@ export const PagedView: React.FC<PagedViewProps> = ({
     [spreadGroups, goToGroupIndex],
   );
 
-  // Jump when slider commit is received
+  const jumpToPageRef = useRef(jumpToPage);
+  jumpToPageRef.current = jumpToPage;
+
+  // Jump when slider commit is received (consume each timestamp once so
+  // spreadGroups / measuredRatios updates never jump back to the slider target).
+  const lastSliderTimestampRef = useRef<number>(0);
   useEffect(() => {
-    if (sliderJumpTarget) {
-      jumpToPage(sliderJumpTarget.index);
+    if (
+      sliderJumpTarget &&
+      sliderJumpTarget.timestamp !== lastSliderTimestampRef.current
+    ) {
+      lastSliderTimestampRef.current = sliderJumpTarget.timestamp;
+      jumpToPageRef.current(sliderJumpTarget.index);
     }
-  }, [sliderJumpTarget, jumpToPage]);
+  }, [sliderJumpTarget]);
 
   // Sync scroll position when activeGroupIndex updates externally
   useEffect(() => {
@@ -301,6 +310,8 @@ export const PagedView: React.FC<PagedViewProps> = ({
   // fighting it.
   const goToGroupIndexRef = useRef(goToGroupIndex);
   goToGroupIndexRef.current = goToGroupIndex;
+  const activeGroupIndexRef = useRef(activeGroupIndex);
+  activeGroupIndexRef.current = activeGroupIndex;
 
   useEffect(() => {
     const prev = prevDimsRef.current;
@@ -314,13 +325,13 @@ export const PagedView: React.FC<PagedViewProps> = ({
     jumpTimerRef.current = setTimeout(() => {
       isJumpingRef.current = false;
     }, 400);
-    const targetGroup = activeGroupIndex;
+    const targetGroup = activeGroupIndexRef.current;
     const timer = setTimeout(() => {
       lastTargetIndex.current = targetGroup;
       goToGroupIndexRef.current(targetGroup, false);
     }, 80);
     return () => clearTimeout(timer);
-  }, [windowWidth, windowHeight, activeGroupIndex]);
+  }, [windowWidth, windowHeight]);
 
   // Clean up jump timer on unmount
   useEffect(() => {
@@ -361,19 +372,31 @@ export const PagedView: React.FC<PagedViewProps> = ({
   // is no longer inverted, so the taps follow the swipe, not the mode.
   const handleLeftTap = useCallback(() => {
     if (activeGroupIndex > 0) {
-      goToGroupIndex(activeGroupIndex - 1, true);
+      const targetIdx = activeGroupIndex - 1;
+      const targetGroup = spreadGroups[targetIdx];
+      lastTargetIndex.current = targetIdx;
+      if (targetGroup && !targetGroup.isEndOfChapter) {
+        onPageChange(targetGroup.indexA);
+      }
+      goToGroupIndex(targetIdx, true);
     }
-  }, [activeGroupIndex, goToGroupIndex]);
+  }, [activeGroupIndex, spreadGroups, onPageChange, goToGroupIndex]);
 
   const handleRightTap = useCallback(() => {
     if (activeGroupIndex < spreadGroups.length - 1) {
-      goToGroupIndex(activeGroupIndex + 1, true);
+      const targetIdx = activeGroupIndex + 1;
+      const targetGroup = spreadGroups[targetIdx];
+      lastTargetIndex.current = targetIdx;
+      if (targetGroup && !targetGroup.isEndOfChapter) {
+        onPageChange(targetGroup.indexA);
+      }
+      goToGroupIndex(targetIdx, true);
     } else if (onNextChapter && hasNextChapter) {
       onNextChapter();
     } else if (onReachEnd) {
       onReachEnd();
     }
-  }, [activeGroupIndex, spreadGroups.length, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
+  }, [activeGroupIndex, spreadGroups, onPageChange, onReachEnd, onNextChapter, hasNextChapter, goToGroupIndex]);
 
   const renderSpreadGroup = useCallback(
     ({item}: {item: SpreadPageGroup}) => {

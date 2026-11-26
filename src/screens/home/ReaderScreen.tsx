@@ -388,36 +388,62 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
     setHudVisible(prev => !prev);
   }, []);
 
-  // Floating Page Indicator: automatically hides when upper/bottom function bars (HUD)
-  // or settings drawer are visible; smoothly pops up with animated transition when HUD hides
-  // and stays visible while in reading mode.
+  // Floating Page Indicator: appears briefly (1.8s) whenever the user scrolls/swipes
+  // to a new page or closes the HUD, then auto-hides while reading on the same page.
+  // Always hides immediately when upper/bottom function bars (HUD) or settings sheet open.
   const pageIndicatorOpacity = useRef(new Animated.Value(0)).current;
+  const pageIndicatorTimerRef = useRef<any>(null);
+  const hudVisibleRef = useRef<boolean>(hudVisible);
+  const settingsSheetVisibleRef = useRef<boolean>(settingsSheetVisible);
+  hudVisibleRef.current = hudVisible;
+  settingsSheetVisibleRef.current = settingsSheetVisible;
+
+  const clearPageIndicatorTimer = useCallback(() => {
+    if (pageIndicatorTimerRef.current) {
+      clearTimeout(pageIndicatorTimerRef.current);
+      pageIndicatorTimerRef.current = null;
+    }
+  }, []);
 
   const showPageIndicator = useCallback(() => {
-    if (!hudVisible && !settingsSheetVisible) {
+    clearPageIndicatorTimer();
+    if (!hudVisibleRef.current && !settingsSheetVisibleRef.current) {
       Animated.timing(pageIndicatorOpacity, {
         toValue: 1,
-        duration: 250,
+        duration: 180,
         useNativeDriver: true,
       }).start();
+      pageIndicatorTimerRef.current = setTimeout(() => {
+        Animated.timing(pageIndicatorOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      }, 1800);
     }
-  }, [hudVisible, settingsSheetVisible, pageIndicatorOpacity]);
+  }, [clearPageIndicatorTimer, pageIndicatorOpacity]);
 
+  const prevOverlayVisibleRef = useRef<boolean>(false);
   useEffect(() => {
-    if (hudVisible || settingsSheetVisible) {
+    const overlayVisible = hudVisible || settingsSheetVisible;
+    if (overlayVisible) {
+      clearPageIndicatorTimer();
       Animated.timing(pageIndicatorOpacity, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
       }).start();
-    } else {
-      Animated.timing(pageIndicatorOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+    } else if (prevOverlayVisibleRef.current) {
+      showPageIndicator();
     }
-  }, [hudVisible, settingsSheetVisible, pageIndicatorOpacity]);
+    prevOverlayVisibleRef.current = overlayVisible;
+  }, [hudVisible, settingsSheetVisible, clearPageIndicatorTimer, pageIndicatorOpacity, showPageIndicator]);
+
+  useEffect(() => {
+    return () => {
+      clearPageIndicatorTimer();
+    };
+  }, [clearPageIndicatorTimer]);
 
   // Dismiss HUD on comic scroll
   const handleDismissHUD = useCallback(() => {
@@ -1066,7 +1092,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
   return (
     <View style={[styles.root, {backgroundColor: themeColors.background}]}>
       <StatusBar
-        hidden={!hudVisible}
+        hidden={true}
         translucent={true}
         barStyle="light-content"
         backgroundColor="transparent"
@@ -1221,7 +1247,7 @@ export const ReaderScreen: React.FC<Props> = ({route, navigation}) => {
           <AppText
             role="labelSmall"
             style={{color: '#FFFFFF', fontWeight: '700', fontSize: 11}}>
-            Page {currentPageIndex + 1} / {pages.length}
+            {currentPageIndex + 1}/{pages.length}
           </AppText>
         </Animated.View>
       )}
@@ -1322,7 +1348,7 @@ const styles = StyleSheet.create({
   floatingPagePill: {
     position: 'absolute',
     bottom: 24,
-    right: 20,
+    left: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,

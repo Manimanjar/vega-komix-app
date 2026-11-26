@@ -107,10 +107,16 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
   // the hide is a 200ms animation, not an instant unmount.
   const [mounted, setMounted] = useState(visible);
   const hudAnim = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const mountedRef = useRef(mounted);
+  mountedRef.current = mounted;
+
   useEffect(() => {
     hudAnim.stopAnimation();
     if (visible) {
-      setMounted(true);
+      if (!mountedRef.current) {
+        hudAnim.setValue(0);
+        setMounted(true);
+      }
       Animated.timing(hudAnim, {
         toValue: 1,
         duration: 220,
@@ -382,7 +388,7 @@ export const ReaderHUD: React.FC<ReaderHUDProps> = ({
               <AppText
                 role="labelMedium"
                 style={{color: 'rgba(255, 255, 255, 0.75)', minWidth: 46, textAlign: 'center'}}>
-                Page {displayedPage + 1} / {Math.max(1, totalPages)}
+                {displayedPage + 1}/{Math.max(1, totalPages)}
               </AppText>
 
               <Slider

@@ -621,7 +621,7 @@ const Library = () => {
         backgroundColor: colors.background,
         paddingTop: isTV ? 0 : insets.top,
       }}>
-      <StatusBar />
+      <StatusBar style="light" />
 
       {/* Top Selection Header Toolbar */}
       {isSelectionMode ? (
