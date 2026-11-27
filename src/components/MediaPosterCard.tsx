@@ -484,8 +484,6 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                 </View>
                 <AppText
                   role="labelMediumEmphasized"
-                  ellipsizeMode="tail"
-                  numberOfLines={1}
                   style={{
                     color: selected
                       ? colors.onPrimaryContainer

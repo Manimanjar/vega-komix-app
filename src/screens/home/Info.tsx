@@ -136,7 +136,7 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
   // Translated title is the headline on the detail screen; the original
   // shows below it in small grey letters when it differs. Search, library
   // and navigation keep using displayTitle (the providers index originals).
-  const {translated: translatedTitle, isTranslated: titleIsTranslated} =
+  const {translated: translatedTitle, needsTranslation: titleNeedsTranslation} =
     useTranslatedTitle(displayTitle);
   const displayLogo = meta?.logo || info?.logo;
   const synopsis =
@@ -555,7 +555,9 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   synopsisLoading={isSynopsisLoading}
                   tags={info?.tags || optTags}
                   title={translatedTitle}
-                  originalTitle={titleIsTranslated ? displayTitle : undefined}
+                  originalTitle={titleNeedsTranslation ? displayTitle : undefined}
+                  needsTranslation={titleNeedsTranslation}
+                  totalChapters={derivedChapters.length}
                   author={info?.author}
                   artist={info?.artist}
                   status={info?.status}

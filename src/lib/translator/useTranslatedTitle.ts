@@ -1,51 +1,75 @@
 import {useEffect, useState} from 'react';
-import {mangaTranslatorEngine} from './mangaTranslatorEngine';
+import {
+  getCachedProcessedTitle,
+  needsTitleTranslation,
+  processAndTranslateTitle,
+  stripBracketedTags,
+} from './titleTranslator';
 
 /**
- * Translates a comic title to proper English (uncensored, meaning
- * unchanged) and returns the translated title plus the original.
- *
- * - While loading (or when the title is already English), `translated`
- *   equals the original, so callers never show a blank or stale title.
- * - `isTranslated` is true only when the English title genuinely differs
- *   from the original — callers render the original below it in small
- *   grey letters only in that case.
- * - Results are cached by title string in the engine, so a second render
- *   of the same title is instant and costs no request.
+ * Smart title cleanup & translation hook:
+ * - Natural English / Western comic titles are left untouched (brackets preserved).
+ * - Japanese, CJK, Romaji, and foreign titles have bracketed metadata stripped
+ *   and are translated to natural English via Google Translate with persistent
+ *   local caching and offline fallback to the bracket-stripped core title.
  */
 export function useTranslatedTitle(title: string | undefined | null): {
   translated: string;
   original: string;
   isTranslated: boolean;
+  needsTranslation: boolean;
 } {
-  const original = title ?? '';
-  const [translated, setTranslated] = useState(original);
+  const original = (title ?? '').trim();
+  const requiresTranslation = needsTitleTranslation(original);
+
+  const [translated, setTranslated] = useState<string>(() => {
+    if (!original) return '';
+    const cached = getCachedProcessedTitle(original);
+    if (cached) return cached.translatedTitle;
+    return requiresTranslation ? stripBracketedTags(original) : original;
+  });
 
   useEffect(() => {
-    setTranslated(original);
-    if (!original) return;
-    const cached = mangaTranslatorEngine.getCachedTitleTranslation(original);
-    if (cached) {
-      setTranslated(cached.translated);
+    if (!original) {
+      setTranslated('');
       return;
     }
+
+    const cached = getCachedProcessedTitle(original);
+    if (cached) {
+      setTranslated(cached.translatedTitle);
+      return;
+    }
+
+    if (!requiresTranslation) {
+      setTranslated(original);
+      return;
+    }
+
+    // Immediate clean fallback while translation request is in flight
+    setTranslated(stripBracketedTags(original));
+
     let cancelled = false;
     const controller = new AbortController();
-    mangaTranslatorEngine
-      .translateTitle(original, controller.signal)
+    processAndTranslateTitle(original, controller.signal)
       .then(result => {
-        if (!cancelled) setTranslated(result.translated);
+        if (!cancelled) {
+          setTranslated(result.translatedTitle);
+        }
       })
       .catch(() => {});
+
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [original]);
+  }, [original, requiresTranslation]);
 
   return {
     translated: translated || original,
     original,
-    isTranslated: translated !== '' && translated !== original,
+    isTranslated:
+      requiresTranslation && translated !== '' && translated !== original,
+    needsTranslation: requiresTranslation,
   };
 }

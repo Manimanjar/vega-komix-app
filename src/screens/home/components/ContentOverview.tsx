@@ -47,8 +47,10 @@ interface ContentOverviewProps {
   tags?: string[];
   title?: string;
   /** Original-language title, shown below the translated headline in small
-      grey letters when the two differ. */
+      grey letters when needsTranslation is true. */
   originalTitle?: string;
+  needsTranslation?: boolean;
+  totalChapters?: number;
   // Comic specific props
   author?: string;
   artist?: string;
@@ -174,6 +176,8 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   tags = [],
   title,
   originalTitle,
+  needsTranslation = false,
+  totalChapters,
   author,
   artist,
   status,
@@ -313,7 +317,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
           )}
         </View>
 
-        {/* Right: Title, Author, Artist, Status, Rating, Provider */}
+        {/* Right: Title, Original Title, Right-Aligned Author, Badges, Provider & Total Chapters */}
         <View style={{flex: 1, minWidth: 0, justifyContent: 'space-between'}}>
           <View>
             {isLoading ? (
@@ -329,174 +333,198 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
             ) : (
               <AppText
                 role="headlineSmallEmphasized"
-                numberOfLines={3}
                 style={{
-                  color: colors.onBackground,
-                  fontSize: 20,
-                  lineHeight: 25,
+                  color: '#FFFFFF',
+                  fontSize: 21,
+                  fontWeight: '800',
+                  lineHeight: 27,
                 }}>
                 {title || 'Unknown title'}
               </AppText>
             )}
 
-            {/* Original-language title, in small low-contrast grey letters
-                under the translated headline. */}
-            {originalTitle && originalTitle !== title ? (
+            {/* Original unmodified title directly below primary title when needsTranslation is true */}
+            {needsTranslation && originalTitle ? (
               <AppText
                 role="labelSmall"
-                numberOfLines={2}
                 style={{
-                  color: colors.onSurfaceVariant,
+                  color: '#9CA3AF',
                   fontSize: 12,
-                  marginTop: 2,
+                  lineHeight: 16,
+                  marginTop: 4,
                 }}>
                 {originalTitle}
               </AppText>
             ) : null}
 
-            {author ? (
-              <View
+            {/* Author row aligned to the right corner directly beneath original title */}
+            <View
+              style={{
+                width: '100%',
+                alignItems: 'flex-end',
+                marginTop: 6,
+              }}>
+              <AppText
+                role="bodySmall"
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginTop: 6,
-                  gap: 4,
+                  color: '#9CA3AF',
+                  fontSize: 11.5,
+                  textAlign: 'right',
                 }}>
-                <MaterialCommunityIcons
-                  name="account-edit-outline"
-                  size={14}
-                  color={colors.primary}
-                />
+                Author name -{' '}
                 <AppText
-                  role="bodySmall"
-                  numberOfLines={1}
-                  style={{color: colors.onSurfaceVariant, fontSize: 12.5}}>
-                  Author: <AppText role="labelSmallEmphasized" style={{color: colors.onSurface}}>{author}</AppText>
+                  role="labelSmallEmphasized"
+                  style={{color: '#E2E8F0', fontSize: 11.5}}>
+                  {author?.trim() ? author.trim() : 'Unknown'}
                 </AppText>
-              </View>
-            ) : null}
+              </AppText>
+            </View>
 
             {artist && artist !== author ? (
               <View
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'flex-end',
                   marginTop: 3,
                   gap: 4,
                 }}>
                 <MaterialCommunityIcons
                   name="palette-outline"
-                  size={14}
+                  size={13}
                   color={colors.secondary}
                 />
                 <AppText
                   role="bodySmall"
-                  numberOfLines={1}
-                  style={{color: colors.onSurfaceVariant, fontSize: 12.5}}>
+                  style={{color: colors.onSurfaceVariant, fontSize: 11.5}}>
                   Artist: <AppText role="labelSmallEmphasized" style={{color: colors.onSurface}}>{artist}</AppText>
                 </AppText>
               </View>
             ) : null}
           </View>
 
-          {/* Badges: Status Pill & Rating */}
+          {/* Badges: Status Pill, Rating & Views */}
+          {(statusInfo || normalizedRating || (typeof views === 'number' && views > 0)) ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                marginTop: 10,
+              }}>
+              {statusInfo && (
+                <View
+                  style={{
+                    backgroundColor: statusInfo.bg,
+                    borderColor: statusInfo.border,
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}>
+                  <AppText
+                    role="labelSmallEmphasized"
+                    style={{
+                      color: statusInfo.text,
+                      fontWeight: '800',
+                      fontSize: 11,
+                    }}>
+                    {statusInfo.label}
+                  </AppText>
+                </View>
+              )}
+
+              {normalizedRating ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255, 179, 0, 0.16)',
+                    borderColor: 'rgba(255, 179, 0, 0.4)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    paddingHorizontal: 7,
+                    paddingVertical: 3,
+                    gap: 3,
+                  }}>
+                  <MaterialCommunityIcons name="star" size={13} color="#FFB300" />
+                  <AppText
+                    role="labelSmallEmphasized"
+                    style={{color: '#FFB300', fontWeight: '800', fontSize: 11}}>
+                    {normalizedRating}
+                  </AppText>
+                </View>
+              ) : null}
+
+              {typeof views === 'number' && views > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    borderColor: 'rgba(255, 255, 255, 0.16)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    paddingHorizontal: 7,
+                    paddingVertical: 3,
+                    gap: 4,
+                  }}>
+                  <MaterialCommunityIcons
+                    name="eye"
+                    size={13}
+                    color={colors.onSurfaceVariant}
+                  />
+                  <AppText
+                    role="labelSmallEmphasized"
+                    style={{
+                      color: colors.onSurface,
+                      fontWeight: '800',
+                      fontSize: 11,
+                    }}>
+                    {views.toLocaleString()}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Provider (left) & Total Chapters (right) directly above Start Reading */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              flexWrap: 'wrap',
+              justifyContent: 'space-between',
               gap: 8,
               marginTop: 10,
             }}>
-            {statusInfo && (
-              <View
-                style={{
-                  backgroundColor: statusInfo.bg,
-                  borderColor: statusInfo.border,
-                  borderWidth: 1,
-                  borderRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                }}>
-                <AppText
-                  role="labelSmallEmphasized"
-                  style={{
-                    color: statusInfo.text,
-                    fontWeight: '800',
-                    fontSize: 11,
-                  }}>
-                  {statusInfo.label}
-                </AppText>
-              </View>
-            )}
-
-            {normalizedRating ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: 'rgba(255, 179, 0, 0.16)',
-                  borderColor: 'rgba(255, 179, 0, 0.4)',
-                  borderWidth: 1,
-                  borderRadius: 6,
-                  paddingHorizontal: 7,
-                  paddingVertical: 3,
-                  gap: 3,
-                }}>
-                <MaterialCommunityIcons name="star" size={13} color="#FFB300" />
-                <AppText
-                  role="labelSmallEmphasized"
-                  style={{color: '#FFB300', fontWeight: '800', fontSize: 11}}>
-                  {normalizedRating}
-                </AppText>
-              </View>
-            ) : null}
-
-            {typeof views === 'number' && views > 0 ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  borderColor: 'rgba(255, 255, 255, 0.16)',
-                  borderWidth: 1,
-                  borderRadius: 6,
-                  paddingHorizontal: 7,
-                  paddingVertical: 3,
-                  gap: 4,
-                }}>
-                <MaterialCommunityIcons
-                  name="eye"
-                  size={13}
-                  color={colors.onSurfaceVariant}
-                />
-                <AppText
-                  role="labelSmallEmphasized"
-                  style={{
-                    color: colors.onSurface,
-                    fontWeight: '800',
-                    fontSize: 11,
-                  }}>
-                  {views.toLocaleString()}
-                </AppText>
-              </View>
-            ) : null}
-
             {providerName ? (
               <View
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   borderRadius: 6,
-                  paddingHorizontal: 7,
+                  paddingHorizontal: 8,
                   paddingVertical: 3,
                 }}>
                 <AppText
                   role="labelSmall"
-                  style={{color: colors.onSurfaceVariant, fontSize: 10.5}}>
+                  style={{color: colors.onSurfaceVariant, fontSize: 11}}>
                   {providerName}
                 </AppText>
               </View>
-            ) : null}
+            ) : (
+              <View />
+            )}
+
+            <AppText
+              role="labelSmallEmphasized"
+              style={{
+                color: '#E2E8F0',
+                fontSize: 11.5,
+                fontWeight: '600',
+              }}>
+              Total Chapters: {typeof totalChapters === 'number' ? totalChapters : 0}
+            </AppText>
           </View>
         </View>
       </View>

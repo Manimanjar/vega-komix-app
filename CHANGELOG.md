@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.2.5] - 2026-11-27
+
+### ✨ Smart Title Translation, Global +N Update Indicators & Synopsis Header Overhaul
+- **Version:** `6.2.5`
+- **Version Code:** `325`
+- **Release Date:** November 27, 2026
+- **Target OS:** Android 6.0+ (ARM64 / ARMv8.0-A+ & Universal)
+- **Application ID:** `com.vegakomix.app`
+
+### Fixed & Enhanced
+
+#### 🌐 Smart Romaji / Foreign Title Cleanup & Translation
+- **Selective Translation (`titleTranslator.ts`):** Detects Japanese/CJK, accented foreign scripts, and Romaji honorifics/keywords (`-hen`, `-san`, `sensei`, `isekai`, `nakadashi`, etc.) while leaving natural English Western comic titles (and their brackets) completely untouched.
+- **Clean Core + Google Translate + Cache:** Strips bracketed metadata tags (`[...]`, `(...)`, `{...}`) on foreign/Romaji titles, translates via `translate.googleapis.com` with offline fallback to the bracket-stripped core, and caches results persistently in `mainStorage`.
+
+#### 🃏 Global `+N` Update Indicators & Scoped Chapter Highlights
+- **Persistent `+N` Delta Engine (`chapterUpdateTracker.ts`):** Tracks known chapter counts and chapter IDs globally across all categories, Home, Search, and Library.
+- **Card Badges & Accent Strip:** Comic cards with new chapters display a high-contrast green `+N` badge, border, and left accent strip across all screens.
+- **Scoped New-Chapter Highlights:** Removed blanket green styling from the Synopsis/Tags area; only newly added chapter rows (`isNew === true`) receive the translucent green highlight, `3px` left bar, and `NEW` pill.
+
+#### 📖 Synopsis Header Layout & Full-Title Display
+- **No Title Truncation:** Removed `numberOfLines` truncation on comic titles across cards and the Synopsis header.
+- **Redesigned Metadata Hierarchy:** Primary translated title on top, unmodified original title in `#9CA3AF` directly below (when translated), right-aligned `Author name - {author}` (`Unknown` fallback), and balanced `Provider` (left) + `Total Chapters: {count}` (right) row directly above **Start Reading**.
+
+---
+
 ## [6.2.4] - 2026-11-26
 
 ### 🛠️ Reader HUD Stability, Auto-Hiding Page Pill, Slider Jump Fix & Edge-to-Edge Polish
