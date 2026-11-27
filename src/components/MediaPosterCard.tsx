@@ -63,6 +63,8 @@ interface MediaPosterCardProps {
   borderRadius?: number;
   tag?: string;
   cornerTag?: string;
+  rating?: number | string;
+  chapterCount?: number;
   contentType?: string;
   providerBadge?: string;
   newChaptersCount?: number;
@@ -115,6 +117,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
       borderRadius,
       tag,
       cornerTag,
+      rating,
+      chapterCount,
       contentType,
       providerBadge,
       newChaptersCount,
@@ -161,7 +165,17 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
     const activeAspectRatio = parseAspectRatio(aspectRatio, 2 / 3);
     const activeBorderRadius =
       typeof borderRadius === 'number' && borderRadius >= 0 ? borderRadius : 18;
-    const activeTag = cornerTag || tag;
+    const numericRating =
+      typeof rating === 'number'
+        ? rating
+        : typeof rating === 'string'
+        ? parseFloat(rating)
+        : NaN;
+    const ratingTag =
+      Number.isFinite(numericRating) && numericRating > 0
+        ? `${Math.round(numericRating * 10) / 10}★`
+        : undefined;
+    const activeTag = cornerTag || ratingTag || tag;
     const focusBorderColor = useTVFocusBorderColor();
     const normalizedType = (contentType || activeTag || '').toLowerCase();
     const typeBadge = React.useMemo(() => {
@@ -437,7 +451,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       </AppText>
                     </View>
                   ) : null}
-                  {providerBadge ? (
+                  {typeof chapterCount === 'number' && chapterCount > 0 ? (
                     <View
                       style={{
                         position: 'absolute',
@@ -458,9 +472,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                           color: '#FFFFFF',
                           fontSize: 8.5,
                           fontWeight: '700',
-                          maxWidth: 68,
                         }}>
-                        {providerBadge}
+                        {`${chapterCount}Ch`}
                       </AppText>
                     </View>
                   ) : null}

@@ -143,11 +143,22 @@ const ScrollListCard = memo(({
     typeof item.borderRadius === 'number' && item.borderRadius >= 0
       ? item.borderRadius
       : 10;
+  const rawRating = (item as any).rating;
+  const numericRating =
+    typeof rawRating === 'number'
+      ? rawRating
+      : typeof rawRating === 'string'
+      ? parseFloat(rawRating)
+      : NaN;
+  const ratingTag =
+    Number.isFinite(numericRating) && numericRating > 0
+      ? `${Math.round(numericRating * 10) / 10}★`
+      : undefined;
   const rawTag =
     item.cornerTag ??
+    ratingTag ??
     item.tag ??
-    (item as any).badge ??
-    (item as any).rating;
+    (item as any).badge;
   const activeTag = rawTag != null ? String(rawTag).trim() : '';
   // Total chapter count for the thumbnail watermark (user, 2026-11-18).
   // Shown as a small pill at the bottom-left of the cover so it never
@@ -255,43 +266,32 @@ const ScrollListCard = memo(({
             style={{
               position: 'absolute',
               bottom: 5,
-              left: 5,
+              right: 5,
               borderRadius: 5,
               overflow: 'hidden',
               zIndex: 10,
               elevation: 6,
-              backgroundColor: 'rgba(0, 0, 0, 0.65)',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.35,
-              shadowRadius: 4,
+              backgroundColor: 'rgba(0, 0, 0, 0.72)',
+              borderWidth: 0.5,
+              borderColor: 'rgba(255, 255, 255, 0.25)',
             }}>
             <View
               style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.20)',
-                paddingHorizontal: 6,
+                paddingHorizontal: 5,
                 paddingVertical: 2,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 3,
               }}>
-              <MaterialCommunityIcons
-                name="book-open-page-variant"
-                size={10}
-                color="#FFFFFF"
-              />
               <AppText
                 role="labelSmallEmphasized"
                 style={{
                   color: '#FFFFFF',
                   fontWeight: '800',
-                  fontSize: 9.5,
-                  letterSpacing: 0.5,
-                  textShadowColor: 'rgba(0, 0, 0, 0.85)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 3,
+                  fontSize: 9,
+                  letterSpacing: 0.3,
                 }}>
-                {chapterCount === 1 ? '1 Ch' : `${chapterCount} Ch`}
+                {`${chapterCount}Ch`}
               </AppText>
             </View>
           </View>

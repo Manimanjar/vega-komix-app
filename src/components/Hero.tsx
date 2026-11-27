@@ -602,6 +602,31 @@ const Hero = memo(
               nextFocusUp={hamburgerNode ?? undefined}
               onPress={onOpenDrawer}
             />
+            <View
+              pointerEvents="none"
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 10,
+              }}>
+              <AppText
+                role="titleMediumEmphasized"
+                numberOfLines={1}
+                style={{
+                  color: 'rgba(255, 255, 255, 0.78)',
+                  fontSize: isTV ? 20 : 16,
+                  fontWeight: '900',
+                  letterSpacing: 1.8,
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  textShadowColor: 'rgba(0, 0, 0, 0.8)',
+                  textShadowOffset: {width: 0, height: 2},
+                  textShadowRadius: 8,
+                }}>
+                {provider.display_name}
+              </AppText>
+            </View>
             <HeroTopButton
               ref={searchRef}
               onLayout={updateSearchNode}
