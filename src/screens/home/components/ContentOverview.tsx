@@ -53,6 +53,7 @@ interface ContentOverviewProps {
   totalChapters?: number;
   // Comic specific props
   author?: string;
+  uploader?: string;
   artist?: string;
   status?: string;
   parody?: string[] | string;
@@ -179,6 +180,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   needsTranslation = false,
   totalChapters,
   author,
+  uploader,
   artist,
   status,
   parody,
@@ -192,10 +194,12 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
   const insets = useSafeAreaInsets();
   const colors = useM3Colors();
   const [logoFailed, setLogoFailed] = useState(false);
+  const [titleExpanded, setTitleExpanded] = useState(false);
 
   useEffect(() => {
     setLogoFailed(false);
-  }, [logo]);
+    setTitleExpanded(false);
+  }, [logo, title]);
 
   const displayCover = posterImage || headerPoster || backgroundImage;
 
@@ -317,27 +321,36 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
           )}
         </View>
 
-        {/* Right: Title, Original Title, Right-Aligned Author, Badges, Provider & Total Chapters */}
-        <View style={{flex: 1, minWidth: 0, justifyContent: 'space-between'}}>
-          <View>
+        {/* Right: Fixed thumbnail-height metadata box (Title + Read More, Original Title, Badges, Provider & Total Chapters) */}
+        <View
+          style={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 186,
+            height: titleExpanded ? undefined : 186,
+            justifyContent: 'space-between',
+          }}>
+          <View style={{flexShrink: 1}}>
             {isLoading ? (
-              <SkeletonLoader show height={32} width={180} marginVertical={0} />
+              <SkeletonLoader show height={28} width={170} marginVertical={0} />
             ) : logo && !logoFailed ? (
               <Image
                 source={{uri: logo}}
                 onError={() => setLogoFailed(true)}
                 resizeMode="contain"
                 resizeMethod="resize"
-                style={{height: 48, width: 180, marginBottom: 4}}
+                style={{height: 44, width: 170, marginBottom: 4}}
               />
             ) : (
               <AppText
                 role="headlineSmallEmphasized"
+                numberOfLines={titleExpanded ? undefined : 2}
+                ellipsizeMode="tail"
                 style={{
                   color: '#FFFFFF',
-                  fontSize: 21,
-                  fontWeight: '800',
-                  lineHeight: 27,
+                  fontSize: 16.5,
+                  fontWeight: '700',
+                  lineHeight: 21,
                 }}>
                 {title || 'Unknown title'}
               </AppText>
@@ -347,60 +360,36 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
             {needsTranslation && originalTitle ? (
               <AppText
                 role="labelSmall"
+                numberOfLines={titleExpanded ? undefined : 2}
+                ellipsizeMode="tail"
                 style={{
                   color: '#9CA3AF',
-                  fontSize: 12,
-                  lineHeight: 16,
-                  marginTop: 4,
+                  fontSize: 11,
+                  lineHeight: 14,
+                  marginTop: 3,
                 }}>
                 {originalTitle}
               </AppText>
             ) : null}
 
-            {/* Author row aligned to the right corner directly beneath original title */}
-            <View
-              style={{
-                width: '100%',
-                alignItems: 'flex-end',
-                marginTop: 6,
-              }}>
-              <AppText
-                role="bodySmall"
-                style={{
-                  color: '#9CA3AF',
-                  fontSize: 11.5,
-                  textAlign: 'right',
-                }}>
-                Author name -{' '}
+            {((title?.length || 0) > 42 ||
+              (needsTranslation && (originalTitle?.length || 0) > 42)) && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setTitleExpanded(prev => !prev)}
+                hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+                style={{alignSelf: 'flex-start', marginTop: 3}}>
                 <AppText
                   role="labelSmallEmphasized"
-                  style={{color: '#E2E8F0', fontSize: 11.5}}>
-                  {author?.trim() ? author.trim() : 'Unknown'}
+                  style={{
+                    color: '#93C5FD',
+                    fontSize: 11,
+                    fontWeight: '600',
+                  }}>
+                  {titleExpanded ? 'Read less' : 'Read more'}
                 </AppText>
-              </AppText>
-            </View>
-
-            {artist && artist !== author ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  marginTop: 3,
-                  gap: 4,
-                }}>
-                <MaterialCommunityIcons
-                  name="palette-outline"
-                  size={13}
-                  color={colors.secondary}
-                />
-                <AppText
-                  role="bodySmall"
-                  style={{color: colors.onSurfaceVariant, fontSize: 11.5}}>
-                  Artist: <AppText role="labelSmallEmphasized" style={{color: colors.onSurface}}>{artist}</AppText>
-                </AppText>
-              </View>
-            ) : null}
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Badges: Status Pill, Rating & Views */}
@@ -643,35 +632,84 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
         </View>
       </View>
 
-      {/* Metadata Tags: Genres, Tags, Parody, Characters, Language */}
+      {/* Metadata Tags: Author (first), Language, Genres, Tags, Parody, Characters */}
       <View style={{paddingHorizontal: 20, paddingTop: 16}}>
-        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6}}>
-          {language ? (
-            <TagChip
-              label={`LANG: ${language.toUpperCase()}`}
-              color="#94A3B8"
-              onPress={onTapTag ? () => onTapTag(language) : undefined}
-            />
-          ) : null}
+        <View style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6}}>
+          {(() => {
+            const resolvedAuthor =
+              (author && author.trim()) ||
+              (uploader && uploader.trim()) ||
+              (artist && artist.trim()) ||
+              '';
+            const authorLower = resolvedAuthor.toLowerCase();
+            const filteredGenres = resolvedAuthor
+              ? genres.filter(g => g.trim().toLowerCase() !== authorLower)
+              : genres;
+            const filteredTags = resolvedAuthor
+              ? tags.filter(t => t.trim().toLowerCase() !== authorLower)
+              : tags;
 
-          {genres.map(genre => (
-            <TagChip
-              key={genre}
-              label={genre}
-              icon="tag-outline"
-              color={colors.primary}
-              onPress={onTapTag ? () => onTapTag(genre) : undefined}
-            />
-          ))}
+            return (
+              <>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                  <AppText
+                    role="labelSmall"
+                    style={{
+                      color: '#9CA3AF',
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}>
+                    Author -
+                  </AppText>
+                  {resolvedAuthor ? (
+                    <TagChip
+                      label={resolvedAuthor}
+                      icon="account-edit-outline"
+                      color={colors.primary}
+                      onPress={onTapTag ? () => onTapTag(resolvedAuthor) : undefined}
+                    />
+                  ) : (
+                    <AppText
+                      role="labelSmall"
+                      style={{
+                        color: '#9CA3AF',
+                        fontSize: 12,
+                        fontWeight: '500',
+                      }}>
+                      n/a
+                    </AppText>
+                  )}
+                </View>
 
-          {tags.map(tag => (
-            <TagChip
-              key={tag}
-              label={tag}
-              color={colors.secondary}
-              onPress={onTapTag ? () => onTapTag(tag) : undefined}
-            />
-          ))}
+                {language ? (
+                  <TagChip
+                    label={`LANG: ${language.toUpperCase()}`}
+                    color="#94A3B8"
+                    onPress={onTapTag ? () => onTapTag(language) : undefined}
+                  />
+                ) : null}
+
+                {filteredGenres.map(genre => (
+                  <TagChip
+                    key={genre}
+                    label={genre}
+                    icon="tag-outline"
+                    color={colors.primary}
+                    onPress={onTapTag ? () => onTapTag(genre) : undefined}
+                  />
+                ))}
+
+                {filteredTags.map(tag => (
+                  <TagChip
+                    key={tag}
+                    label={tag}
+                    color={colors.secondary}
+                    onPress={onTapTag ? () => onTapTag(tag) : undefined}
+                  />
+                ))}
+              </>
+            );
+          })()}
 
           {parodyList.map(p => (
             <TagChip

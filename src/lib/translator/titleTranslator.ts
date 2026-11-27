@@ -1,6 +1,6 @@
 import {mainStorage} from '../storage/StorageService';
 
-const TITLE_CACHE_KEY = 'vega-komix-title-cache-v1';
+const TITLE_CACHE_KEY = 'vega-komix-title-cache-v2';
 const MAX_CACHED_TITLES = 1500;
 
 export interface ProcessedTitleResult {
@@ -15,7 +15,6 @@ const CJK_FOREIGN_SCRIPT_RE =
 const ACCENTED_LATIN_RE =
   /[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ]/;
 
-// Hyphenated Japanese honorifics / suffixes and unmistakable Romaji manga-doujin terms
 const ROMAJI_HONORIFIC_SUFFIX_RE =
   /(?:^|[\s\w])-(?:hen|san|kun|chan|sama|sensei|senpai|kouhai)\b/i;
 
@@ -26,8 +25,8 @@ const ROMAJI_PARTICLE_PHRASE_RE =
   /\b[a-z]{2,}\s+(?:no|to|de|wa|ga|wo|ni)\s+[a-z]{2,}\b/;
 
 /**
- * Detect whether a comic title needs cleanup + translation.
- * Leaves natural English / Western comic titles untouched (including brackets).
+ * Detect whether a comic title needs translation (CJK, accented foreign scripts,
+ * or Romaji honorifics/keywords). Leaves natural English titles untouched.
  */
 export function needsTitleTranslation(rawTitle: string): boolean {
   const title = (rawTitle || '').trim();
@@ -35,30 +34,11 @@ export function needsTitleTranslation(rawTitle: string): boolean {
 
   if (CJK_FOREIGN_SCRIPT_RE.test(title)) return true;
   if (ACCENTED_LATIN_RE.test(title)) return true;
-
-  const core = stripBracketedTags(title);
-  const target = core || title;
-
-  if (ROMAJI_HONORIFIC_SUFFIX_RE.test(target)) return true;
-  if (ROMAJI_KEYWORDS_RE.test(target)) return true;
-  if (ROMAJI_PARTICLE_PHRASE_RE.test(target)) return true;
+  if (ROMAJI_HONORIFIC_SUFFIX_RE.test(title)) return true;
+  if (ROMAJI_KEYWORDS_RE.test(title)) return true;
+  if (ROMAJI_PARTICLE_PHRASE_RE.test(title)) return true;
 
   return false;
-}
-
-/**
- * Strip bracketed metadata tags ([...], (...), {...}) from non-English / Romaji titles.
- */
-export function stripBracketedTags(rawTitle: string): string {
-  const raw = (rawTitle || '').trim();
-  if (!raw) return '';
-  const stripped = raw
-    .replace(/\[[^\]]*\]/g, ' ')
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/\{[^}]*\}/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-  return stripped || raw;
 }
 
 let memoryCache: Map<string, ProcessedTitleResult> | null = null;
@@ -173,23 +153,20 @@ export async function processAndTranslateTitle(
   const existingJob = inFlightJobs.get(originalTitle);
   if (existingJob) return existingJob;
 
-  const cleanedCore = stripBracketedTags(originalTitle);
-
   const job = (async (): Promise<ProcessedTitleResult> => {
     try {
-      const translated = await fetchGoogleTranslate(cleanedCore, signal);
+      const translated = await fetchGoogleTranslate(originalTitle, signal);
       const result: ProcessedTitleResult = {
         originalTitle,
-        translatedTitle: translated || cleanedCore,
+        translatedTitle: translated || originalTitle,
         needsTranslation: true,
       };
       saveToCache(result);
       return result;
     } catch {
-      // Graceful offline / error fallback: return the bracket-stripped title
       return {
         originalTitle,
-        translatedTitle: cleanedCore,
+        translatedTitle: originalTitle,
         needsTranslation: true,
       };
     } finally {

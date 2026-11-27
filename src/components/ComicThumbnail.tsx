@@ -264,6 +264,7 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
         />
         {altTitle ? (
           <AppText
+            numberOfLines={2}
             role="labelSmall"
             style={styles.fallbackTitle}>
             {altTitle}

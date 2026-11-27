@@ -299,6 +299,7 @@ const ScrollListCard = memo(({
       </View>
       <AppText
         role={viewType === 1 ? 'bodySmall' : 'bodyLargeEmphasized'}
+        numberOfLines={2}
         style={
           viewType === 1
             ? { width: gridPosterWidth, marginTop: 6 }

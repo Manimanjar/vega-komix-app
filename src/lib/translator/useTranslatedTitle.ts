@@ -3,15 +3,13 @@ import {
   getCachedProcessedTitle,
   needsTitleTranslation,
   processAndTranslateTitle,
-  stripBracketedTags,
 } from './titleTranslator';
 
 /**
- * Smart title cleanup & translation hook:
- * - Natural English / Western comic titles are left untouched (brackets preserved).
- * - Japanese, CJK, Romaji, and foreign titles have bracketed metadata stripped
- *   and are translated to natural English via Google Translate with persistent
- *   local caching and offline fallback to the bracket-stripped core title.
+ * Smart title translation hook:
+ * - Natural English / Western comic titles are left untouched.
+ * - Japanese, CJK, Romaji, and foreign titles are translated to English
+ *   via Google Translate with persistent caching (preserving all brackets).
  */
 export function useTranslatedTitle(title: string | undefined | null): {
   translated: string;
@@ -26,7 +24,7 @@ export function useTranslatedTitle(title: string | undefined | null): {
     if (!original) return '';
     const cached = getCachedProcessedTitle(original);
     if (cached) return cached.translatedTitle;
-    return requiresTranslation ? stripBracketedTags(original) : original;
+    return original;
   });
 
   useEffect(() => {
@@ -41,13 +39,10 @@ export function useTranslatedTitle(title: string | undefined | null): {
       return;
     }
 
+    setTranslated(original);
     if (!requiresTranslation) {
-      setTranslated(original);
       return;
     }
-
-    // Immediate clean fallback while translation request is in flight
-    setTranslated(stripBracketedTags(original));
 
     let cancelled = false;
     const controller = new AbortController();

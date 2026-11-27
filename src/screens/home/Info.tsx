@@ -558,7 +558,13 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
                   originalTitle={titleNeedsTranslation ? displayTitle : undefined}
                   needsTranslation={titleNeedsTranslation}
                   totalChapters={derivedChapters.length}
-                  author={info?.author}
+                  author={
+                    info?.author ||
+                    (meta as any)?.author ||
+                    (info as any)?.uploader ||
+                    (meta as any)?.uploader
+                  }
+                  uploader={(info as any)?.uploader || (meta as any)?.uploader}
                   artist={info?.artist}
                   status={info?.status}
                   parody={info?.parody}
