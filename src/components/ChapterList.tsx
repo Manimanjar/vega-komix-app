@@ -16,6 +16,11 @@ import {
   sortAndMergeChapters,
 } from '../lib/aggregator/seriesRoomEngine';
 import {settingsStorage, watchProgressStorage} from '../lib/storage';
+import {
+  chapterUpdateTracker,
+  extractChapterId,
+  useNewChapterIds,
+} from '../lib/storage/chapterUpdateTracker';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import AppText from './ui/Text';
 import Downloader from './Downloader';
@@ -132,6 +137,18 @@ const ChapterList: React.FC<ChapterListProps> = ({
     }
     return [];
   }, [directChapters, activeLink?.directLinks, LinkList, episodesQuery.data, routeParams?.link, metaTitle]);
+
+  const newChapterIds = useNewChapterIds(routeParams?.link);
+
+  useEffect(() => {
+    const comicLink = routeParams?.link;
+    if (!comicLink || rawChapters.length === 0) return;
+    const isSyntheticSingle =
+      rawChapters.length === 1 && (rawChapters[0] as any)?.id === 'single-1';
+    if (isSyntheticSingle) return;
+    chapterUpdateTracker.recordChapterListSnapshot(comicLink, rawChapters);
+    chapterUpdateTracker.acknowledgeComicUpdates(comicLink, rawChapters);
+  }, [routeParams?.link, rawChapters]);
 
   const [deepChapters, setDeepChapters] = useState<ConsolidatedChapterLink[]>([]);
 
@@ -324,16 +341,40 @@ const ChapterList: React.FC<ChapterListProps> = ({
             </TouchableOpacity>
 
             <View style={{flex: 1, minWidth: 0}}>
-              <AppText
-                role="bodyLargeEmphasized"
-                numberOfLines={1}
-                style={{
-                  color: isRead ? colors.onSurfaceVariant : colors.onSurface,
-                  fontSize: 15,
-                  fontWeight: '600',
-                }}>
-                {item.title || `Chapter ${chNum}`}
-              </AppText>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                <AppText
+                  role="bodyLargeEmphasized"
+                  numberOfLines={1}
+                  style={{
+                    flexShrink: 1,
+                    color: isRead ? colors.onSurfaceVariant : colors.onSurface,
+                    fontSize: 15,
+                    fontWeight: '600',
+                  }}>
+                  {item.title || `Chapter ${chNum}`}
+                </AppText>
+                {(Boolean((item as any).isNew) ||
+                  newChapterIds.has(extractChapterId(item, index))) && (
+                  <View
+                    style={{
+                      backgroundColor: '#00E676',
+                      borderRadius: 6,
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                    }}>
+                    <AppText
+                      role="labelSmall"
+                      style={{
+                        color: '#000000',
+                        fontSize: 9,
+                        fontWeight: '800',
+                        letterSpacing: 0.4,
+                      }}>
+                      NEW
+                    </AppText>
+                  </View>
+                )}
+              </View>
 
               <View
                 style={{

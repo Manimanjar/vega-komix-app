@@ -29,7 +29,11 @@ import {useContentDetails} from '../../lib/hooks/useContentInfo';
 import {useArtworkShape} from '../../lib/hooks/useHomePageData';
 import {useInfoAccent} from '../../lib/hooks/useInfoAccent';
 import type {ChapterLink, EpisodeLink} from '../../lib/providers/types';
-import {settingsStorage, watchListStorage} from '../../lib/storage';
+import {
+  chapterUpdateTracker,
+  settingsStorage,
+  watchListStorage,
+} from '../../lib/storage';
 import useContentStore from '../../lib/zustand/contentStore';
 import useWatchListStore from '../../lib/zustand/watchListStore';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
@@ -378,14 +382,22 @@ function InfoContent({route, navigation}: Props): React.JSX.Element {
     route.params.link,
   ]);
 
-  // Acknowledge new chapters when opening Info screen so the badge clears
+  // Acknowledge new chapters when opening Info screen so the +N badge clears
+  // (sessionNewIds keeps newly added chapters highlighted during this session).
   useEffect(() => {
     if (route.params.link) {
       const totalCount = derivedChapters.length > 0 ? derivedChapters.length : undefined;
       watchListStorage.acknowledgeChapters(route.params.link, totalCount);
+      if (derivedChapters.length > 0) {
+        const isSyntheticSingle =
+          derivedChapters.length === 1 && (derivedChapters[0] as any)?.id === 'single-1';
+        if (!isSyntheticSingle) {
+          chapterUpdateTracker.acknowledgeComicUpdates(route.params.link, derivedChapters);
+        }
+      }
       useWatchListStore.getState().syncFromStorage();
     }
-  }, [route.params.link, derivedChapters.length]);
+  }, [route.params.link, derivedChapters]);
 
   const handleStartReading = useCallback(() => {
     const chapters = derivedChapters;

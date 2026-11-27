@@ -39,6 +39,22 @@ export type {
   LibraryCollection,
 } from './WatchListStorage';
 
+// Export ChapterUpdateTracker (+N Delta Engine)
+export {
+  chapterUpdateTracker,
+  getComicUpdateCount,
+  getNewChapterIds,
+  useComicUpdateCount,
+  useNewChapterIds,
+  extractChapterId,
+  normalizeComicId,
+} from './chapterUpdateTracker';
+export type {
+  ChapterSnapshotRecord,
+  ChapterLike,
+  ChapterInput,
+} from './chapterUpdateTracker';
+
 // Export CacheStorage
 export {CacheStorage, cacheStorageService} from './CacheStorage';
 

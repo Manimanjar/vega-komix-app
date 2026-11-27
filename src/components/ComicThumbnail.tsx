@@ -12,6 +12,7 @@ import {Image as ExpoImage} from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {autoDomainResolver} from '../lib/network/autoDomainResolver';
 import {watchListStorage} from '../lib/storage/WatchListStorage';
+import {useComicUpdateCount} from '../lib/storage/chapterUpdateTracker';
 import AppText from './ui/Text';
 
 export interface ComicThumbnailProps {
@@ -139,16 +140,16 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
     return false;
   }, [isNew, comicLink, isZeroProgress]);
 
+  const trackerUnreadCount = useComicUpdateCount(comicLink);
+
   const unreadCount = useMemo(() => {
-    if (typeof newChaptersCount === 'number') return newChaptersCount;
-    if (comicLink) return watchListStorage.getUnreadChapterCount(comicLink);
-    return 0;
-  }, [newChaptersCount, comicLink]);
+    if (typeof newChaptersCount === 'number') {
+      return Math.max(newChaptersCount, trackerUnreadCount);
+    }
+    return trackerUnreadCount;
+  }, [newChaptersCount, trackerUnreadCount]);
 
   const badgeInfo = useMemo(() => {
-    if (showNewBadge && (!newChaptersCount || newChaptersCount === 0)) {
-      return {text: 'NEW'};
-    }
     if (unreadCount > 0) {
       return {text: `+${unreadCount}`};
     }
@@ -156,7 +157,7 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
       return {text: 'NEW'};
     }
     return null;
-  }, [showNewBadge, newChaptersCount, unreadCount]);
+  }, [showNewBadge, unreadCount]);
 
   const rawUri = extractThumbnailUrl(props);
   const upgradedUrl = useMemo(() => upgradeThumbnailUrl(rawUri), [rawUri]);

@@ -16,6 +16,7 @@ import {
 import {extensionManager} from './ExtensionManager';
 import {extensionStorage} from '../storage/extensionStorage';
 import {providerKvStorage} from '../storage/StorageService';
+import {chapterUpdateTracker} from '../storage/chapterUpdateTracker';
 import {getSourceAuthHeaders} from '../storage/sourceTokenStorage';
 import {getProviderFilesUrl} from '../utils/helpers';
 import {MAX_STATE_BYTES} from '../sandbox/protocol';
@@ -248,7 +249,9 @@ export class ProviderManager {
         {filter, page, providerValue},
         signal,
       );
-      return this.requireArray<Post>(posts, providerValue, 'getPosts');
+      const validated = this.requireArray<Post>(posts, providerValue, 'getPosts');
+      chapterUpdateTracker.recordComicListCounts(validated);
+      return validated;
     } catch (error) {
       throwIfProviderAborted(signal);
       if (!signal.aborted) {
@@ -286,7 +289,9 @@ export class ProviderManager {
         {searchQuery, page, providerValue},
         signal,
       );
-      return this.requireArray<Post>(posts, providerValue, 'getSearchPosts');
+      const validated = this.requireArray<Post>(posts, providerValue, 'getSearchPosts');
+      chapterUpdateTracker.recordComicListCounts(validated);
+      return validated;
     } catch (error) {
       throwIfProviderAborted(signal);
       console.error('Error in search posts function:', error);
@@ -313,13 +318,31 @@ export class ProviderManager {
       throw new Error(`No meta data module found for provider: ${provider}`);
     }
     try {
-      return await this.executeModule<Info>(
+      const meta = await this.executeModule<Info>(
         getMetaDataModule,
         provider,
         'getMeta',
         {link, provider},
         signal,
       );
+      if (meta && link) {
+        const directChapters = Array.isArray(meta.chapters) ? meta.chapters : [];
+        if (directChapters.length > 0) {
+          chapterUpdateTracker.recordChapterListSnapshot(link, directChapters);
+        } else if (Array.isArray(meta.linkList) && meta.linkList.length > 0) {
+          const isSinglePlaceholder =
+            meta.linkList.length === 1 && Boolean(meta.linkList[0]?.episodesLink);
+          if (!isSinglePlaceholder) {
+            const mapped = meta.linkList.map((entry, idx) => ({
+              id: entry.episodesLink || entry.directLinks?.[0]?.link || `${link}#${idx}`,
+              link: entry.episodesLink || entry.directLinks?.[0]?.link,
+              title: entry.title,
+            }));
+            chapterUpdateTracker.recordChapterListSnapshot(link, mapped);
+          }
+        }
+      }
+      return meta;
     } catch (error) {
       if (signal?.aborted) {
         throw error;

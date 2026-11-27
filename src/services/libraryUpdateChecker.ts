@@ -1,4 +1,5 @@
 import {watchListStorage} from '../lib/storage/WatchListStorage';
+import {chapterUpdateTracker} from '../lib/storage/chapterUpdateTracker';
 import {providerManager} from '../lib/services/ProviderManager';
 import useWatchListStore from '../lib/zustand/watchListStore';
 
@@ -91,6 +92,10 @@ class LibraryUpdateChecker {
                       });
                       if (Array.isArray(chapters) && chapters.length > 0) {
                         currentTotalChapters = chapters.length;
+                        chapterUpdateTracker.recordChapterListSnapshot(
+                          item.link,
+                          chapters,
+                        );
                       }
                     } finally {
                       clearTimeout(chaptersTimeoutId);
