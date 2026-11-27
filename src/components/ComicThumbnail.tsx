@@ -236,6 +236,8 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
     return 'cover';
   }, [contentFit]);
 
+  const hasChapterUpdates = unreadCount > 0;
+
   const containerStyle: StyleProp<ViewStyle> = useMemo(
     () => [
       styles.container,
@@ -245,14 +247,16 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
         aspectRatio: height ? undefined : aspectRatio,
         height,
       },
+      hasChapterUpdates && styles.updatedCardBorder,
       style,
     ],
-    [width, borderRadius, height, aspectRatio, style],
+    [width, borderRadius, height, aspectRatio, hasChapterUpdates, style],
   );
 
   if (hasError || !currentUrl) {
     return (
       <View style={[containerStyle, styles.fallbackContainer]}>
+        {hasChapterUpdates && <View pointerEvents="none" style={styles.updatedLeftStrip} />}
         <MaterialCommunityIcons
           name="book-open-page-variant-outline"
           size={32}
@@ -296,6 +300,7 @@ export const ComicThumbnail: React.FC<ComicThumbnailProps> = props => {
           imageStyle,
         ]}
       />
+      {hasChapterUpdates && <View pointerEvents="none" style={styles.updatedLeftStrip} />}
 
       {/* Green +X New Chapters Badge or NEW Comic Badge */}
       {badgeInfo ? (
@@ -315,6 +320,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#161618',
   },
+  updatedCardBorder: {
+    borderWidth: 1.5,
+    borderColor: '#22c55e',
+  },
+  updatedLeftStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#22c55e',
+    zIndex: 9,
+  },
   fallbackContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -331,12 +349,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: '#16a34a',
+    borderWidth: 1,
+    borderColor: '#4ade80',
     borderRadius: 8,
     paddingHorizontal: 7,
-    paddingVertical: 2.5,
+    paddingVertical: 2,
     zIndex: 10,
-    shadowColor: '#10B981',
+    shadowColor: '#22c55e',
     shadowOpacity: 0.55,
     shadowOffset: {width: 0, height: 2},
     shadowRadius: 5,

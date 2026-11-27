@@ -208,6 +208,7 @@ const ScrollListCard = memo(({
           contentFit="cover"
           width="100%"
           height="100%"
+          comicLink={item.link}
         />
         {activeTag.length > 0 ? (
           <View

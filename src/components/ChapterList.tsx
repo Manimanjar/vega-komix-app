@@ -284,6 +284,10 @@ const ChapterList: React.FC<ChapterListProps> = ({
         'series',
       );
 
+      const isChapterNew =
+        Boolean((item as any).isNew) ||
+        newChapterIds.has(extractChapterId(item, index));
+
       return (
         <Pressable
           onPress={() => onChapterPress(item, index, filteredChapters)}
@@ -305,8 +309,12 @@ const ChapterList: React.FC<ChapterListProps> = ({
             paddingHorizontal: 16,
             borderBottomWidth: 1,
             borderBottomColor: '#1E293B',
+            borderLeftWidth: isChapterNew ? 3 : 0,
+            borderLeftColor: isChapterNew ? '#22c55e' : 'transparent',
             backgroundColor: pressed
               ? colors.surfaceContainerHigh
+              : isChapterNew
+              ? 'rgba(34, 197, 94, 0.14)'
               : 'transparent',
           })}>
           {/* Left side: Read/Unread eye button + Chapter Info */}
@@ -347,17 +355,20 @@ const ChapterList: React.FC<ChapterListProps> = ({
                   numberOfLines={1}
                   style={{
                     flexShrink: 1,
-                    color: isRead ? colors.onSurfaceVariant : colors.onSurface,
+                    color: isChapterNew
+                      ? '#4ade80'
+                      : isRead
+                      ? colors.onSurfaceVariant
+                      : colors.onSurface,
                     fontSize: 15,
                     fontWeight: '600',
                   }}>
                   {item.title || `Chapter ${chNum}`}
                 </AppText>
-                {(Boolean((item as any).isNew) ||
-                  newChapterIds.has(extractChapterId(item, index))) && (
+                {isChapterNew && (
                   <View
                     style={{
-                      backgroundColor: '#00E676',
+                      backgroundColor: '#22c55e',
                       borderRadius: 6,
                       paddingHorizontal: 6,
                       paddingVertical: 1,
@@ -365,7 +376,7 @@ const ChapterList: React.FC<ChapterListProps> = ({
                     <AppText
                       role="labelSmall"
                       style={{
-                        color: '#000000',
+                        color: '#052e16',
                         fontSize: 9,
                         fontWeight: '800',
                         letterSpacing: 0.4,

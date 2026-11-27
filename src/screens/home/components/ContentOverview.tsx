@@ -621,7 +621,7 @@ const ContentOverview: React.FC<ContentOverviewProps> = ({
           {language ? (
             <TagChip
               label={`LANG: ${language.toUpperCase()}`}
-              color="#00E676"
+              color="#94A3B8"
               onPress={onTapTag ? () => onTapTag(language) : undefined}
             />
           ) : null}
